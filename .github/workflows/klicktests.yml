@@ -1,0 +1,115 @@
+name: Klicktests
+
+# Runs the Playwright smoke tests (e2e/) against the Vercel preview of the
+# PR's head commit. Waiting for the preview happens inside the one job
+# "Klicktests": no preview after 10 minutes → the check fails (a skipped
+# required job would count as passed).
+
+on:
+  pull_request:
+    branches: [main]
+
+# A new push to the same PR replaces the older run.
+concurrency:
+  group: klicktests-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  klicktests:
+    name: Klicktests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # All previews share the Neon branch `dev`: never two runs at once.
+    concurrency:
+      group: dev-datenbank
+      cancel-in-progress: false
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Code am Commit der Vorschau holen
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Auf die Vercel-Vorschau warten
+        id: vorschau
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            ids=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$HEAD_SHA&per_page=100" \
+              --jq '.[] | select(.production_environment != true and (.environment | test("^preview"; "i"))) | .id')
+            for id in $ids; do
+              status=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses?per_page=1" \
+                --jq '.[0] | [.state, (.environment_url // .target_url // "")] | @tsv')
+              state=$(printf '%s' "$status" | cut -f1)
+              url=$(printf '%s' "$status" | cut -f2)
+              if [ "$state" = "success" ] && [ -n "$url" ]; then
+                echo "Vorschau bereit: $url"
+                echo "url=$url" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
+                echo "::error::Die Vercel-Vorschau für $HEAD_SHA ist fehlgeschlagen ($state)."
+                exit 1
+              fi
+            done
+            echo "Vorschau noch nicht fertig – warte 15 s …"
+            sleep 15
+          done
+          echo "::error::Nach 10 Minuten keine erfolgreiche Vercel-Vorschau für $HEAD_SHA."
+          exit 1
+
+      - name: Chromium für Playwright installieren
+        run: pnpm exec playwright install --with-deps chromium
+
+      # db:seed reads --env-file=.env.local; in CI the file is empty and
+      # DATABASE_URL comes from the environment.
+      - name: Leere .env.local anlegen
+        run: touch .env.local
+
+      # No --force and no input: a destructive schema change fails here
+      # instead of being applied (those are class C, Franz does them).
+      - name: Datenbank dev auf den Stand des PRs bringen
+        timeout-minutes: 3
+        env:
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+        run: pnpm db:push < /dev/null
+
+      - name: Testdaten in dev
+        env:
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+        run: pnpm db:seed
+
+      - name: Klicktests gegen die Vorschau
+        env:
+          BASE_URL: ${{ steps.vorschau.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: pnpm e2e
+
+      - name: Bericht und Screenshots hochladen
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-bericht
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

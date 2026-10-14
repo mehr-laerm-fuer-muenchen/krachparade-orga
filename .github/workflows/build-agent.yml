@@ -1,0 +1,365 @@
+name: Build-Agent
+
+# Spec 001 (aus schladming2go): the label `go` on an issue with label `spec` builds that spec.
+# Issue title and body are untrusted input: they only reach commands through
+# env variables or files, never through ${{ }} inside `run:`.
+# Manual start (Actions → Build-Agent → Run workflow) only creates the labels.
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  labels:
+    name: Labels anlegen
+    if: github.event_name == 'workflow_dispatch' || (github.event.label.name == 'go' && vars.AUTOPILOT == 'an')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Fehlende Labels anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          anlegen() { gh label create "$1" --color "$2" --description "$3" --force; }
+          anlegen spec          0e8a16 "Spec, die ein Agent bauen kann"
+          anlegen go            1d76db "Franz gibt die Spec frei: Build-Agent startet"
+          anlegen agent         5319e7 "PR vom Build-Agenten"
+          anlegen klasse-A      c2e0c6 "Risikoklasse A: vollautomatisch"
+          anlegen klasse-B      fbca04 "Risikoklasse B: automatisch nach Spec-Go"
+          anlegen klasse-C      b60205 "Risikoklasse C: immer Franz"
+          anlegen braucht-db    d93f0b "Franz: Backup, pnpm db:push:prod vom PR-Zweig, dann mergen"
+          anlegen braucht-franz b60205 "Agent hat gestoppt: Franz entscheidet"
+          anlegen fix-1         ededed "Fix-Agent: 1. Versuch"
+          anlegen fix-2         ededed "Fix-Agent: 2. Versuch"
+          anlegen fix-3         ededed "Fix-Agent: 3. Versuch"
+
+  startbedingungen:
+    name: Startbedingungen
+    if: github.event_name == 'issues' && github.event.label.name == 'go'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    outputs:
+      ok: ${{ steps.pruefen.outputs.ok }}
+      name: ${{ steps.pruefen.outputs.name }}
+      nummer: ${{ steps.pruefen.outputs.nummer }}
+    steps:
+      - name: Bedingungen prüfen
+        id: pruefen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NR: ${{ github.event.issue.number }}
+          TITEL: ${{ github.event.issue.title }}
+          LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+          SENDER: ${{ github.event.sender.login }}
+          AUTOPILOT: ${{ vars.AUTOPILOT }}
+          AGENT_BUILD: ${{ vars.AGENT_BUILD }}
+        run: |
+          set -euo pipefail
+          hat_label() { jq -e --arg l "$1" 'any(.[]; . == $l)' <<<"$LABELS" > /dev/null; }
+          ende() {
+            printf '⏹️ Build-Agent startet nicht: %s\n' "$1" > "$RUNNER_TEMP/grund.md"
+            gh issue comment "$NR" --body-file "$RUNNER_TEMP/grund.md"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          [ "$AUTOPILOT" = "an" ] || ende "Autopilot aus (Variable AUTOPILOT ist nicht \`an\`)."
+          [ "$AGENT_BUILD" = "an" ] || ende "Build-Agent aus (Variable AGENT_BUILD ist nicht \`an\`)."
+          hat_label spec || ende "Das Issue hat kein Label \`spec\`."
+          [ "$SENDER" = "dellingerfranz-dev" ] || ende "Nur dellingerfranz-dev darf \`go\` setzen."
+          [[ "$TITEL" =~ ^[0-9]{3}-[a-z0-9-]+$ ]] || ende "Der Titel muss das Format \`NNN-kurzname\` haben (z. B. \`021-tab-countdown\`)."
+
+          {
+            echo "ok=true"
+            echo "name=$TITEL"
+            echo "nummer=${TITEL%%-*}"
+          } >> "$GITHUB_OUTPUT"
+
+  bauen:
+    name: Bauen
+    needs: startbedingungen
+    if: needs.startbedingungen.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Never two build runs at once; a running build is never cancelled.
+    concurrency:
+      group: build-agent
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      NR: ${{ github.event.issue.number }}
+      NAME: ${{ needs.startbedingungen.outputs.name }}
+      SPEC_NR: ${{ needs.startbedingungen.outputs.nummer }}
+      ZWEIG: agent/${{ needs.startbedingungen.outputs.name }}
+      LAUF_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Bot-Token erzeugen
+        id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.KPORGA_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.KPORGA_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+
+      - name: Start melden
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+        run: gh issue comment "$NR" --body "🔨 Build-Agent startet … [Lauf ansehen]($LAUF_URL)"
+
+      - name: main holen
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.bot.outputs.token }}
+
+      - name: Zweig anlegen und Spec schreiben
+        id: spec
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          BOT_SLUG: ${{ steps.bot.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$ZWEIG" > /dev/null; then
+            echo "::error::Zweig $ZWEIG gibt es schon."
+            exit 1
+          fi
+
+          bot_id=$(gh api "/users/${BOT_SLUG}%5Bbot%5D" --jq .id)
+          git config user.name "${BOT_SLUG}[bot]"
+          git config user.email "${bot_id}+${BOT_SLUG}[bot]@users.noreply.github.com"
+          echo "bot_id=$bot_id" >> "$GITHUB_OUTPUT"
+
+          git switch -c "$ZWEIG"
+
+          # Issue body → file (never into a command line), without \r.
+          gh api "repos/$GH_REPO/issues/$NR" --jq '.body // ""' | tr -d '\r' > "$RUNNER_TEMP/issue.md"
+          if [ ! -s "$RUNNER_TEMP/issue.md" ]; then
+            echo "::error::Der Issue-Text ist leer."
+            exit 1
+          fi
+
+          vermerk="Go: Label von dellingerfranz-dev an Issue #$NR, $(TZ=Europe/Berlin date +%d.%m.%Y)"
+          datei="docs/specs/$NAME.md"
+          if grep -q '^Freigabe Franz:' "$RUNNER_TEMP/issue.md"; then
+            awk -v vermerk="$vermerk" '
+              !fertig && /^Freigabe Franz:/ { print "Freigabe Franz: ☑"; print vermerk; fertig = 1; next }
+              { print }' "$RUNNER_TEMP/issue.md" > "$datei"
+          else
+            # No approval line: insert it below the first heading (or at the top).
+            awk -v vermerk="$vermerk" '
+              !fertig && /^#/ { print; print ""; print "Freigabe Franz: ☑"; print vermerk; fertig = 1; next }
+              { print }
+              END { if (!fertig) exit 3 }' "$RUNNER_TEMP/issue.md" > "$datei" \
+            || { printf 'Freigabe Franz: ☑\n%s\n\n' "$vermerk"; cat "$RUNNER_TEMP/issue.md"; } > "$datei"
+          fi
+
+          git add "$datei"
+          git commit -m "Spec $SPEC_NR freigegeben (Go #$NR)"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # The checker runs from this copy of main, so the agent cannot change it.
+      - name: Prüfer von main sichern
+        run: |
+          mkdir -p "$RUNNER_TEMP/pruefer"
+          cp -r scripts agents "$RUNNER_TEMP/pruefer/"
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Routen-Typen erzeugen
+        run: pnpm exec next typegen
+
+      - name: Rechte des Agenten festlegen
+        run: |
+          set -euo pipefail
+          pnpm exec tsx "$RUNNER_TEMP/pruefer/scripts/risikoklasse.ts" --claude-settings \
+            | jq '.permissions.deny += [
+                "Bash(cat *.env*)", "Bash(head *.env*)", "Bash(tail *.env*)", "Bash(wc *.env*)",
+                "Bash(grep *.env*)", "Bash(rg *.env*)", "Bash(find * -exec*)", "Bash(find * -ok*)",
+                "Bash(find * -delete*)", "Bash(find * -fprint*)", "Bash(find * -fls*)",
+                "Bash(git reset --hard:*)", "Bash(git rebase:*)", "Bash(git clean:*)", "Bash(rm -rf:*)", "Bash(rm -r:*)",
+                "Bash(sudo:*)", "Bash(psql:*)", "Bash(printenv:*)", "Bash(env)", "Bash(pnpm dev)", "Bash(pnpm dev:*)",
+                "Bash(pnpm db:push:prod)", "Bash(pnpm db:push:prod:*)", "Bash(pnpm db:seed:prod)", "Bash(pnpm db:seed:prod:*)",
+                "Bash(pnpm drizzle-kit drop:*)", "Bash(pnpm exec drizzle-kit drop:*)", "Read(~/.ssh/**)", "Read(~/.config/**)"
+              ] | . + {
+                env: {
+                  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci",
+                  AUTH_SECRET: "ci-platzhalter"
+                }
+              }' > "$RUNNER_TEMP/claude-settings.json"
+
+      - name: Build-Agent
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        env:
+          # Placeholders like in "Prüfungen": no real database for the agent.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          AUTH_SECRET: ci-platzhalter
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.bot.outputs.token }}
+          bot_name: ${{ steps.bot.outputs.app-slug }}[bot]
+          bot_id: ${{ steps.spec.outputs.bot_id }}
+          settings: ${{ runner.temp }}/claude-settings.json
+          prompt: |
+            Lies AGENTS.md und docs/specs/${{ needs.startbedingungen.outputs.name }}.md. Setze die Spezifikation um, inklusive mindestens eines Klicktests in e2e/. Führe pnpm typecheck, lint, test und build aus (für typecheck vorher pnpm exec next typegen), bis alles grün ist. Committe auf dem aktuellen Zweig mit aussagekräftigen Nachrichten. Ändere keine Dateien der Klasse C laut agents/risikoklassen.json. Falls die Spec das erfordert oder unklar ist, brich ab und schreibe die Begründung in die Datei AGENT_STOPP.md. Wenn ein Befehl, den du brauchst, verweigert wird oder du nicht fertig wirst, schreibe AGENT_STOPP.md mit dem verweigerten Befehl und dem Grund, statt ohne Commit aufzuhören. Führe Befehle einzeln aus, ohne Verkettungen mit ; && | oder Schleifen. Ändere sonst nichts.
+          # .claude/settings.json (for local use) has ask rules for Edit/Write, and ask beats
+          # allow in every mode; headless that means "denied". So load only the user settings
+          # (from `settings` above, incl. all deny rules) and auto-accept edits.
+          claude_args: |
+            --model opus --max-turns 80
+            --setting-sources user --permission-mode acceptEdits
+            --allowedTools "Read,Edit,Write,Glob,Grep,TodoWrite,Bash(pnpm install),Bash(pnpm install --frozen-lockfile),Bash(pnpm exec next typegen),Bash(pnpm typecheck),Bash(pnpm lint),Bash(pnpm lint:*),Bash(pnpm test),Bash(pnpm test:*),Bash(pnpm build),Bash(git status),Bash(git status:*),Bash(git diff),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git log),Bash(git log:*),Bash(git checkout -- *),Bash(git restore:*),Bash(ls),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(find:*),Bash(grep:*),Bash(rg:*),Bash(mkdir:*),Bash(pwd),Bash(pnpm exec vitest),Bash(pnpm exec vitest:*),Bash(pnpm exec tsc),Bash(pnpm exec tsc:*),Bash(pnpm exec eslint:*),Bash(pnpm exec playwright test --list),Bash(pnpm exec playwright test --list:*)"
+            --disallowedTools "WebFetch,WebSearch,Bash(git push:*)"
+
+      # Full log of the agent, so denied commands can be looked up later.
+      - name: Protokoll des Agenten sichern
+        if: always() && steps.agent.outputs.execution_file != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-protokoll
+          path: ${{ steps.agent.outputs.execution_file }}
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Nachprüfen, pushen, PR öffnen
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          SPEC_SHA: ${{ steps.spec.outputs.sha }}
+          AGENT_ERGEBNIS: ${{ steps.agent.outcome }}
+          PROTOKOLL: ${{ steps.agent.outputs.execution_file }}
+          TITEL: ${{ github.event.issue.title }}
+        run: |
+          set -euo pipefail
+          stopp() {
+            printf '%s\n' "$1" > "$RUNNER_TEMP/stopp.md"
+            [ -n "${2:-}" ] && printf '\n%s\n' "$2" >> "$RUNNER_TEMP/stopp.md"
+            printf '\n[Lauf ansehen](%s)\n' "$LAUF_URL" >> "$RUNNER_TEMP/stopp.md"
+            gh issue comment "$NR" --body-file "$RUNNER_TEMP/stopp.md"
+            gh issue edit "$NR" --add-label braucht-franz
+            exit 0
+          }
+          # Number of denied tool calls from the result message of the agent log.
+          verweigert() {
+            [ -n "${PROTOKOLL:-}" ] && [ -f "$PROTOKOLL" ] || { echo "unbekannt"; return; }
+            jq -r '[.[] | select(.type == "result")] | last
+              | if . == null then "unbekannt" else (.permission_denials // [] | length) end' \
+              "$PROTOKOLL" 2>/dev/null || echo "unbekannt"
+          }
+
+          if [ -f AGENT_STOPP.md ]; then
+            { echo "🛑 Der Build-Agent hat gestoppt:"; echo; cat AGENT_STOPP.md; } > "$RUNNER_TEMP/agent-stopp.md"
+            stopp "$(cat "$RUNNER_TEMP/agent-stopp.md")"
+          fi
+          if [ "$AGENT_ERGEBNIS" != "success" ]; then
+            stopp "🛑 Der Build-Agent ist nicht sauber fertig geworden (z. B. Zug-Limit oder Fehler). Kein PR."
+          fi
+          if [ "$(git rev-list --count "$SPEC_SHA..HEAD")" = "0" ]; then
+            stopp "🛑 Der Build-Agent hat nichts committet. Kein PR." \
+              "Verweigerte Befehle: $(verweigert) (Details im Artefakt \`claude-protokoll\` des Laufs)"
+          fi
+
+          # Only the agent's commits count: the spec commit above is written by this workflow.
+          pnpm exec tsx "$RUNNER_TEMP/pruefer/scripts/risikoklasse.ts" --base "$SPEC_SHA" > "$RUNNER_TEMP/klasse.json"
+          klasse=$(jq -r .klasse "$RUNNER_TEMP/klasse.json")
+          db=$(jq -r .db "$RUNNER_TEMP/klasse.json")
+          jq -r '.gruende[] | "- " + .' "$RUNNER_TEMP/klasse.json" > "$RUNNER_TEMP/gruende.md"
+
+          if [ "$klasse" = "C" ]; then
+            stopp "🛑 Der Build-Agent hat trotz Verbot Dateien der Klasse C geändert. Kein PR." "$(cat "$RUNNER_TEMP/gruende.md")"
+          fi
+
+          git push origin "$ZWEIG"
+
+          {
+            echo "## Was der Agent gemacht hat"
+            echo
+            git log --reverse --format='- %s' "$SPEC_SHA..HEAD"
+            echo
+            echo "Closes #$NR"
+            echo
+            echo "## Risikoklasse $klasse"
+            echo
+            cat "$RUNNER_TEMP/gruende.md"
+            [ "$db" = "true" ] && printf '\n**Datenbank-Änderung:** kein Auto-Merge. Schritte für Franz stehen im Issue (Label `braucht-db`).\n'
+            echo
+            echo "🤖 Gebaut vom Build-Agenten ([Lauf]($LAUF_URL))"
+          } > "$RUNNER_TEMP/pr.md"
+
+          labels="agent,klasse-$klasse"
+          [ "$db" = "true" ] && labels="$labels,braucht-db"
+          pr_url=$(gh pr create --base main --head "$ZWEIG" --title "$TITEL" \
+            --body-file "$RUNNER_TEMP/pr.md" --label "$labels")
+          pr=$(gh pr view "$pr_url" --json number --jq .number)
+
+          if [ "$db" = "true" ]; then
+            cat > "$RUNNER_TEMP/meldung.md" <<EOF
+          🗄️ PR #$pr ist offen und ändert die Datenbank – kein Auto-Merge.
+
+          1. Warten, bis „Prüfungen" und „Klicktests" im PR grün sind.
+          2. In Neon einen Backup-Zweig von \`production\` anlegen, z. B. \`backup-vor-$SPEC_NR\`.
+          3. Im Projektordner das Schema vom PR-Zweig auf Production bringen, dann mergen:
+
+          \`\`\`
+          git fetch
+          git switch $ZWEIG
+          pnpm db:push:prod
+          git switch main
+          gh pr merge $pr --merge
+          git pull
+          \`\`\`
+          EOF
+            gh issue comment "$NR" --body-file "$RUNNER_TEMP/meldung.md"
+          else
+            gh pr merge "$pr" --auto --merge
+            gh issue comment "$NR" --body "🚀 PR #$pr offen, geht automatisch live, sobald die Prüfungen grün sind. Vorschau folgt im PR."
+          fi
+
+      - name: Fehlschlag melden
+        if: failure()
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+        run: |
+          gh issue comment "$NR" --body "❌ Build-Agent-Lauf fehlgeschlagen. [Lauf ansehen]($LAUF_URL)"
+          gh issue edit "$NR" --add-label braucht-franz
+
+  go-entfernen:
+    name: Label go entfernen
+    needs: [startbedingungen, bauen]
+    if: always() && github.event_name == 'issues' && github.event.label.name == 'go'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Label go entfernen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NR: ${{ github.event.issue.number }}
+        run: gh issue edit "$NR" --remove-label go
