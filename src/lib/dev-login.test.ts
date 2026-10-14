@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { isDevLoginEnabled } from "./dev-login";
+import { isDevLoginEmail, isDevLoginEnabled } from "./dev-login";
+
+describe("isDevLoginEmail", () => {
+  it("accepts made-up @example.org addresses", () => {
+    expect(isDevLoginEmail("kim.brenner@example.org")).toBe(true);
+    expect(isDevLoginEmail("Kim.Brenner@Example.org")).toBe(true);
+  });
+
+  it.each(["kim@example.net", "kim@example.org.example.net", "kim@sub.example.org", "@example.org", ""])(
+    "refuses %s",
+    (email) => {
+      expect(isDevLoginEmail(email)).toBe(false);
+    }
+  );
+});
 
 describe("isDevLoginEnabled", () => {
   it("is on locally", () => {

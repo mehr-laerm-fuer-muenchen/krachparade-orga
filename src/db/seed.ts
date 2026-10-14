@@ -11,7 +11,14 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "1";
+export const SEED_VERSION = "2";
+
+/** Made-up test members (spec 002), never in production. */
+export const TEST_MEMBERS = [
+  { email: "kim.brenner@example.org", name: "Kim Brenner", isAdmin: true },
+  { email: "alex.rauch@example.org", name: "Alex Rauch", isAdmin: false },
+  { email: "sascha.moeller@example.org", name: "Sascha Möller", isAdmin: false },
+];
 
 /**
  * Idempotent: a second run changes nothing. With `prod` only master data is
@@ -19,7 +26,7 @@ export const SEED_VERSION = "1";
  */
 export async function seed({ prod }: { prod: boolean }) {
   const { db } = await import("./index");
-  const { appMeta } = await import("./schema");
+  const { appMeta, members } = await import("./schema");
 
   await db
     .insert(appMeta)
@@ -28,7 +35,16 @@ export async function seed({ prod }: { prod: boolean }) {
   console.log(`app_meta: seed_version = ${SEED_VERSION}`);
 
   if (!prod) {
-    // Test people follow with spec 002 (member table).
+    for (const member of TEST_MEMBERS) {
+      await db
+        .insert(members)
+        .values({ ...member, active: true })
+        .onConflictDoUpdate({
+          target: members.email,
+          set: { name: member.name, isAdmin: member.isAdmin, active: true },
+        });
+    }
+    console.log(`members: ${TEST_MEMBERS.length} Test-Mitglieder`);
   }
 }
 

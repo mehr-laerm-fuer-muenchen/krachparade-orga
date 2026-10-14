@@ -12,7 +12,10 @@ test.describe("Fundament", () => {
     });
     page.on("pageerror", (error) => errors.push(error.message));
 
-    await page.goto("/");
+    // Since spec 002 the start page needs a session.
+    await page.goto("/dev/login");
+    await page.getByRole("button", { name: /Als Kim Brenner anmelden/ }).click();
+    await expect(page).toHaveURL(/\/$/);
     await expect(page).toHaveTitle(/Krachparade Orga/);
     await expect(
       page.getByRole("heading", { level: 1, name: /Krachparade Orga/ })
