@@ -19,13 +19,13 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <form action={loginWithGoogle}>
         <button
           type="submit"
-          className="min-h-11 w-full rounded-lg bg-emerald-900 px-4 py-2.5 text-base font-medium text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-900"
+          className="min-h-11 w-full rounded-lg bg-primary px-4 py-2.5 text-base font-medium text-on-primary hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Mit Google anmelden
         </button>
       </form>
 
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+      <p className="text-sm text-muted">
         Die Anmeldung läuft über dein Google-Konto. Wir speichern nur deinen Namen und deine
         E-Mail-Adresse, damit du Zugang zur App bekommst. Dein Passwort sehen wir nie.
       </p>
@@ -45,7 +45,7 @@ async function LoginError({ searchParams }: Pick<PageProps<"/login">, "searchPar
   return (
     <p
       role="alert"
-      className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-base text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+      className="rounded-lg border border-status-warn bg-surface px-4 py-3 text-base text-text"
     >
       {message}
     </p>

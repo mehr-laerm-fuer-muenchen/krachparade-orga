@@ -1,4 +1,4 @@
-import { and, asc, eq, like } from "drizzle-orm";
+import { and, asc, desc, eq, like } from "drizzle-orm";
 import { normalizeEmail } from "@/lib/access";
 import { db } from "./index";
 import { members, type Member } from "./schema";
@@ -50,4 +50,9 @@ export async function listDevLoginMembers(): Promise<Pick<Member, "id" | "name" 
     .from(members)
     .where(and(eq(members.active, true), like(members.email, "%@example.org")))
     .orderBy(asc(members.name));
+}
+
+/** All members for the settings page, active ones first. */
+export async function listMembers(): Promise<Member[]> {
+  return db.select().from(members).orderBy(desc(members.active), asc(members.name));
 }

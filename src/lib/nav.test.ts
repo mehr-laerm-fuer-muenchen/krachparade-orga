@@ -1,0 +1,49 @@
+import { describe, expect, it } from "vitest";
+import { MAIN_NAV, TAB_NAV, isActivePath, isActiveTab } from "./nav";
+
+describe("isActivePath", () => {
+  it("marks the start page only on /", () => {
+    expect(isActivePath("/", "/")).toBe(true);
+    expect(isActivePath("/referate", "/")).toBe(false);
+  });
+
+  it("marks a section on its own page and on sub pages", () => {
+    expect(isActivePath("/protokolle", "/protokolle")).toBe(true);
+    expect(isActivePath("/protokolle/2027-01-12", "/protokolle")).toBe(true);
+    expect(isActivePath("/protokolle-alt", "/protokolle")).toBe(false);
+  });
+});
+
+describe("isActiveTab", () => {
+  const more = TAB_NAV.find((tab) => tab.label === "Mehr")!;
+
+  it("marks Mehr on settings and on Kollektive", () => {
+    expect(isActiveTab("/einstellungen", more)).toBe(true);
+    expect(isActiveTab("/kollektive", more)).toBe(true);
+    expect(isActiveTab("/kollektive/x", more)).toBe(true);
+    expect(isActiveTab("/meine", more)).toBe(false);
+  });
+});
+
+describe("navigation", () => {
+  it("has the six sections in the agreed order", () => {
+    expect(MAIN_NAV.map((item) => item.href)).toEqual([
+      "/",
+      "/referate",
+      "/protokolle",
+      "/meine",
+      "/kollektive",
+      "/einstellungen",
+    ]);
+  });
+
+  it("has five tabs ending with Mehr", () => {
+    expect(TAB_NAV.map((tab) => tab.label)).toEqual([
+      "Überblick",
+      "Referate",
+      "Protokolle",
+      "Meine",
+      "Mehr",
+    ]);
+  });
+});

@@ -45,7 +45,15 @@ test.describe("Login", () => {
     await page.getByRole("button", { name: /Als Kim Brenner anmelden/ }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText("Angemeldet als Kim Brenner")).toBeVisible();
+    // Since spec 003: name and "Abmelden" sit in the header on wide screens
+    // and under "Mehr" in the tab bar on narrow screens.
+    if ((page.viewportSize()?.width ?? 0) <= 900) {
+      await page.getByRole("link", { name: "Mehr", exact: true }).click();
+      await expect(page).toHaveURL(/\/einstellungen$/);
+    }
+    await expect(
+      page.getByText("Angemeldet als Kim Brenner").filter({ visible: true })
+    ).toBeVisible();
     await expectNoHorizontalScroll(page);
 
     const logout = page.getByRole("button", { name: "Abmelden" });

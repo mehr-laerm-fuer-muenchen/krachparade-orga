@@ -17,9 +17,9 @@ test.describe("Fundament", () => {
     await page.getByRole("button", { name: /Als Kim Brenner anmelden/ }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page).toHaveTitle(/Krachparade Orga/);
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Krachparade Orga/ })
-    ).toBeVisible();
+    // Since spec 003 the start page is "Weg zur Krachparade"; the app name sits in the header.
+    await expect(page.getByRole("heading", { level: 1, name: "Weg zur Krachparade" })).toBeVisible();
+    await expect(page.getByRole("banner").getByText("Krachparade Orga")).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
