@@ -27,6 +27,16 @@
   --status-late: #c8435c;
   --on-status-late: #ffffff;
 
+  /* Protocol item kinds (spec 004). */
+  --kind-info: #e7ecf5;
+  --on-kind-info: #2b3f66;
+  --kind-discussion: #f1ecf7;
+  --on-kind-discussion: #4d2f70;
+  --kind-decision: #0f3a2d;
+  --on-kind-decision: #ffffff;
+  --kind-todo: #fcebd5;
+  --on-kind-todo: #8a4b07;
+
   color-scheme: light;
 }
 
@@ -52,6 +62,15 @@
     --on-status-warn: #1e1200;
     --status-late: #b23a51;
     --on-status-late: #ffffff;
+
+    --kind-info: #1e2636;
+    --on-kind-info: #b9c8e8;
+    --kind-discussion: #2a2236;
+    --on-kind-discussion: #d3c2ea;
+    --kind-decision: #2e7d4f;
+    --on-kind-decision: #ffffff;
+    --kind-todo: #3a2b15;
+    --on-kind-todo: #f2c27e;
 
     color-scheme: dark;
   }
@@ -79,6 +98,14 @@
   --color-on-status-warn: var(--on-status-warn);
   --color-status-late: var(--status-late);
   --color-on-status-late: var(--on-status-late);
+  --color-kind-info: var(--kind-info);
+  --color-on-kind-info: var(--on-kind-info);
+  --color-kind-discussion: var(--kind-discussion);
+  --color-on-kind-discussion: var(--on-kind-discussion);
+  --color-kind-decision: var(--kind-decision);
+  --color-on-kind-decision: var(--on-kind-decision);
+  --color-kind-todo: var(--kind-todo);
+  --color-on-kind-todo: var(--on-kind-todo);
   --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
 }
 
