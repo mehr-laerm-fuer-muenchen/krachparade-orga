@@ -167,7 +167,15 @@ function PeopleSection({
                     memberId={person.id}
                     value={!person.active}
                     label={person.active ? "Deaktivieren" : "Wieder aktivieren"}
-                    lockedReason={self && person.active ? "Das bist du." : undefined}
+                    lockedReason={
+                      !person.active
+                        ? undefined
+                        : lockedByServer
+                          ? "Admin über Server-Einstellung festgelegt"
+                          : self
+                            ? "Das bist du."
+                            : undefined
+                    }
                   />
                   <MemberActionButton
                     kind="admin"

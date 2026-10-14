@@ -73,8 +73,21 @@ describe("canManage", () => {
     });
   });
 
+  it("refuses deactivating an address in ADMIN_EMAILS", () => {
+    expect(canManage(ADMIN, SERVER_ADMIN, ADMIN_EMAILS, "deactivate")).toEqual({
+      ok: false,
+      error: ERROR_ADMIN_BY_SERVER,
+    });
+    const shouting = { ...SERVER_ADMIN, email: " Robin.Tal@EXAMPLE.org " };
+    expect(canManage(ADMIN, shouting, ADMIN_EMAILS, "deactivate")).toEqual({
+      ok: false,
+      error: ERROR_ADMIN_BY_SERVER,
+    });
+  });
+
   it("still allows other actions on an address in ADMIN_EMAILS", () => {
     expect(canManage(ADMIN, SERVER_ADMIN, ADMIN_EMAILS, "grantAdmin")).toEqual({ ok: true });
+    expect(canManage(ADMIN, SERVER_ADMIN, ADMIN_EMAILS, "activate")).toEqual({ ok: true });
   });
 
   it("allows reactivating oneself only as active admin", () => {

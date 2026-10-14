@@ -30,7 +30,7 @@ export const ERROR_ADMIN_BY_SERVER = "Admin über Server-Einstellung festgelegt.
 /**
  * Whether `actor` may run `action` on `target`. Spec 002 sets the admin right
  * again on every login for addresses from `ADMIN_EMAILS`, so taking it away
- * from them is locked.
+ * from them or deactivating them is locked.
  */
 export function canManage(
   actor: Actor | null | undefined,
@@ -42,8 +42,13 @@ export function canManage(
     return { ok: false, error: ERROR_NOT_ADMIN };
   }
   const self = target !== null && target.id === actor.id;
-  if (action === "deactivate" && self) {
-    return { ok: false, error: ERROR_SELF_DEACTIVATE };
+  if (action === "deactivate") {
+    if (self) {
+      return { ok: false, error: ERROR_SELF_DEACTIVATE };
+    }
+    if (target && isAdminEmail(target.email, adminEmails)) {
+      return { ok: false, error: ERROR_ADMIN_BY_SERVER };
+    }
   }
   if (action === "revokeAdmin") {
     if (self) {
