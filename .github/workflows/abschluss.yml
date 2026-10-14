@@ -1,0 +1,35 @@
+name: Abschluss-Meldung
+
+# Spec 001 (aus schladming2go): after an agent PR is merged, tell the linked issue.
+# GitHub closes the issue itself through "Closes #n".
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  melden:
+    name: Melden
+    if: >-
+      vars.AUTOPILOT == 'an'
+      && github.event.pull_request.merged == true
+      && startsWith(github.event.pull_request.head.ref, 'agent/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Kommentar im Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          for issue in $(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIssuesReferences[].number'); do
+            gh issue comment "$issue" --body "✅ Gemergt – in ca. 2 Minuten live. (PR #$PR)"
+          done

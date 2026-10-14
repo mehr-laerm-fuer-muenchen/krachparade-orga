@@ -1,0 +1,85 @@
+{
+  "hinweis": "Maschinenlesbare Fassung von AGENTS.md Abschnitt 5 (Risikoklassen). Bei Änderungen beide Dateien anpassen; beide sind Klasse C. Muster: ** = beliebig viele Ordner, * = beliebige Zeichen ohne /. Reihenfolge je Datei: C, dann inhalt, dann B, sonst A. Die höchste Klasse aller Dateien gilt.",
+  "C": [
+    "src/proxy.ts",
+    "proxy.ts",
+    "src/middleware.ts",
+    "middleware.ts",
+    "src/auth.ts",
+    "src/auth.*.ts",
+    "src/app/api/auth/**",
+    "src/app/dev/**",
+    "src/lib/dev-login.ts",
+    "src/lib/dev-login.test.ts",
+    "src/lib/env.ts",
+    "src/lib/env.test.ts",
+    "src/lib/db-reset.ts",
+    "src/lib/db-reset.test.ts",
+    "src/db/index.ts",
+    "src/db/index.test.ts",
+    "src/db/reset-dev.ts",
+    "src/app/**/opengraph-image.*",
+    "src/app/**/twitter-image.*",
+    "src/app/**/robots.*",
+    "src/app/**/sitemap.*",
+    ".github/**",
+    ".claude/**",
+    ".mcp.json",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "agents/**",
+    "scripts/**",
+    "drizzle*.config.*",
+    "next.config.*",
+    "vercel.json",
+    "vercel.ts",
+    ".env*",
+    "**/.env*",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "eslint.config.*",
+    "tsconfig.json",
+    ".node-version",
+    "vitest.config.*",
+    "playwright.config.*",
+    ".gitignore",
+    ".npmrc"
+  ],
+  "inhalt": [
+    {
+      "muster": "src/db/schema.ts",
+      "klasse": "B",
+      "cWenn": "zeilen-entfernt",
+      "grund": "Schema: nur hinzufügen ist B; entfernte oder geänderte Zeilen (löschen, umbenennen, Typ, NOT NULL) sind C"
+    },
+    {
+      "muster": "src/db/seed.ts",
+      "klasse": "B",
+      "cWennZeile": "prod",
+      "grund": "Seed ist B, der --prod-Teil ist C"
+    },
+    {
+      "muster": "src/app/layout.tsx",
+      "klasse": "A",
+      "cWennZeile": "robots|index|follow",
+      "grund": "Layout ist A, der robots-Eintrag ist C"
+    },
+    {
+      "muster": "docs/specs/**",
+      "klasse": "A",
+      "cWennZeile": "Freigabe Franz",
+      "grund": "Specs sind A, die Freigabe-Zeile ist C"
+    }
+  ],
+  "B": [
+    "src/app/**/page.tsx",
+    "src/app/**/route.ts",
+    "src/actions/**",
+    "src/db/**"
+  ],
+  "db": [
+    "src/db/schema.ts",
+    "src/db/seed.ts"
+  ]
+}
