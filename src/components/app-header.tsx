@@ -6,7 +6,7 @@ import { logout } from "@/actions/auth";
 import { getCurrentMember } from "@/components/current-member";
 import { MainNav } from "@/components/main-nav";
 import { formatDLabel, formatGermanDate, todayInBerlin } from "@/lib/dday";
-import { CURRENT_EDITION } from "@/lib/edition";
+import { getCurrentEdition } from "@/db/editions";
 
 /** Forest header with logo, navigation (wide screens), D-Day and member. */
 export function AppHeader() {
@@ -45,26 +45,39 @@ export function AppHeader() {
   );
 }
 
-function DDayBox({ label }: { label: string }) {
+function DDayBox({ label, date, testId }: { label: string; date: string; testId?: string }) {
   return (
     <div className="flex flex-col items-end leading-tight">
-      <span className="text-lg font-bold tabular-nums">{label}</span>
-      <span className="text-xs whitespace-nowrap text-header-muted">
-        Krachparade {formatGermanDate(CURRENT_EDITION.dDay)}
+      <span className="text-lg font-bold tabular-nums" data-testid={testId}>
+        {label}
       </span>
+      <span className="text-xs whitespace-nowrap text-header-muted">{date}</span>
     </div>
   );
 }
 
 function DDayFallback() {
-  return <DDayBox label={" "} />;
+  return <DDayBox label={"\u00a0"} date={"\u00a0"} />;
 }
 
-/** "Today" is the calendar day in Berlin, always determined on the server. */
+/**
+ * D-Day of the current edition (spec 003). "Today" is the calendar day in
+ * Berlin, always determined on the server.
+ */
 async function DDayCounter() {
   await connection();
+  const edition = await getCurrentEdition();
+  if (!edition) {
+    return null;
+  }
   const today = todayInBerlin(new Date());
-  return <DDayBox label={formatDLabel(today, CURRENT_EDITION.dDay)} />;
+  return (
+    <DDayBox
+      label={formatDLabel(today, edition.dDay)}
+      date={`Krachparade ${formatGermanDate(edition.dDay)}`}
+      testId="dday-label"
+    />
+  );
 }
 
 async function SignedIn() {
