@@ -1,5 +1,13 @@
 export const DEV_LOGIN_PATH = "/dev/login";
 
+/** Auth.js provider id of the dev login (spec 002). */
+export const DEV_LOGIN_PROVIDER = "dev-login";
+
+/** The dev login only signs in made-up test members (@example.org). */
+export function isDevLoginEmail(email: string): boolean {
+  return /^[^@\s]+@example\.org$/.test(email.trim().toLowerCase());
+}
+
 export type DevLoginEnv = {
   NODE_ENV?: string;
   VERCEL_ENV?: string;

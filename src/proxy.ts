@@ -1,14 +1,41 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { devLoginEnvFromProcess, isDevLoginEnabled } from "@/lib/dev-login";
 
-// Everything under /dev/** exists only locally and in Vercel previews
-// (see isDevLoginEnabled); in production it answers 404.
-export function proxy() {
-  return isDevLoginEnabled(devLoginEnvFromProcess())
-    ? NextResponse.next()
-    : new NextResponse(null, { status: 404 });
+const PUBLIC_PATHS = ["/login", "/api/auth"];
+
+function isUnder(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`);
 }
 
+// Quick cookie check before every page (spec 002). Pages check the member
+// against the database again (requireMember in src/auth.ts).
+export const proxy = auth((request) => {
+  const { pathname } = request.nextUrl;
+
+  // Everything under /dev/** exists only locally and in Vercel previews
+  // (see isDevLoginEnabled); in production it answers 404.
+  if (isUnder(pathname, "/dev")) {
+    return isDevLoginEnabled(devLoginEnvFromProcess())
+      ? NextResponse.next()
+      : new NextResponse(null, { status: 404 });
+  }
+
+  if (PUBLIC_PATHS.some((base) => isUnder(pathname, base))) {
+    return NextResponse.next();
+  }
+
+  if (!request.auth?.memberId) {
+    return NextResponse.redirect(new URL("/login", request.nextUrl.origin));
+  }
+  return NextResponse.next();
+});
+
 export const config = {
-  matcher: ["/dev", "/dev/:path*"],
+  // Static files (Next.js assets, icons and images from public/) stay
+  // reachable without a session. Only known file types, so a later route
+  // like /export.csv is still protected.
+  matcher: [
+    "/((?!_next/static|_next/image|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|avif|woff2?|webmanifest)$).*)",
+  ],
 };
