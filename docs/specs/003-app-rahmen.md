@@ -12,7 +12,7 @@ Die App bekommt ihren festen Rahmen nach dem abgenommenen Test-Layout v3: Kopfle
 - Meilenstein-Baum, Meilensteine, Aufgaben, Referats-Status (R1)
 - Protokolle (Spec 004) und Kollektive (R3) – nur Platzhalter-Seiten
 - Vorlage für das Folgejahr (R4)
-- Änderungen am Login-Ablauf, an `src/auth.ts`, an `src/proxy.ts` oder an `ADMIN_EMAILS`
+- Änderungen am Login-Ablauf, an `src/auth.ts`, an `src/proxy.ts` oder an `ADMIN_EMAILS`. Ausnahme (Freigabe Franz 14.10.2026): Proxy liest die Sitzung nur noch, ohne Cookie zu erneuern – behebt Abmelde-Wettlauf mit Prefetch.
 
 ## Vorab: Abgleich mit dem Code aus 002
 

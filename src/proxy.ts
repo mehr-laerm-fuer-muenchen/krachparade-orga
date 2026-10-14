@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { devLoginEnvFromProcess, isDevLoginEnabled } from "@/lib/dev-login";
 
@@ -10,7 +10,10 @@ function isUnder(pathname: string, base: string): boolean {
 
 // Quick cookie check before every page (spec 002). Pages check the member
 // against the database again (requireMember in src/auth.ts).
-export const proxy = auth((request) => {
+// The session is only read here: auth() without arguments sets no cookie.
+// The auth((request) => …) wrapper would renew the session cookie on every
+// response, so a prefetch still in flight during logout set it back.
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Everything under /dev/** exists only locally and in Vercel previews
@@ -25,11 +28,12 @@ export const proxy = auth((request) => {
     return NextResponse.next();
   }
 
-  if (!request.auth?.memberId) {
+  const session = await auth();
+  if (!session?.memberId) {
     return NextResponse.redirect(new URL("/login", request.nextUrl.origin));
   }
   return NextResponse.next();
-});
+}
 
 export const config = {
   // Static files (Next.js assets, icons and images from public/) stay
