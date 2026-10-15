@@ -26,6 +26,8 @@ export type LoadedPlanElement = PlanElementInput & {
   ownerId: string | null;
   ownerName: string | null;
   openTodos: number;
+  /** When it was ticked off (spec 009). */
+  doneAt: Date | null;
   /** Last change, for the conflict notice (spec 008). */
   updatedAt: Date;
 };
@@ -60,6 +62,7 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
         shiftDays: planElements.shiftDays,
         fixedDate: planElements.fixedDate,
         done: planElements.done,
+        doneAt: planElements.doneAt,
         wobbly: planElements.wobbly,
         sortOrder: planElements.sortOrder,
         workingGroupId: planElements.workingGroupId,
@@ -111,10 +114,12 @@ export type LoadedPlanTodo = {
   id: string;
   elementId: string;
   text: string;
+  ownerId: string | null;
   ownerName: string | null;
   anchor: "start" | "end";
   daysBefore: number;
   done: boolean;
+  doneAt: Date | null;
 };
 
 export type LoadedPlanNote = {
@@ -141,10 +146,12 @@ export async function loadPlanDetails(
         id: planTodos.id,
         elementId: planTodos.elementId,
         text: planTodos.text,
+        ownerId: planTodos.ownerId,
         ownerName: members.name,
         anchor: planTodos.anchor,
         daysBefore: planTodos.daysBefore,
         done: planTodos.done,
+        doneAt: planTodos.doneAt,
       })
       .from(planTodos)
       .innerJoin(planElements, eq(planElements.id, planTodos.elementId))

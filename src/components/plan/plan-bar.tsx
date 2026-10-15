@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 /** A short message at the bottom: "Verschoben · Rückgängig", a conflict or an error. */
 export type PlanNotice = {
@@ -10,6 +10,24 @@ export type PlanNotice = {
   tone: "info" | "error";
   undo?: () => void;
 };
+
+export type ShowNotice = (text: string, tone: PlanNotice["tone"], undo?: () => void) => void;
+
+/**
+ * The "Rückgängig" bar of a page (spec 008, shared with "/meine" in spec
+ * 009): `show` puts up a new message (restarting the timer), `bar` is the
+ * element to render once on the page.
+ */
+export function useUndoBar(): { show: ShowNotice; bar: ReactNode } {
+  const [notice, setNotice] = useState<PlanNotice | null>(null);
+  const noticeKey = useRef(0);
+  const close = useCallback(() => setNotice(null), []);
+  const show = useCallback<ShowNotice>((text, tone, undo) => {
+    noticeKey.current += 1;
+    setNotice({ key: noticeKey.current, text, tone, undo });
+  }, []);
+  return { show, bar: <PlanBar key={notice?.key} notice={notice} onClose={close} /> };
+}
 
 /** Visible for this long, unless the pointer or the focus is on the bar. */
 const VISIBLE_MS = 5000;

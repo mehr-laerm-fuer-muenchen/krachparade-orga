@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { moveElement, resizeElement, undoPlanChange, type PlanConflict, type PreviousValues } from "@/actions/plan";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageTitle } from "@/components/placeholder";
 import { formatDLabel } from "@/lib/dday";
 import {
@@ -12,15 +11,15 @@ import {
   type Zoom,
 } from "@/lib/gantt-layout";
 import { dayToDate } from "@/lib/plan-days";
-import type { DragMode } from "@/lib/plan-drag";
 import type { PlanInput } from "@/lib/plan-engine";
 import { defaultGroupId } from "@/lib/plan-panel";
 import { countLate, formatWeekdayShort } from "@/lib/plan-preview";
-import { PlanBar, type PlanNotice } from "./plan-bar";
-import { PlanDetail, type PlanDepartmentOption, type PlanOption, type PlanResult } from "./plan-detail";
+import { useUndoBar } from "./plan-bar";
+import { PlanDetail, type PlanDepartmentOption, type PlanOption } from "./plan-detail";
 import { PlanGantt, type GanttEdit } from "./plan-gantt";
 import { PlanNewElement } from "./plan-new-element";
 import { PlanWeekList } from "./plan-week-list";
+import { usePlanActions } from "./use-plan-actions";
 
 /** Everything the plan page needs, computed on the server. */
 export type PlanViewData = {
@@ -38,12 +37,6 @@ export type PlanViewData = {
   departments: PlanDepartmentOption[];
   members: PlanOption[];
 };
-
-const SAVE_ERROR = "Konnte nicht gespeichert werden.";
-
-function conflictText(conflict: PlanConflict): string {
-  return `Wurde gerade von ${conflict.by ?? "jemand anderem"} geändert – Plan neu geladen.`;
-}
 
 type View = "gantt" | "list";
 
@@ -194,8 +187,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
   const [openOnly, setOpenOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [notice, setNotice] = useState<PlanNotice | null>(null);
-  const noticeKey = useRef(0);
+  const { show, bar } = useUndoBar();
 
   // The first render uses the defaults (same as on the server); the stored
   // preferences of this device apply right after.
@@ -240,64 +232,8 @@ export function PlanView({ data }: { data: PlanViewData }) {
   };
 
   const close = useCallback(() => setSelectedId(null), []);
-  const closeNotice = useCallback(() => setNotice(null), []);
   const closeForm = useCallback(() => setCreating(false), []);
-
-  const show = useCallback((text: string, tone: PlanNotice["tone"], undo?: () => void) => {
-    noticeKey.current += 1;
-    setNotice({ key: noticeKey.current, text, tone, undo });
-  }, []);
-
-  /** Every action refreshes the page itself (refresh()); a conflict only adds the notice. */
-  const run = useCallback(
-    async (call: () => Promise<PlanResult>): Promise<string | null> => {
-      try {
-        const result = await call();
-        if (!result.ok) return result.message;
-        if (result.conflict) show(conflictText(result.conflict), "info");
-        return null;
-      } catch {
-        return SAVE_ERROR;
-      }
-    },
-    [show]
-  );
-
-  const undo = useCallback(
-    async (previous: PreviousValues[], updatedAt: string) => {
-      const message = await run(() => undoPlanChange(previous, updatedAt));
-      if (message !== null) show(message, "error");
-    },
-    [run, show]
-  );
-
-  /** Drag in the Gantt or "−/+ T" on phones: save, then offer "Rückgängig". */
-  const drag = useCallback(
-    async (id: string, mode: DragMode, delta: number): Promise<boolean> => {
-      const element = byId.get(id);
-      if (!element) return false;
-      try {
-        const result =
-          mode === "move"
-            ? await moveElement(id, delta, element.updatedAt)
-            : await resizeElement(id, mode, delta, element.updatedAt);
-        if (!result.ok) {
-          show(SAVE_ERROR, "error");
-          return false;
-        }
-        if (result.conflict) show(conflictText(result.conflict), "info");
-        else if (result.previous.length > 0 && result.updatedAt !== null) {
-          const { previous, updatedAt } = result;
-          show(mode === "move" ? "Verschoben" : "Dauer geändert", "info", () => void undo(previous, updatedAt));
-        }
-        return true;
-      } catch {
-        show(SAVE_ERROR, "error");
-        return false;
-      }
-    },
-    [byId, show, undo]
-  );
+  const { run, drag } = usePlanActions(byId, show);
 
   const enginePlan = useMemo<PlanInput>(
     () => ({
@@ -451,7 +387,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
           onClose={closeForm}
         />
       ) : null}
-      <PlanBar key={notice?.key} notice={notice} onClose={closeNotice} />
+      {bar}
     </div>
   );
 }

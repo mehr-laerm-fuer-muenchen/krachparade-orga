@@ -2,16 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
-import { PlanView, type PlanViewData } from "@/components/plan/plan-view";
+import { PlanView } from "@/components/plan/plan-view";
 import { getCurrentEdition } from "@/db/editions";
-import { loadPlan, loadPlanDetails, loadPlanOptions } from "@/db/plan";
-import { listWorkingGroupMembers, listWorkingGroups } from "@/db/working-groups";
+import { loadPlanView } from "@/db/plan-view";
 import { todayInBerlin } from "@/lib/dday";
-import type { PlanNoteView, PlanTodoView, PlanViewElement } from "@/lib/gantt-layout";
-import { dateToDay } from "@/lib/plan-days";
-import { computePlan, PlanCycleError, todoDueDay, type ComputedPlan } from "@/lib/plan-engine";
 import { shortEditionName } from "@/lib/plan-preview";
-import { displayGroupName } from "@/lib/working-groups";
 
 export const metadata: Metadata = {
   title: "Plan – Krachparade Orga",
@@ -20,8 +15,9 @@ export const metadata: Metadata = {
 const NOTICE = "rounded-md border border-line bg-surface px-4 py-3 text-muted";
 
 export default function Home() {
+  // `data-wide-page`: the plan may use up to 1400 px on wide screens (see AppMain).
   return (
-    <div className="flex flex-col gap-4">
+    <div data-wide-page className="flex flex-col gap-4">
       <Suspense fallback={<p className="text-muted">Lade Plan …</p>}>
         <Plan />
       </Suspense>
@@ -29,21 +25,10 @@ export default function Home() {
   );
 }
 
-function groupBy<T extends { elementId: string }>(items: T[]): Map<string, T[]> {
-  const result = new Map<string, T[]>();
-  for (const item of items) {
-    const list = result.get(item.elementId) ?? [];
-    list.push(item);
-    result.set(item.elementId, list);
-  }
-  return result;
-}
-
 /**
  * The plan of the current edition (spec 007, editable from spec 008).
- * Loading and the plan engine run here on the server; the client components
- * draw the result and call the server actions. Names only, never e-mail
- * addresses.
+ * Loading and the plan engine run on the server (`loadPlanView`); the client
+ * components draw the result and call the server actions.
  */
 async function Plan() {
   const member = await getCurrentMember();
@@ -58,8 +43,8 @@ async function Plan() {
   }
 
   const title = `Plan ${shortEditionName(edition.name)}`;
-  const plan = await loadPlan(edition.id);
-  if (plan.elements.length === 0) {
+  const view = await loadPlanView(edition, member.id, todayInBerlin(new Date()));
+  if (view.status === "empty") {
     return (
       <>
         <PageTitle>{title}</PageTitle>
@@ -67,13 +52,7 @@ async function Plan() {
       </>
     );
   }
-
-  const today = dateToDay(todayInBerlin(new Date()), plan.dDay);
-  let computed: ComputedPlan;
-  try {
-    computed = computePlan(plan.elements, plan.links, today);
-  } catch (error) {
-    if (!(error instanceof PlanCycleError)) throw error;
+  if (view.status === "cycle") {
     return (
       <>
         <PageTitle>{title}</PageTitle>
@@ -84,78 +63,5 @@ async function Plan() {
     );
   }
 
-  const [details, groups, memberships, options] = await Promise.all([
-    loadPlanDetails(edition.id),
-    listWorkingGroups(edition.id),
-    listWorkingGroupMembers(edition.id),
-    loadPlanOptions(edition.id),
-  ]);
-  const todosByElement = groupBy(details.todos);
-  const notesByElement = groupBy(details.notes);
-
-  const elements: PlanViewElement[] = plan.elements.map((element) => {
-    const result = computed.elements.get(element.id)!;
-    const todos: PlanTodoView[] = (todosByElement.get(element.id) ?? []).map((todo) => ({
-      id: todo.id,
-      text: todo.text,
-      ownerName: todo.ownerName,
-      anchor: todo.anchor,
-      daysBefore: todo.daysBefore,
-      due: todoDueDay(todo, result),
-      done: todo.done,
-    }));
-    const notes: PlanNoteView[] = (notesByElement.get(element.id) ?? []).map((note) => ({
-      id: note.id,
-      authorName: note.authorName,
-      date: todayInBerlin(note.createdAt),
-      text: note.text,
-      own: note.authorId === member.id,
-      edited: note.updatedAt.getTime() > note.createdAt.getTime(),
-    }));
-    return {
-      id: element.id,
-      name: element.name,
-      kind: element.kind,
-      workingGroupId: element.workingGroupId,
-      start: result.plannedStart,
-      end: result.plannedEnd,
-      latestEnd: result.latestFinish,
-      latestStart: result.latestStart,
-      buffer: result.buffer,
-      status: result.status,
-      reason: result.reason,
-      done: element.done,
-      fixed: element.fixedDay !== null,
-      wobbly: element.wobbly,
-      workingGroupName: element.workingGroupName === null ? null : displayGroupName(element.workingGroupName),
-      departmentName: element.departmentName,
-      ownerName: element.ownerName,
-      todos,
-      notes,
-      updatedAt: element.updatedAt.toISOString(),
-      durationDays: element.durationDays,
-      shiftDays: element.shiftDays,
-      fixedDay: element.fixedDay,
-      fixedDate: element.fixedDate,
-      sortOrder: element.sortOrder,
-      departmentId: element.departmentId,
-      ownerId: element.ownerId,
-    };
-  });
-
-  const data: PlanViewData = {
-    title,
-    dDay: plan.dDay,
-    today,
-    elements,
-    groups: groups.map((group) => ({ id: group.id, name: group.name, sortOrder: group.sortOrder })),
-    links: plan.links,
-    criticalPath: computed.criticalPath,
-    latestProjectStart: computed.latestProjectStart,
-    myGroupIds: memberships.filter((row) => row.memberId === member.id).map((row) => row.workingGroupId),
-    departments: options.departments,
-    members: options.members,
-  };
-
-  return <PlanView data={data} />;
+  return <PlanView data={view.data} />;
 }

@@ -4,12 +4,12 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { logout } from "@/actions/auth";
 import { getCurrentMember } from "@/components/current-member";
-import { MainNav } from "@/components/main-nav";
+import { MainNav, type NavBadges } from "@/components/main-nav";
 import { formatDLabel, formatGermanDate, todayInBerlin } from "@/lib/dday";
 import { getCurrentEdition } from "@/db/editions";
 
 /** Forest header with logo, navigation (wide screens), D-Day and member. */
-export function AppHeader() {
+export function AppHeader({ badges }: { badges?: NavBadges }) {
   return (
     <header className="sticky top-0 z-20 border-b-[3px] border-accent bg-header-bg pt-[env(safe-area-inset-top)] text-header-text">
       <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-x-4 gap-y-1 px-[max(1rem,env(safe-area-inset-left))] py-2 desk:px-6">
@@ -30,7 +30,10 @@ export function AppHeader() {
           </span>
         </Link>
 
-        <MainNav className="order-last hidden w-full desk:block xl:order-none xl:w-auto xl:flex-1" />
+        <MainNav
+          badges={badges}
+          className="order-last hidden w-full desk:block xl:order-none xl:w-auto xl:flex-1"
+        />
 
         <div className="ml-auto flex items-center gap-4">
           <Suspense fallback={<DDayFallback />}>
