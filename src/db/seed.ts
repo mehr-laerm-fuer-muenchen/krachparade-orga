@@ -52,6 +52,40 @@ export const DEPARTMENTS = [
   { name: "Ressourcen / Material", lead: "ivy.lamm@example.org" },
 ];
 
+/** Made-up meeting with minutes (spec 004), never in production. */
+export const TEST_MEETING = {
+  title: "Testtreffen",
+  date: "2026-10-14",
+  place: "Werkstatt (Beispiel)",
+  moderator: "kim.brenner@example.org",
+  minuteTaker: "sascha.moeller@example.org",
+  attendees: ["kim.brenner@example.org", "alex.rauch@example.org", "sascha.moeller@example.org"],
+  guests: "Gast Beispiel",
+  createdBy: "kim.brenner@example.org",
+  items: [
+    { topic: "Route", kind: "info", text: "Die Route vom letzten Jahr ist als Vorlage da." },
+    { topic: "Route", kind: "entscheidung", text: "Start und Ende bleiben wie im Vorjahr." },
+    { topic: "Finanzen", kind: "diskussion", text: "Soli-Party oder Spendenaufruf zuerst?" },
+    {
+      topic: "Finanzen",
+      kind: "todo",
+      text: "Angebote für Wagen einholen",
+      owner: "alex.rauch@example.org",
+      dueDate: "2026-10-01",
+      department: "Finanzen",
+    },
+    { topic: "Presse", kind: "info", text: "Pressemappe vom Vorjahr liegt im Ordner." },
+    {
+      topic: "Presse",
+      kind: "todo",
+      text: "Fotos für die Pressemappe sammeln",
+      ownerName: "Gast Beispiel",
+      dueDate: "2027-03-31",
+      department: "Pressearbeit",
+    },
+  ],
+} as const;
+
 /**
  * Idempotent: a second run changes nothing. With `prod` only master data is
  * written, never test people (from spec 002 on, always with @example.org).
@@ -59,7 +93,9 @@ export const DEPARTMENTS = [
 export async function seed({ prod }: { prod: boolean }) {
   const { db } = await import("./index");
   const { eq } = await import("drizzle-orm");
-  const { appMeta, departments, editions, members } = await import("./schema");
+  const { and } = await import("drizzle-orm");
+  const { appMeta, departments, editions, meetingAttendees, meetingItems, meetings, members } =
+    await import("./schema");
 
   await db
     .insert(appMeta)
@@ -108,6 +144,62 @@ export async function seed({ prod }: { prod: boolean }) {
     .onConflictDoNothing()
     .returning({ id: departments.id });
   console.log(`departments: ${inserted.length} neu, ${DEPARTMENTS.length - inserted.length} schon vorhanden`);
+
+  if (!prod) {
+    const [existing] = await db
+      .select({ id: meetings.id })
+      .from(meetings)
+      .where(and(eq(meetings.editionId, edition.id), eq(meetings.title, TEST_MEETING.title)))
+      .limit(1);
+    if (existing) {
+      console.log(`meetings: ${TEST_MEETING.title} schon vorhanden`);
+    } else {
+      const memberId = (email: string) => {
+        const id = memberIds.get(email);
+        if (!id) throw new Error(`Test-Mitglied fehlt: ${email}`);
+        return id;
+      };
+      const departmentIds = new Map(
+        (
+          await db
+            .select({ id: departments.id, name: departments.name })
+            .from(departments)
+            .where(eq(departments.editionId, edition.id))
+        ).map((department) => [department.name, department.id])
+      );
+      const [meeting] = await db
+        .insert(meetings)
+        .values({
+          editionId: edition.id,
+          date: TEST_MEETING.date,
+          title: TEST_MEETING.title,
+          place: TEST_MEETING.place,
+          moderatorId: memberId(TEST_MEETING.moderator),
+          minuteTakerId: memberId(TEST_MEETING.minuteTaker),
+          guests: TEST_MEETING.guests,
+          createdBy: memberId(TEST_MEETING.createdBy),
+        })
+        .returning({ id: meetings.id });
+      await db
+        .insert(meetingAttendees)
+        .values(TEST_MEETING.attendees.map((email) => ({ meetingId: meeting.id, memberId: memberId(email) })));
+      await db.insert(meetingItems).values(
+        TEST_MEETING.items.map((item, index) => ({
+          meetingId: meeting.id,
+          topic: item.topic,
+          kind: item.kind,
+          text: item.text,
+          ownerId: "owner" in item ? memberId(item.owner) : null,
+          ownerName: "ownerName" in item ? item.ownerName : null,
+          dueDate: "dueDate" in item ? item.dueDate : null,
+          departmentId: "department" in item ? (departmentIds.get(item.department) ?? null) : null,
+          sortOrder: index + 1,
+          createdBy: memberId(TEST_MEETING.createdBy),
+        }))
+      );
+      console.log(`meetings: ${TEST_MEETING.title} mit ${TEST_MEETING.items.length} Punkten angelegt`);
+    }
+  }
 }
 
 if (process.argv[1]?.endsWith("seed.ts")) {

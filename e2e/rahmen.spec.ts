@@ -23,6 +23,24 @@ async function devLogin(page: Page, name: string) {
   await expect(page).toHaveURL(/\/$/);
 }
 
+/**
+ * Waits until a page is finished: its heading is visible and no visible
+ * "Lade …" placeholder is left (pages kept hidden by the router do not count).
+ *
+ * Why: Next.js 16 with cacheComponents keeps the last pages in hidden React
+ * <Activity> boundaries and drops the oldest. If a page is left while its data
+ * is still streaming and is dropped before the data arrives, React throws
+ * "Cannot read properties of null (reading '_retryCache')" (a gap in React,
+ * still present in the React shipped with Next.js 16.4/16.5 canary). That only
+ * happens when clicking on faster than the data loads, e.g. in the Vercel
+ * preview with ~150 ms server latency. The check for console errors below
+ * stays as strict as before.
+ */
+async function expectPageReady(page: Page, h1: string) {
+  await expect(page.getByRole("heading", { level: 1, name: h1 })).toBeVisible();
+  await expect(page.getByText(/^Lade .+ …$/).filter({ visible: true })).toHaveCount(0);
+}
+
 async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -87,15 +105,17 @@ test.describe("App-Rahmen", () => {
       } else {
         // Kollektive sits under "Mehr" on narrow screens.
         await tabBar.getByRole("link", { name: "Mehr", exact: true }).click();
+        await expectPageReady(page, "Einstellungen");
         await page.getByRole("main").getByRole("link", { name: /Kollektive/ }).click();
       }
       await expect(page).toHaveURL(new RegExp(`${target.href === "/" ? "/" : target.href}$`));
-      await expect(page.getByRole("heading", { level: 1, name: target.h1 })).toBeVisible();
+      await expectPageReady(page, target.h1);
       await expectNoHorizontalScroll(page);
     }
 
     if (isNarrow(page)) {
       await tabBar.getByRole("link", { name: "Mehr", exact: true }).click();
+      await expectPageReady(page, "Einstellungen");
     }
     await page.getByRole("button", { name: "Abmelden" }).filter({ visible: true }).click();
     await expect(page).toHaveURL(/\/login$/);
