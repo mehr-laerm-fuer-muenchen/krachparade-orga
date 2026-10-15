@@ -128,3 +128,7 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 ## Deploy
 
 DB-Änderung: Neon-Backup-Zweig `backup-vor-005` von production → `pnpm db:push:prod` auf dem Zweig → `pnpm db:seed:prod` (legt in production nur die fünf Vorschlags-AKs an und ordnet die 15 Aufgabenbereiche zu) → `deploy --db-erledigt`. Danach am iPhone: Seite AKs, Hinweis sichtbar, „Mach ich mit“ bei einem AK, in einem Treffen das Feld „Aufgabenbereich“ prüfen.
+
+## Abweichungen beim Bau
+
+- `e2e/rahmen.spec.ts` an Navigation ‚AKs‘ angepasst, Test ‚Leitung eines Referats ändern‘ gestrichen; Admins können auch deaktivierte Personen aus einem AK austragen. Freigabe Franz.

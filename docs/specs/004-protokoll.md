@@ -127,3 +127,7 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 ## Deploy
 
 DB-Änderung: Neon-Backup-Zweig `backup-vor-004` von production → `pnpm db:push:prod` auf dem Zweig → `deploy --db-erledigt`. Kein `db:seed:prod`. Danach am iPhone: einloggen, Treffen anlegen, einen Punkt erfassen, Treffen wieder löschen. Dann das Treffen vom 14.10.2026 direkt in der App nachtragen (Datum im Kopf auf 14.10.2026 setzen).
+
+## Abweichungen beim Bau
+
+- `e2e/rahmen.spec.ts` wartet nach jedem Seitenwechsel mit `expectPageReady` (React-Lücke `_retryCache` mit `<Activity>` in Next.js 16), Freigabe Franz.

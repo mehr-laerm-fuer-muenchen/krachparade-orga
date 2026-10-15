@@ -198,3 +198,9 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 ## Deploy
 
 DB-Änderung: Neon-Backup-Zweig `backup-vor-006` von production → `pnpm db:push:prod` auf dem Zweig (Rückfrage von drizzle-kit zu `departments_edition_name` bzw. `meeting_attendees_…_pk` mit **„No, add the constraint without truncating the table“** beantworten, nie „truncate“) → **kein** `db:seed:prod` → `deploy --db-erledigt`. Danach am iPhone: Startseite zeigt „Noch kein Plan. Die KP27-Vorlage kommt mit Spec 010.“
+
+## Abweichungen beim Bau
+
+- **D-Day-Wechsel:** Die Vorgänger eines Fixtermins rechnen vom Fixtermin aus und wandern deshalb relativ mit ihm. Mit D-Day 15.05.2027 liegen „Kooperationsgespräch KVR/Polizei“, „Versammlungsanzeige beim KVR“ und „Route & Aufstellung ausarbeiten“ 7 Tage relativ früher; der Fixtermin hat dann +5 Tage Puffer. So in `src/lib/plan-engine.test.ts` getestet.
+- **Kritischer Pfad:** Sind eine Verbindung zu einem Element und die Verbindung zum D-Day gleichzeitig „ohne Luft“, gewinnt das Element (der Pfad läuft weiter).
+- **Beispielplan:** liegt als `TEST_PLAN` in `src/db/seed.ts` und wird vom Engine-Test (`src/lib/plan-engine.test.ts`) mitgenutzt, damit Seed und Test nicht auseinanderlaufen.
