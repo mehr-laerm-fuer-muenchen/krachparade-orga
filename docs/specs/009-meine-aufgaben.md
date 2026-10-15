@@ -123,7 +123,9 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 
 ## Abweichungen beim Bau
 
-- Neu laden: Die Actions aus 004/008 rufen weiter `refresh()` auf; `revalidatePath` für `/meine` und für das Layout (Zähler an „Meine“) ist zusätzlich ergänzt (`src/actions/revalidate-my-tasks.ts`). (Freigabe Franz)
+- Neu laden: Die Actions aus 004/008 rufen weiter `refresh()` auf; `revalidatePath("/meine")` ist zusätzlich ergänzt (`src/actions/revalidate-my-tasks.ts`). Der Zähler an „Meine“ folgt über `refresh()` der aktuellen Seite. (Freigabe Franz)
+- Kein `revalidatePath("/", "layout")`: Es ließ Vercel die statische Hülle von „/“ zur Laufzeit neu bauen, und die kam dort ohne Pfad heraus (kein aktiver Navigationspunkt), was in der Vorschau den Hydration-Fehler #418 auslöste. (Freigabe Franz)
+- Breite der Startseite: kommt nicht mehr aus `usePathname()` in `AppMain`, sondern die Startseite markiert sich serverseitig mit `data-wide-page`, und `<main>` wird per CSS (`:has()`) bis 1400 px breit; alle anderen Seiten bleiben 1024 px. (Freigabe Franz)
 - `src/db/plan.ts`: `ownerId` der Plan-To-dos sowie `done_at` von Elementen und Plan-To-dos ergänzt, nur hinzufügend. (Freigabe Franz)
 - Rückgängig-Leiste aus 008 herausgelöst: `useUndoBar` in `src/components/plan/plan-bar.tsx`, `run`/`drag` in `src/components/plan/use-plan-actions.ts`; Startseite und `/meine` nutzen beides, die Startseite verhält sich wie vorher. (Freigabe Franz)
 - Einträge unter „Aus meinen AKs – noch niemand eingetragen“ haben kein Kästchen zum Abhaken, nur „Übernehmen“ (abgehakt würden sie sonst verschwinden, da „Zuletzt erledigt“ nur eigene Einträge zeigt). (Freigabe Franz)

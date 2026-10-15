@@ -15,8 +15,9 @@ export const metadata: Metadata = {
 const NOTICE = "rounded-md border border-line bg-surface px-4 py-3 text-muted";
 
 export default function Home() {
+  // `data-wide-page`: the plan may use up to 1400 px on wide screens (see AppMain).
   return (
-    <div className="flex flex-col gap-4">
+    <div data-wide-page className="flex flex-col gap-4">
       <Suspense fallback={<p className="text-muted">Lade Plan …</p>}>
         <Plan />
       </Suspense>
