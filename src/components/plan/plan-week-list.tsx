@@ -105,7 +105,8 @@ function Group({
 
 /**
  * "Was steht an" (spec 007): overdue items and the coming weeks as cards,
- * for everyone or only the AKs of the signed-in member. Read only.
+ * for everyone or only the AKs of the signed-in member. Opens elements for
+ * editing (spec 008).
  */
 export function PlanWeekList({
   elements,
@@ -113,6 +114,7 @@ export function PlanWeekList({
   dDay,
   myGroupIds,
   onSelect,
+  onCreate,
 }: {
   elements: readonly PlanViewElement[];
   today: number;
@@ -120,6 +122,8 @@ export function PlanWeekList({
   /** AKs of the signed-in member (from the working group memberships). */
   myGroupIds: readonly string[];
   onSelect: (id: string) => void;
+  /** "+ Element" on phones (spec 008); on laptops it sits in the toolbar. */
+  onCreate?: () => void;
 }) {
   const [mineOnly, setMineOnly] = useState(false);
   const [weeks, setWeeks] = useState(PAGE_WEEKS);
@@ -128,22 +132,33 @@ export function PlanWeekList({
 
   return (
     <div className="flex flex-col gap-5">
-      <div
-        role="group"
-        aria-label="Welche AKs"
-        className="flex self-start overflow-hidden rounded-md border border-line bg-surface"
-      >
-        <button type="button" aria-pressed={!mineOnly} onClick={() => setMineOnly(false)} className={TOGGLE}>
-          Alle
-        </button>
-        <button
-          type="button"
-          aria-pressed={mineOnly}
-          onClick={() => setMineOnly(true)}
-          className={`${TOGGLE} border-l border-line`}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div
+          role="group"
+          aria-label="Welche AKs"
+          className="flex self-start overflow-hidden rounded-md border border-line bg-surface"
         >
-          Meine AKs
-        </button>
+          <button type="button" aria-pressed={!mineOnly} onClick={() => setMineOnly(false)} className={TOGGLE}>
+            Alle
+          </button>
+          <button
+            type="button"
+            aria-pressed={mineOnly}
+            onClick={() => setMineOnly(true)}
+            className={`${TOGGLE} border-l border-line`}
+          >
+            Meine AKs
+          </button>
+        </div>
+        {onCreate ? (
+          <button
+            type="button"
+            onClick={onCreate}
+            className="min-h-11 rounded-md bg-primary px-4 font-semibold text-on-primary hover:opacity-90 desk:hidden"
+          >
+            + Element
+          </button>
+        ) : null}
       </div>
 
       {noGroups ? (

@@ -1,19 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { moveElement, resizeElement, undoPlanChange, type PlanConflict, type PreviousValues } from "@/actions/plan";
 import { PageTitle } from "@/components/placeholder";
 import { formatDLabel } from "@/lib/dday";
 import {
   NO_GROUP_KEY,
   type GanttGroup,
-  type GanttLink,
   type PlanViewElement,
+  type PlanViewLink,
   type Zoom,
 } from "@/lib/gantt-layout";
 import { dayToDate } from "@/lib/plan-days";
+import type { DragMode } from "@/lib/plan-drag";
+import type { PlanInput } from "@/lib/plan-engine";
+import { defaultGroupId } from "@/lib/plan-panel";
 import { countLate, formatWeekdayShort } from "@/lib/plan-preview";
-import { EDIT_LATER, PlanDetail } from "./plan-detail";
-import { PlanGantt } from "./plan-gantt";
+import { PlanBar, type PlanNotice } from "./plan-bar";
+import { PlanDetail, type PlanDepartmentOption, type PlanOption, type PlanResult } from "./plan-detail";
+import { PlanGantt, type GanttEdit } from "./plan-gantt";
+import { PlanNewElement } from "./plan-new-element";
 import { PlanWeekList } from "./plan-week-list";
 
 /** Everything the plan page needs, computed on the server. */
@@ -24,11 +30,20 @@ export type PlanViewData = {
   today: number;
   elements: PlanViewElement[];
   groups: GanttGroup[];
-  links: GanttLink[];
+  links: PlanViewLink[];
   criticalPath: string[];
   latestProjectStart: number;
   myGroupIds: string[];
+  /** Choices of the detail panel (spec 008); active members only, names only. */
+  departments: PlanDepartmentOption[];
+  members: PlanOption[];
 };
+
+const SAVE_ERROR = "Konnte nicht gespeichert werden.";
+
+function conflictText(conflict: PlanConflict): string {
+  return `Wurde gerade von ${conflict.by ?? "jemand anderem"} geändert – Plan neu geladen.`;
+}
 
 type View = "gantt" | "list";
 
@@ -165,9 +180,10 @@ function Legend() {
 }
 
 /**
- * The plan of the current edition (spec 007): Gantt on wide screens, the week
- * list on phones (and on request), details of the selected element. Shows
- * the result from the server; nothing is computed or dated in the browser.
+ * The plan of the current edition (spec 007, editable from spec 008): Gantt
+ * on wide screens, the week list on phones (and on request), details of the
+ * selected element. Shows the result from the server; only while dragging
+ * the browser computes a preview with the same engine.
  */
 export function PlanView({ data }: { data: PlanViewData }) {
   const { elements, groups, links, criticalPath, today, dDay } = data;
@@ -177,6 +193,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
   const [criticalOnly, setCriticalOnly] = useState(false);
   const [openOnly, setOpenOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState<PlanNotice | null>(null);
+  const noticeKey = useRef(0);
 
   // The first render uses the defaults (same as on the server); the stored
   // preferences of this device apply right after.
@@ -221,6 +240,82 @@ export function PlanView({ data }: { data: PlanViewData }) {
   };
 
   const close = useCallback(() => setSelectedId(null), []);
+  const closeNotice = useCallback(() => setNotice(null), []);
+  const closeForm = useCallback(() => setCreating(false), []);
+
+  const show = useCallback((text: string, tone: PlanNotice["tone"], undo?: () => void) => {
+    noticeKey.current += 1;
+    setNotice({ key: noticeKey.current, text, tone, undo });
+  }, []);
+
+  /** Every action refreshes the page itself (refresh()); a conflict only adds the notice. */
+  const run = useCallback(
+    async (call: () => Promise<PlanResult>): Promise<string | null> => {
+      try {
+        const result = await call();
+        if (!result.ok) return result.message;
+        if (result.conflict) show(conflictText(result.conflict), "info");
+        return null;
+      } catch {
+        return SAVE_ERROR;
+      }
+    },
+    [show]
+  );
+
+  const undo = useCallback(
+    async (previous: PreviousValues[], updatedAt: string) => {
+      const message = await run(() => undoPlanChange(previous, updatedAt));
+      if (message !== null) show(message, "error");
+    },
+    [run, show]
+  );
+
+  /** Drag in the Gantt or "−/+ T" on phones: save, then offer "Rückgängig". */
+  const drag = useCallback(
+    async (id: string, mode: DragMode, delta: number): Promise<boolean> => {
+      const element = byId.get(id);
+      if (!element) return false;
+      try {
+        const result =
+          mode === "move"
+            ? await moveElement(id, delta, element.updatedAt)
+            : await resizeElement(id, mode, delta, element.updatedAt);
+        if (!result.ok) {
+          show(SAVE_ERROR, "error");
+          return false;
+        }
+        if (result.conflict) show(conflictText(result.conflict), "info");
+        else if (result.previous.length > 0 && result.updatedAt !== null) {
+          const { previous, updatedAt } = result;
+          show(mode === "move" ? "Verschoben" : "Dauer geändert", "info", () => void undo(previous, updatedAt));
+        }
+        return true;
+      } catch {
+        show(SAVE_ERROR, "error");
+        return false;
+      }
+    },
+    [byId, show, undo]
+  );
+
+  const enginePlan = useMemo<PlanInput>(
+    () => ({
+      elements: elements.map((element) => ({
+        id: element.id,
+        kind: element.kind,
+        durationDays: element.durationDays,
+        shiftDays: element.shiftDays,
+        fixedDay: element.fixedDay,
+        done: element.done,
+        wobbly: element.wobbly,
+        sortOrder: element.sortOrder,
+      })),
+      links,
+    }),
+    [elements, links]
+  );
+  const ganttEdit = useMemo<GanttEdit>(() => ({ plan: enginePlan, onDrag: drag }), [enginePlan, drag]);
 
   // The filters apply to the week list as well.
   const critical = new Set(criticalPath);
@@ -262,6 +357,13 @@ export function PlanView({ data }: { data: PlanViewData }) {
         <FilterButton pressed={openOnly} onClick={() => setOpenOnly(!openOnly)}>
           Nur offene
         </FilterButton>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className={`${BUTTON} hidden rounded-md bg-primary font-semibold text-on-primary hover:opacity-90 desk:block`}
+        >
+          + Element
+        </button>
         {gantt ? (
           <>
             <Segmented label="Zoom" options={ZOOMS} value={zoom} onChange={changeZoom} className="hidden desk:flex" />
@@ -295,8 +397,12 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onToggleLane={toggleLane}
+                edit={ganttEdit}
               />
-              <p className="text-sm text-muted">Antippen zeigt Abhängigkeiten und Details. {EDIT_LATER}</p>
+              <p className="text-sm text-muted">
+                Antippen zeigt Abhängigkeiten und Details. Ziehen verschiebt (mit Vorgängern), die Ränder ändern die
+                Dauer.
+              </p>
             </div>
           ) : null}
           <div className={gantt ? "desk:hidden" : undefined}>
@@ -306,21 +412,46 @@ export function PlanView({ data }: { data: PlanViewData }) {
               dDay={dDay}
               myGroupIds={data.myGroupIds}
               onSelect={setSelectedId}
+              onCreate={() => setCreating(true)}
             />
           </div>
         </div>
         {selected ? (
           <PlanDetail
+            key={selected.id}
             element={selected}
             elements={byId}
             links={links}
+            groups={groups}
+            departments={data.departments}
+            members={data.members}
             today={today}
             dDay={dDay}
             onSelect={setSelectedId}
             onClose={close}
+            run={run}
+            drag={drag}
           />
         ) : null}
       </div>
+
+      {creating ? (
+        <PlanNewElement
+          groups={groups}
+          elements={elements}
+          defaultGroupId={defaultGroupId(
+            [...groups].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "de")),
+            selected?.workingGroupId,
+            data.myGroupIds
+          )}
+          onCreated={(id) => {
+            setCreating(false);
+            setSelectedId(id);
+          }}
+          onClose={closeForm}
+        />
+      ) : null}
+      <PlanBar key={notice?.key} notice={notice} onClose={closeNotice} />
     </div>
   );
 }

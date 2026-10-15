@@ -8,6 +8,7 @@ import {
   members,
   planElements,
   planLinks,
+  planChanges,
   planNotes,
   planTodos,
   workingGroups,
@@ -25,12 +26,17 @@ export type LoadedPlanElement = PlanElementInput & {
   ownerId: string | null;
   ownerName: string | null;
   openTodos: number;
+  /** Last change, for the conflict notice (spec 008). */
+  updatedAt: Date;
 };
+
+/** A link with its id (spec 008: the panel changes and removes links by id). */
+export type LoadedPlanLink = PlanLinkInput & { id: string };
 
 export type LoadedPlan = {
   dDay: string;
   elements: LoadedPlanElement[];
-  links: PlanLinkInput[];
+  links: LoadedPlanLink[];
 };
 
 /** The plan of an edition (spec 006): elements, links and open to-dos per element. Read only. */
@@ -63,6 +69,7 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
         departmentName: departments.name,
         ownerId: planElements.ownerId,
         ownerName: members.name,
+        updatedAt: planElements.updatedAt,
       })
       .from(planElements)
       .leftJoin(workingGroups, eq(workingGroups.id, planElements.workingGroupId))
@@ -71,7 +78,12 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
       .where(eq(planElements.editionId, editionId))
       .orderBy(asc(planElements.sortOrder), asc(planElements.name)),
     db
-      .select({ fromId: planLinks.fromElementId, toId: planLinks.toElementId, lagDays: planLinks.lagDays })
+      .select({
+        id: planLinks.id,
+        fromId: planLinks.fromElementId,
+        toId: planLinks.toElementId,
+        lagDays: planLinks.lagDays,
+      })
       .from(planLinks)
       .where(eq(planLinks.editionId, editionId)),
     db
@@ -105,7 +117,16 @@ export type LoadedPlanTodo = {
   done: boolean;
 };
 
-export type LoadedPlanNote = { id: string; elementId: string; authorName: string; createdAt: Date; text: string };
+export type LoadedPlanNote = {
+  id: string;
+  elementId: string;
+  authorId: string;
+  authorName: string;
+  createdAt: Date;
+  /** Later than `createdAt` once the note was edited (spec 008). */
+  updatedAt: Date;
+  text: string;
+};
 
 /**
  * To-dos (in their order) and notes (newest first) of an edition's plan for
@@ -134,8 +155,10 @@ export async function loadPlanDetails(
       .select({
         id: planNotes.id,
         elementId: planNotes.elementId,
+        authorId: planNotes.authorId,
         authorName: members.name,
         createdAt: planNotes.createdAt,
+        updatedAt: planNotes.updatedAt,
         text: planNotes.text,
       })
       .from(planNotes)
@@ -148,4 +171,52 @@ export async function loadPlanDetails(
     todos: todos.map((todo) => ({ ...todo, anchor: todo.anchor === "end" ? "end" : "start" })),
     notes,
   };
+}
+
+/**
+ * Choices of the detail panel (spec 008): departments with their working
+ * group and active members. Names only, never e-mail addresses.
+ */
+export async function loadPlanOptions(editionId: string) {
+  const [departmentRows, memberRows] = await Promise.all([
+    db
+      .select({ id: departments.id, name: departments.name, workingGroupId: departments.workingGroupId })
+      .from(departments)
+      .where(eq(departments.editionId, editionId))
+      .orderBy(asc(departments.sortOrder), asc(departments.name)),
+    db
+      .select({ id: members.id, name: members.name })
+      .from(members)
+      .where(eq(members.active, true))
+      .orderBy(asc(members.name)),
+  ]);
+  return { departments: departmentRows, members: memberRows };
+}
+
+export type LoadedPlanChange = { id: string; memberName: string | null; createdAt: Date; summary: string };
+
+/**
+ * Change history of one plan element (spec 008): the newest `limit` entries
+ * (newest first) with the name of who changed it, plus the total count.
+ */
+export async function loadPlanChanges(
+  elementId: string,
+  limit: number
+): Promise<{ changes: LoadedPlanChange[]; total: number }> {
+  const [changes, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: planChanges.id,
+        memberName: members.name,
+        createdAt: planChanges.createdAt,
+        summary: planChanges.summary,
+      })
+      .from(planChanges)
+      .leftJoin(members, eq(members.id, planChanges.memberId))
+      .where(eq(planChanges.elementId, elementId))
+      .orderBy(desc(planChanges.createdAt), desc(planChanges.id))
+      .limit(limit),
+    db.select({ total: count() }).from(planChanges).where(eq(planChanges.elementId, elementId)),
+  ]);
+  return { changes, total };
 }
