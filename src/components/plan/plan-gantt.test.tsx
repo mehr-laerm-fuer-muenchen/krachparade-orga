@@ -123,4 +123,14 @@ describe("PlanGantt", () => {
     expect(week).toBeGreaterThan(month);
     expect(month).toBeGreaterThan(0);
   });
+
+  it("leaves out calendar week labels under the Heute and D-Day labels", () => {
+    // Zoom Woche: KW 42 (Mo 12.10.2026) sits under "Heute" (Do 15.10.),
+    // KW 19 (Mo 10.05.2027) under "D-Day" (Sa 08.05.2027).
+    const html = render({ zoom: "week" });
+    expect(html).not.toContain(">KW 42<");
+    expect(html).not.toContain(">KW 19<");
+    expect(html).toContain(">KW 43<");
+    expect(html).toContain(">KW 18<");
+  });
 });

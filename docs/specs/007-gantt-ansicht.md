@@ -136,3 +136,6 @@ Keine DB-Änderung: `deploy`. Danach am Laptop und am iPhone: Navigation „Plan
 - `timeRange` bekommt den D-Day als dritten Wert (`timeRange(elements, today, dDay)`), weil der Montag vor dem Beginn nur mit dem Kalenderdatum bestimmt werden kann. Freigabe Franz.
 - `src/components/plan/plan-gantt.tsx` importiert `src/lib` per relativem Pfad, weil Vitest den Kürzel `@/` nicht kennt (Render-Test). Freigabe Franz.
 - Zeilenhöhe im Gantt 30 px (Element) / 34 px (Spur) statt 44 px Tippfläche, weil der Gantt erst ab 901 px Breite erscheint (Maus und Tastatur, am Handy die Wochenliste). Freigabe Franz.
+- Die Filter „Kritischer Pfad“ und „Nur offene“ wirken auch auf die Wochenliste (sie bleiben am Handy sichtbar). Freigabe Franz.
+- Die Startseite `/` darf am Laptop bis 1400 px breit werden, damit neben dem Detail-Panel genug Zeitachse bleibt; alle anderen Seiten behalten ihre Breite. Umgesetzt über `src/components/app-main.tsx` im Layout `(app)`. Freigabe Franz.
+- Eine KW-Beschriftung, die unter dem Schild „Heute“ oder „D-Day“ läge, entfällt. Freigabe Franz.

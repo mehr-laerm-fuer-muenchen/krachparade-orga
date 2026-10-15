@@ -35,6 +35,17 @@ const TODAY_OFFSET = 160;
 /** Rough width of one character at 11 px, for label backgrounds. */
 const CHAR_WIDTH = 6.2;
 
+type LabelBox = { left: number; right: number };
+
+/** Background of the "Heute" / "D-Day" label next to a day line at `x`. */
+function dayLabelBox(x: number, label: string, side: "left" | "right"): LabelBox {
+  const width = label.length * CHAR_WIDTH + 6;
+  const left = side === "left" ? x - 3 - width : x + 3;
+  return { left, right: left + width };
+}
+
+const overlaps = (a: LabelBox, b: LabelBox) => a.left < b.right && b.left < a.right;
+
 const FILL: Record<Status, string> = {
   done: "fill-status-done",
   ok: "fill-status-ok",
@@ -125,6 +136,12 @@ export function PlanGantt({
 
   const months = monthTicks(range, dDay);
   const weeks = weekTicks(range, dDay);
+  // Calendar week labels that would sit under the "Heute" or "D-Day" label are left out.
+  const dayLabels = [dayLabelBox(x(today), "Heute", "left"), dayLabelBox(x(0), "D-Day", "right")];
+  const weekLabelFree = (day: number, label: string) => {
+    const box = { left: x(day) + 3, right: x(day) + 3 + label.length * CHAR_WIDTH };
+    return !dayLabels.some((dayLabel) => overlaps(box, dayLabel));
+  };
 
   return (
     <div className="flex overflow-hidden rounded-md border border-line bg-surface">
@@ -203,7 +220,7 @@ export function PlanGantt({
             </text>
           ))}
           {weeks.map((tick, index) =>
-            zoom === "week" || index % 2 === 0 ? (
+            (zoom === "week" || index % 2 === 0) && weekLabelFree(tick.day, tick.label) ? (
               <text key={`wl${tick.day}`} x={x(tick.day) + 3} y={33} className="fill-muted">
                 {tick.label}
               </text>
@@ -307,8 +324,9 @@ function DayLine({
   strokeWidth?: number;
   dashed?: boolean;
 }) {
-  const labelWidth = label.length * CHAR_WIDTH + 6;
-  const labelX = side === "left" ? x - 3 - labelWidth : x + 3;
+  const box = dayLabelBox(x, label, side);
+  const labelX = box.left;
+  const labelWidth = box.right - box.left;
   return (
     <g className="pointer-events-none">
       <line
