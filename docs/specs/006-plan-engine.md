@@ -204,3 +204,7 @@ DB-Änderung: Neon-Backup-Zweig `backup-vor-006` von production → `pnpm db:pus
 - **D-Day-Wechsel:** Die Vorgänger eines Fixtermins rechnen vom Fixtermin aus und wandern deshalb relativ mit ihm. Mit D-Day 15.05.2027 liegen „Kooperationsgespräch KVR/Polizei“, „Versammlungsanzeige beim KVR“ und „Route & Aufstellung ausarbeiten“ 7 Tage relativ früher; der Fixtermin hat dann +5 Tage Puffer. So in `src/lib/plan-engine.test.ts` getestet.
 - **Kritischer Pfad:** Sind eine Verbindung zu einem Element und die Verbindung zum D-Day gleichzeitig „ohne Luft“, gewinnt das Element (der Pfad läuft weiter).
 - **Beispielplan:** liegt als `TEST_PLAN` in `src/db/seed.ts` und wird vom Engine-Test (`src/lib/plan-engine.test.ts`) mitgenutzt, damit Seed und Test nicht auseinanderlaufen.
+- **Kopfzeile der Startseite:** „x in Verzug“ (Elemente mit Status Verzug: negativer Puffer oder überfällig, bei keinem „0 in Verzug“) statt „ohne Puffer“. Freigabe Franz.
+- **Namensspalte:** bleibt am Handy beim waagrechten Scrollen der Tabelle stehen. Freigabe Franz.
+- **Kreis in den Verbindungen:** Die Startseite zeigt eine Fehlermeldung statt abzustürzen. Freigabe Franz.
+- **Browser-Tab:** heißt bis Spec 007 weiter „Überblick“. Freigabe Franz.

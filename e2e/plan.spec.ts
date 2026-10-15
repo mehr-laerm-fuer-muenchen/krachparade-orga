@@ -46,7 +46,9 @@ test.describe("Plan-Vorschau", () => {
     await expect(social.getByRole("cell", { name: "+10 T", exact: true })).toBeVisible();
   });
 
-  test("Kopfzeile nennt den kritischen Pfad", async ({ page }) => {
+  test("Kopfzeile nennt Verzug und den kritischen Pfad", async ({ page }) => {
+    // At least the fixed date "Kooperationsgespräch KVR/Polizei" is late.
+    await expect(page.getByText(/ · [1-9]\d* in Verzug · /)).toBeVisible();
     await expect(page.getByText(/Kritischer Pfad: \d+ Elemente, Start spätestens \S+ \d{2}\.\d{2}\. \(D-150\)/)).toBeVisible();
   });
 

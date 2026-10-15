@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBuffer, formatWeekdayShort, shortEditionName } from "./plan-preview";
+import { countLate, formatBuffer, formatWeekdayShort, shortEditionName } from "./plan-preview";
 
 describe("formatBuffer", () => {
   it("shows a sign and the unit", () => {
@@ -32,5 +32,16 @@ describe("shortEditionName", () => {
 
   it("keeps other names", () => {
     expect(shortEditionName("Sommerfest")).toBe("Sommerfest");
+  });
+});
+
+describe("countLate", () => {
+  it("counts only elements with status late", () => {
+    expect(countLate([{ status: "late" }, { status: "warn" }, { status: "ok" }, { status: "done" }, { status: "late" }])).toBe(2);
+  });
+
+  it("is 0 without late elements", () => {
+    expect(countLate([{ status: "ok" }, { status: "warn" }])).toBe(0);
+    expect(countLate([])).toBe(0);
   });
 });

@@ -8,7 +8,7 @@ import { loadPlan, type LoadedPlanElement } from "@/db/plan";
 import { formatDLabel, formatGermanDate, todayInBerlin } from "@/lib/dday";
 import { dateToDay, dayToDate } from "@/lib/plan-days";
 import { computePlan, PlanCycleError, type ComputedElement, type ComputedPlan } from "@/lib/plan-engine";
-import { formatBuffer, formatWeekdayShort, shortEditionName } from "@/lib/plan-preview";
+import { countLate, formatBuffer, formatWeekdayShort, shortEditionName } from "@/lib/plan-preview";
 import { displayGroupName } from "@/lib/working-groups";
 
 export const metadata: Metadata = {
@@ -87,7 +87,7 @@ async function PlanPreview() {
       critical: critical.has(element.id),
     }))
   );
-  const withoutBuffer = [...computed.elements.values()].filter((element) => element.buffer <= 0).length;
+  const late = countLate(computed.elements.values());
   const startDate = dayToDate(computed.latestProjectStart, plan.dDay);
 
   return (
@@ -95,7 +95,7 @@ async function PlanPreview() {
       <div className="flex flex-col gap-1">
         <PageTitle>{title}</PageTitle>
         <p className="text-muted">
-          {plan.elements.length} Elemente · {withoutBuffer} ohne Puffer · Kritischer Pfad:{" "}
+          {plan.elements.length} Elemente · {late} in Verzug · Kritischer Pfad:{" "}
           {computed.criticalPath.length} Elemente, Start spätestens {formatWeekdayShort(startDate)} (
           {formatDLabel(startDate, plan.dDay)})
         </p>

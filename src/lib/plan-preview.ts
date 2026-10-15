@@ -1,4 +1,5 @@
 // Display helpers for the plan preview on the start page (spec 006).
+import type { Status } from "@/components/status-pill";
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -30,4 +31,13 @@ export function formatWeekdayShort(date: string): string {
 export function shortEditionName(name: string): string {
   const match = /^Krachparade (\d{2})(\d{2})$/.exec(name.trim());
   return match ? `KP${match[2]}` : name;
+}
+
+/** Elements with status "late" (negative buffer or overdue), for "x in Verzug". */
+export function countLate(elements: Iterable<{ status: Status }>): number {
+  let count = 0;
+  for (const element of elements) {
+    if (element.status === "late") count += 1;
+  }
+  return count;
 }
