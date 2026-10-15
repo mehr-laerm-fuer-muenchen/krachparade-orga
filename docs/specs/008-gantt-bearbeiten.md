@@ -122,13 +122,14 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 
 ## Abweichungen beim Bau
 
-- „Erreicht“ setzt `done` **und** `done_at` (die Tabelle hat beide Spalten). Freigabe Franz: ☑
-- Neuladen nach jeder Änderung über `refresh()` aus `next/cache`, wie in den Actions aus 004/005 (statt `revalidatePath`). Freigabe Franz: ☑
-- Verbindungs-Actions (`addLink`, `updateLinkLag`, `removeLink`) prüfen den Konflikt am Element des Panels, aus dem die Änderung kommt: letzter Parameter `seen = { id, updatedAt }`, `id` muss ein Ende der Verbindung sein. Freigabe Franz: ☑
-- `moveElement` und `resizeElement` geben zusätzlich das neue `updatedAt` zurück, damit „Rückgängig“ direkt danach keinen falschen Konflikt meldet. Freigabe Franz: ☑
-- `deleteElement` lehnt das Löschen ab, wenn beim Umhängen ein Abstand über 365 Tage entstünde (die Datenbank erlaubt höchstens 365). Freigabe Franz: ☑
-- „Auf spätesten Termin“ erscheint nur bei Elementen ohne Fixtermin. Freigabe Franz: ☑
-- `loadPlan` liefert zusätzlich `updatedAt` je Element und die IDs der Verbindungen. Freigabe Franz: ☑
+- „Erreicht“ setzt `done` **und** `done_at` (die Tabelle hat beide Spalten). (Freigabe Franz)
+- Neuladen nach jeder Änderung über `refresh()` aus `next/cache`, wie in den Actions aus 004/005 (statt `revalidatePath`). (Freigabe Franz)
+- Verbindungs-Actions (`addLink`, `updateLinkLag`, `removeLink`) prüfen den Konflikt am Element des Panels, aus dem die Änderung kommt: letzter Parameter `seen = { id, updatedAt }`, `id` muss ein Ende der Verbindung sein. (Freigabe Franz)
+- `moveElement` und `resizeElement` geben zusätzlich das neue `updatedAt` zurück, damit „Rückgängig“ direkt danach keinen falschen Konflikt meldet. (Freigabe Franz)
+- `deleteElement` lehnt das Löschen ab, wenn beim Umhängen ein Abstand über 365 Tage entstünde (die Datenbank erlaubt höchstens 365). (Freigabe Franz)
+- „Auf spätesten Termin“ erscheint nur bei Elementen ohne Fixtermin. (Freigabe Franz)
+- `loadPlan` liefert zusätzlich `updatedAt` je Element und die IDs der Verbindungen. (Freigabe Franz)
+- Klicktest: Kreis-Prüfung an der Vorgänger-Auswahl von C (enthält weder A noch B), Nachfolger-Auswahl von C ohne B (schon verbunden) – Spec-Text war an dieser Stelle falsch (Freigabe Franz)
 
 ## Deploy
 
