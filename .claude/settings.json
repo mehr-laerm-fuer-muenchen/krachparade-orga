@@ -17,7 +17,6 @@
       "Bash(pnpm test)",
       "Bash(pnpm test:*)",
       "Bash(pnpm build)",
-      "Bash(pnpm db:push)",
       "Bash(pnpm exec tsc:*)",
       "Bash(pnpm exec vitest:*)",
       "Bash(git status)",
@@ -26,14 +25,30 @@
       "Bash(git diff)",
       "Bash(git diff:*)",
       "Bash(git branch)",
-      "Bash(git branch:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git switch:*)",
       "Bash(ls:*)",
       "Bash(cat package.json)",
       "Bash(node --version)",
-      "Bash(pnpm --version)"
+      "Bash(pnpm --version)",
+      "Bash(git branch --show-current)",
+      "Bash(pnpm e2e *)",
+      "Bash(pnpm exec playwright test *)",
+      "Bash(VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm build)",
+      "Bash(AUTH_TRUST_HOST=1 VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm start -p 3100)",
+      "Bash(AUTH_TRUST_HOST=true VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm start -p 3100)",
+      "Bash(BASE_URL=http://localhost:3100 pnpm e2e *)",
+      "Bash(git show *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(find *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(lsof -i :3000)",
+      "Bash(lsof -i :3100)"
     ],
     "ask": [
       "Edit",
@@ -46,7 +61,9 @@
       "Bash(pnpm exec drizzle-kit push:*)",
       "Bash(git checkout:*)",
       "Bash(pnpm db:seed)",
-      "Bash(pnpm db:reset:dev)"
+      "Bash(pnpm db:reset:dev)",
+      "Bash(pnpm db:push)",
+      "Bash(git switch:*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -79,7 +96,9 @@
       "Bash(psql:*)",
       "Bash(cat .env:*)",
       "Bash(printenv:*)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(find *-delete*)",
+      "Bash(find *-exec*)"
     ]
   }
 }

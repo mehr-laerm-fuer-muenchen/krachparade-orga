@@ -42,6 +42,13 @@ Bevor du etwas änderst, zeig mir kurz den aktuellen Aufbau von `.claude/setting
 - `find . -name x -delete` wird abgelehnt
 - `pnpm typecheck`, `lint`, `test`, `build` grün; bestehende Klicktests unverändert grün
 
+## Abweichungen beim Bau
+
+- `grep` und `rg` nicht freigegeben, sie bleiben mit Rückfrage: Die `Read`-Sperren für `.env*` greifen laut Claude-Code-Doku nicht bei Befehlen wie `grep -r … .`, eine Freigabe hätte die `.env`-Sperre ausgehebelt. (Freigabe Franz)
+- Bestehende Regeln strenger gemacht: `Bash(pnpm db:push)` und `Bash(git switch:*)` von `allow` nach `ask` verschoben; `Bash(git branch:*)` aus `allow` entfernt, erlaubt ist nur noch `Bash(git branch --show-current)` (das exakte `Bash(git branch)` bleibt unverändert). (Freigabe Franz)
+- Neue Regeln in der Schreibweise `Bash(cmd *)` (Doku: gleichwertig zu `:*`, erfasst auch den Befehl ohne Argumente); bereits vorhandene gleichwertige Regeln (`pnpm test:*`, `git diff:*`, `git log:*`, `git add:*`, `git commit:*`, `ls:*`, `pnpm exec vitest:*`) nicht doppelt eingetragen. `find … -delete`/`-exec` als `Bash(find *-delete*)` und `Bash(find *-exec*)` in `deny`. (Freigabe Franz)
+- Ob die exakten Regeln mit Umgebungsvariablen (`VERCEL_ENV=preview …`, `AUTH_TRUST_HOST=…`, `BASE_URL=…`) greifen, ist in der Doku nicht eindeutig und wird nach `/clear` geprüft. (Freigabe Franz)
+
 ## Deploy
 
 Keine DB-Änderung: `deploy`. Wirkt ab der nächsten Claude-Code-Sitzung (nach `/clear` bzw. Neustart).
