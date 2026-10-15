@@ -321,11 +321,13 @@ export type AgendaOptions = {
   myGroupIds: readonly string[] | null;
 };
 
-function weekday(day: number, dDay: string): string {
+/** "Mi 17.02." */
+export function weekday(day: number, dDay: string): string {
   return formatWeekdayShort(dayToDate(day, dDay));
 }
 
-function lateText(element: AgendaElement): string {
+/** Why a late element is late, as the week list says it. */
+export function lateText(element: Pick<AgendaElement, "reason" | "buffer">): string {
   if (element.reason === "fixed_too_late") return `Fixtermin liegt ${-element.buffer} Tage zu spät`;
   if (element.reason === "overdue") return "Termin vorbei, nicht abgehakt";
   return "Puffer negativ";
@@ -424,19 +426,25 @@ export function weekAgenda(
       }
     }
     if (monday !== current && entries.length === 0) continue;
-    const index = (monday - current) / 7;
-    found.push({
-      monday,
-      title: index === 0 ? "Diese Woche" : index === 1 ? "Nächste Woche" : `KW ${isoWeek(monday, dDay)}`,
-      range: `${formatDayMonth(monday, dDay)}–${formatDayMonth(sunday, dDay)} · ${formatDLabel(
-        dayToDate(monday, dDay),
-        dDay
-      )}`,
-      entries: entries.sort(byDayThenName),
-    });
+    found.push({ monday, ...weekHeading(monday, current, dDay), entries: entries.sort(byDayThenName) });
   }
 
   return { overdue, weeks: found.slice(0, options.weeks), hasMore: found.length > options.weeks };
+}
+
+/**
+ * Heading of the week starting on `monday`, seen from the week starting on
+ * `current`: "Diese Woche", "Nächste Woche" or "KW n", and "TT.MM.–TT.MM. · D-x".
+ */
+export function weekHeading(monday: number, current: number, dDay: string): Pick<AgendaWeek, "title" | "range"> {
+  const index = (monday - current) / 7;
+  return {
+    title: index === 0 ? "Diese Woche" : index === 1 ? "Nächste Woche" : `KW ${isoWeek(monday, dDay)}`,
+    range: `${formatDayMonth(monday, dDay)}–${formatDayMonth(monday + 6, dDay)} · ${formatDLabel(
+      dayToDate(monday, dDay),
+      dDay
+    )}`,
+  };
 }
 
 /** "Mi 17.02.2027" */

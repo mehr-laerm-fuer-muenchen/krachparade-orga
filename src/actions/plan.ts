@@ -4,6 +4,7 @@ import { and, eq, inArray, max } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { refresh } from "next/cache";
 import { z } from "zod";
+import { revalidateMyTasks } from "@/actions/revalidate-my-tasks";
 import { auth } from "@/auth";
 import { getCurrentEdition } from "@/db/editions";
 import { db } from "@/db/index";
@@ -277,6 +278,7 @@ async function saveElementPatch(context: ElementContext, patch: ElementPatch, na
   ]);
   if (!saved) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true as const, conflict: context.conflict };
 }
 
@@ -322,6 +324,7 @@ async function saveEngineChanges(context: ElementContext, changes: PlanElementCh
 
   if (!(await runBatch(queries))) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, conflict: context.conflict, previous, updatedAt: now.toISOString() };
 }
 
@@ -435,6 +438,7 @@ export async function createElement(input: z.input<typeof createInput>): Promise
 
   if (!(await runBatch(queries))) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, id };
 }
 
@@ -596,6 +600,7 @@ export async function undoPlanChange(previous: PreviousValues[], seenUpdatedAt: 
   }
   if (!(await runBatch(queries))) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, conflict: context.conflict };
 }
 
@@ -698,6 +703,7 @@ export async function deleteElement(elementId: string, seenUpdatedAt: string): P
 
   if (!(await runBatch(queries))) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, conflict: context.conflict };
 }
 
@@ -737,6 +743,7 @@ export async function addLink(
   ]);
   if (!saved) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, conflict: context.conflict };
 }
 
@@ -786,6 +793,7 @@ export async function updateLinkLag(linkId: string, lagDays: number, seen: SeenE
   ]);
   if (!saved) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, conflict: context.conflict };
 }
 
@@ -806,6 +814,7 @@ export async function removeLink(linkId: string, seen: SeenElement): Promise<Ele
   ]);
   if (!saved) return fail(SAVE_ERROR);
   refresh();
+  revalidateMyTasks();
   return { ok: true, conflict: context.conflict };
 }
 
@@ -855,6 +864,7 @@ export async function addTodo(elementId: string, input: z.input<typeof todoInput
     return fail(SAVE_ERROR);
   }
   refresh();
+  revalidateMyTasks();
   return { ok: true };
 }
 
@@ -886,6 +896,7 @@ export async function toggleTodo(todoId: string, done: boolean): Promise<PlanAct
     .set({ done: parsed.data, doneAt: parsed.data ? now : null, updatedAt: now })
     .where(eq(planTodos.id, context.todo.id));
   refresh();
+  revalidateMyTasks();
   return { ok: true };
 }
 
@@ -894,6 +905,7 @@ export async function deleteTodo(todoId: string): Promise<PlanActionResult> {
   if (isFailure(context)) return context;
   await db.delete(planTodos).where(eq(planTodos.id, context.todo.id));
   refresh();
+  revalidateMyTasks();
   return { ok: true };
 }
 

@@ -4,6 +4,7 @@ import { and, eq, inArray, max } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { revalidateMyTasks } from "@/actions/revalidate-my-tasks";
 import { auth } from "@/auth";
 import { getCurrentEdition } from "@/db/editions";
 import { db } from "@/db/index";
@@ -154,6 +155,7 @@ export async function updateMeetingHead(
     .set({ ...values, updatedAt: new Date() })
     .where(eq(meetings.id, context.meeting.id));
   refresh();
+  revalidateMyTasks();
   return OK;
 }
 
@@ -223,6 +225,7 @@ export async function deleteMeeting(meetingId: string): Promise<MeetingActionRes
   if (!canDeleteMeeting(context.actor, context.meeting)) return fail(DELETE_DENIED);
   // Attendees and items go with it (ON DELETE CASCADE).
   await db.delete(meetings).where(eq(meetings.id, context.meeting.id));
+  revalidateMyTasks();
   redirect("/protokolle");
 }
 
@@ -296,6 +299,7 @@ export async function createMeetingItem(
     touchMeeting(context.meeting.id),
   ]);
   refresh();
+  revalidateMyTasks();
   return OK;
 }
 
@@ -321,6 +325,7 @@ export async function updateMeetingItem(itemId: string, input: ItemFields): Prom
     touchMeeting(context.meeting.id),
   ]);
   refresh();
+  revalidateMyTasks();
   return OK;
 }
 
@@ -332,6 +337,7 @@ export async function deleteMeetingItem(itemId: string): Promise<MeetingActionRe
     touchMeeting(context.meeting.id),
   ]);
   refresh();
+  revalidateMyTasks();
   return OK;
 }
 
@@ -351,6 +357,7 @@ export async function setTodoDone(itemId: string, done: boolean): Promise<Meetin
     touchMeeting(context.meeting.id),
   ]);
   refresh();
+  revalidateMyTasks();
   return OK;
 }
 
