@@ -37,6 +37,11 @@
   --kind-todo: #fcebd5;
   --on-kind-todo: #8a4b07;
 
+  /* Gantt (spec 007). */
+  --gantt-buffer: #9fb3a7;
+  --gantt-late: #f3c9d2;
+  --gantt-lane: #e9eeea;
+
   color-scheme: light;
 }
 
@@ -72,6 +77,10 @@
     --kind-todo: #3a2b15;
     --on-kind-todo: #f2c27e;
 
+    --gantt-buffer: #5c7266;
+    --gantt-late: #5a2531;
+    --gantt-lane: #1e2622;
+
     color-scheme: dark;
   }
 }
@@ -106,6 +115,9 @@
   --color-on-kind-decision: var(--on-kind-decision);
   --color-kind-todo: var(--kind-todo);
   --color-on-kind-todo: var(--on-kind-todo);
+  --color-gantt-buffer: var(--gantt-buffer);
+  --color-gantt-late: var(--gantt-late);
+  --color-gantt-lane: var(--gantt-lane);
   --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
 }
 

@@ -12,7 +12,7 @@ import { countLate, formatBuffer, formatWeekdayShort, shortEditionName } from "@
 import { displayGroupName } from "@/lib/working-groups";
 
 export const metadata: Metadata = {
-  title: "Überblick – Krachparade Orga",
+  title: "Plan – Krachparade Orga",
 };
 
 const NOTICE = "rounded-md border border-line bg-surface px-4 py-3 text-muted";

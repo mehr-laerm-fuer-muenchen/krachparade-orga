@@ -39,7 +39,7 @@ describe("navigation", () => {
 
   it("has five tabs ending with Mehr", () => {
     expect(TAB_NAV.map((tab) => tab.label)).toEqual([
-      "Überblick",
+      "Plan",
       "AKs",
       "Protokolle",
       "Meine",

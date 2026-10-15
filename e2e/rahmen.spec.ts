@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 // relative and every change is undone at the end.
 
 const PAGES = [
-  { href: "/", nav: "Überblick", tab: "Überblick", h1: "Plan KP27" },
+  { href: "/", nav: "Plan", tab: "Plan", h1: "Plan KP27" },
   { href: "/arbeitskreise", nav: "AKs", tab: "AKs", h1: "AKs" },
   { href: "/protokolle", nav: "Protokolle", tab: "Protokolle", h1: "Protokolle" },
   { href: "/meine", nav: "Meine Aufgaben", tab: "Meine", h1: "Meine Aufgaben" },
