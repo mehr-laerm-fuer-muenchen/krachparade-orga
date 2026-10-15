@@ -4,7 +4,7 @@ import { MAIN_NAV, TAB_NAV, isActivePath, isActiveTab } from "./nav";
 describe("isActivePath", () => {
   it("marks the start page only on /", () => {
     expect(isActivePath("/", "/")).toBe(true);
-    expect(isActivePath("/referate", "/")).toBe(false);
+    expect(isActivePath("/arbeitskreise", "/")).toBe(false);
   });
 
   it("marks a section on its own page and on sub pages", () => {
@@ -29,7 +29,7 @@ describe("navigation", () => {
   it("has the six sections in the agreed order", () => {
     expect(MAIN_NAV.map((item) => item.href)).toEqual([
       "/",
-      "/referate",
+      "/arbeitskreise",
       "/protokolle",
       "/meine",
       "/kollektive",
@@ -40,7 +40,7 @@ describe("navigation", () => {
   it("has five tabs ending with Mehr", () => {
     expect(TAB_NAV.map((tab) => tab.label)).toEqual([
       "Überblick",
-      "Referate",
+      "AKs",
       "Protokolle",
       "Meine",
       "Mehr",

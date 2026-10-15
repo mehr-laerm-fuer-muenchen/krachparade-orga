@@ -1,12 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import {
-  createDepartment,
   inviteMember,
-  moveDepartment,
-  renameDepartment,
-  setDepartmentLead,
   setMemberActive,
   setMemberAdmin,
   updateDDay,
@@ -123,123 +119,6 @@ export function MemberActionButton({
         {label}
       </button>
       {lockedReason ? <span className="text-xs text-muted">{lockedReason}</span> : null}
-      <FormMessage state={state} />
-    </form>
-  );
-}
-
-export type LeadOption = { id: string; name: string; active: boolean };
-
-export function DepartmentRow({
-  id,
-  name,
-  leadId,
-  leads,
-  isFirst,
-  isLast,
-}: {
-  id: string;
-  name: string;
-  leadId: string | null;
-  leads: readonly LeadOption[];
-  isFirst: boolean;
-  isLast: boolean;
-}) {
-  const [renameState, rename, renaming] = useActionState(renameDepartment, null);
-  const [leadState, setLead, savingLead] = useActionState(setDepartmentLead, null);
-  const [moveState, move, moving] = useActionState(moveDepartment, null);
-  // "Umbenennen" only shows up once the name was edited (saves room on phones).
-  const [draft, setDraft] = useState(name);
-  const changed = draft.trim() !== name;
-
-  return (
-    <li className="flex flex-col gap-2 border-b border-line px-4 py-3 last:border-b-0 desk:grid desk:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_auto] desk:items-start desk:gap-3">
-      <form action={rename} className="flex flex-col gap-1">
-        <input type="hidden" name="departmentId" value={id} />
-        <div className="flex gap-2">
-          <input
-            name="name"
-            required
-            maxLength={100}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            aria-label={`Name von ${name}`}
-            className={INPUT}
-          />
-          {changed ? (
-            <button type="submit" disabled={renaming} className={SECONDARY_BUTTON}>
-              Umbenennen
-            </button>
-          ) : null}
-        </div>
-        <FormMessage state={renameState} />
-      </form>
-
-      <div className="flex gap-2 desk:contents">
-        <form action={setLead} className="flex min-w-0 flex-1 flex-col gap-1">
-          <input type="hidden" name="departmentId" value={id} />
-          <select
-            name="leadId"
-            defaultValue={leadId ?? ""}
-            disabled={savingLead}
-            aria-label={`Leitung ${name}`}
-            onChange={(event) => event.currentTarget.form?.requestSubmit()}
-            className={INPUT}
-          >
-            <option value="">– keine Leitung –</option>
-            {leads.map((lead) => (
-              <option key={lead.id} value={lead.id} disabled={!lead.active}>
-                {lead.active ? lead.name : `${lead.name} (deaktiviert)`}
-              </option>
-            ))}
-          </select>
-          <FormMessage state={leadState} />
-        </form>
-
-        <form action={move} className="flex flex-col gap-1">
-          <input type="hidden" name="departmentId" value={id} />
-          <div className="flex gap-1">
-            <button
-              type="submit"
-              name="direction"
-              value="up"
-              disabled={moving || isFirst}
-              aria-label={`${name} nach oben`}
-              className={`${SECONDARY_BUTTON} w-11 px-0`}
-            >
-              ↑
-            </button>
-            <button
-              type="submit"
-              name="direction"
-              value="down"
-              disabled={moving || isLast}
-              aria-label={`${name} nach unten`}
-              className={`${SECONDARY_BUTTON} w-11 px-0`}
-            >
-              ↓
-            </button>
-          </div>
-          <FormMessage state={moveState} />
-        </form>
-      </div>
-    </li>
-  );
-}
-
-export function CreateDepartmentForm() {
-  const [state, action, pending] = useActionState(createDepartment, null);
-  return (
-    <form action={action} className="flex flex-col gap-2">
-      <label htmlFor="newDepartment" className="font-medium">
-        Neues Referat
-      </label>
-      <div className="flex gap-2">
-        <input id="newDepartment" name="name" required maxLength={100} className={INPUT} />
-        <button type="submit" disabled={pending} className={PRIMARY_BUTTON}>
-          Anlegen
-        </button>
-      </div>
       <FormMessage state={state} />
     </form>
   );

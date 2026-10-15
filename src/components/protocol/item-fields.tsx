@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, type KeyboardEvent } from "react";
+import { groupDepartmentOptions } from "@/lib/department-groups";
 import { ITEM_KIND_LABELS, ITEM_KINDS, type ItemKind } from "@/lib/protocol-rules";
 import { OwnerPicker } from "./owner-picker";
 import { INPUT, type DepartmentOption, type Owner, type Person } from "./types";
@@ -51,7 +52,7 @@ export function KindPicker({ value, onChange }: { value: ItemKind; onChange: (ki
   );
 }
 
-/** Wer, Bis wann (to-dos only) and Referat. */
+/** Wer, Bis wann (to-dos only) and Aufgabenbereich (grouped by working group). */
 export function ItemExtraFields({
   kind,
   people,
@@ -92,18 +93,22 @@ export function ItemExtraFields({
         </>
       ) : null}
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-department`}>Referat</label>
+        <label htmlFor={`${id}-department`}>Aufgabenbereich</label>
         <select
           id={`${id}-department`}
           value={departmentId}
           onChange={(event) => onDepartmentChange(event.target.value)}
           className={INPUT}
         >
-          <option value="">– kein Referat –</option>
-          {departments.map((department) => (
-            <option key={department.id} value={department.id}>
-              {department.name}
-            </option>
+          <option value="">– kein Aufgabenbereich –</option>
+          {groupDepartmentOptions(departments).map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

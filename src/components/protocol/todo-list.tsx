@@ -65,7 +65,7 @@ function TodoRow({ todo }: { todo: TodoRowData }) {
               {todo.overdue && !done ? " · überfällig" : ""}
             </span>
           ) : null}
-          {todo.department ? <span>Referat: {todo.department}</span> : null}
+          {todo.department ? <span>Aufgabenbereich: {todo.department}</span> : null}
         </span>
         {error ? (
           <span role="alert" className="font-medium text-status-late">

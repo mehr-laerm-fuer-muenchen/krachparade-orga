@@ -260,7 +260,7 @@ async function checkItemRefs(
 ): Promise<MeetingActionResult | null> {
   if (!(await membersExist([fields.ownerId]))) return fail("Diese Person gibt es nicht.");
   if (!(await departmentInEdition(fields.departmentId, editionId))) {
-    return fail("Dieses Referat gibt es nicht.");
+    return fail("Diesen Aufgabenbereich gibt es nicht.");
   }
   return null;
 }

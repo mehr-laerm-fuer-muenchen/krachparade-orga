@@ -4,6 +4,7 @@ import { useId, useOptimistic, useState, useTransition, type FormEvent } from "r
 import { deleteMeetingItem, moveMeetingItem, setTodoDone, updateMeetingItem } from "@/actions/meetings";
 import { ItemKindBadge } from "@/components/item-kind-badge";
 import { formatGermanDate } from "@/lib/dday";
+import { departmentLabel } from "@/lib/department-groups";
 import { isOverdue, type ItemKind } from "@/lib/protocol-rules";
 import { ItemExtraFields, KindPicker, kindFromShortcut } from "./item-fields";
 import { ownerFields, ownerFromItem } from "./owner-picker";
@@ -106,7 +107,7 @@ export function ItemRow({
                 {overdue ? " · überfällig" : ""}
               </span>
             ) : null}
-            {department ? <span>Referat: {department.name}</span> : null}
+            {department ? <span>Aufgabenbereich: {departmentLabel(department)}</span> : null}
           </span>
         ) : null}
       </button>

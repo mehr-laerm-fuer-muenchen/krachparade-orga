@@ -7,11 +7,12 @@ import { PageTitle } from "@/components/placeholder";
 import { ProtocolTabs } from "@/components/protocol/protocol-tabs";
 import { MeetingEditor } from "@/components/protocol/meeting-editor";
 import type { Person } from "@/components/protocol/types";
-import { listDepartments } from "@/db/departments";
 import { getCurrentEdition } from "@/db/editions";
 import { findMeeting, listAttendeeIds, listMeetingItems } from "@/db/meetings";
 import { listMembers } from "@/db/members";
+import { listDepartmentsWithGroup } from "@/db/working-groups";
 import { formatGermanDate, todayInBerlin } from "@/lib/dday";
+import { toDepartmentOptions } from "@/lib/department-groups";
 import { canDeleteMeeting, isItemKind } from "@/lib/protocol-rules";
 
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ async function Meeting({ params }: Pick<PageProps<"/protokolle/[id]">, "params">
     listMeetingItems(meeting.id),
     listAttendeeIds(meeting.id),
     listMembers(),
-    listDepartments(edition.id),
+    listDepartmentsWithGroup(edition.id),
   ]);
 
   // Active members can be chosen; deactivated ones only show up where they
@@ -103,7 +104,7 @@ async function Meeting({ params }: Pick<PageProps<"/protokolle/[id]">, "params">
             : []
         )}
         people={people}
-        departments={departments.map((department) => ({ id: department.id, name: department.name }))}
+        departments={toDepartmentOptions(departments)}
         today={todayInBerlin(new Date())}
         canDelete={canDeleteMeeting({ id: viewer.id, active: true, isAdmin: viewer.isAdmin }, meeting)}
       />

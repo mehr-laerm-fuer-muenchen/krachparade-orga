@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const PAGES = [
   { href: "/", nav: "Überblick", tab: "Überblick", h1: "Weg zur Krachparade" },
-  { href: "/referate", nav: "Referate", tab: "Referate", h1: "Referate" },
+  { href: "/arbeitskreise", nav: "AKs", tab: "AKs", h1: "AKs" },
   { href: "/protokolle", nav: "Protokolle", tab: "Protokolle", h1: "Protokolle" },
   { href: "/meine", nav: "Meine Aufgaben", tab: "Meine", h1: "Meine Aufgaben" },
   { href: "/kollektive", nav: "Kollektive", tab: null, h1: "Kollektive" },
@@ -167,22 +167,6 @@ test.describe("App-Rahmen", () => {
     await expect(row.getByText("deaktiviert", { exact: true })).toBeVisible();
     await expect(row.getByRole("button", { name: "Wieder aktivieren" })).toBeEnabled();
     await expectNoHorizontalScroll(page);
-  });
-
-  test("Leitung eines Referats ändern bleibt nach Neuladen", async ({ page }) => {
-    await devLogin(page, "Kim Brenner");
-    await page.goto("/einstellungen");
-
-    const lead = page.getByLabel("Leitung Route", { exact: true });
-    await lead.selectOption({ label: "Alex Rauch" });
-    await expect(page.getByText("Leitung gespeichert.")).toBeVisible();
-    await page.reload();
-    await expect(lead.locator("option:checked")).toHaveText("Alex Rauch");
-
-    await lead.selectOption({ label: "Kim Brenner" });
-    await expect(page.getByText("Leitung gespeichert.")).toBeVisible();
-    await page.reload();
-    await expect(lead.locator("option:checked")).toHaveText("Kim Brenner");
   });
 
   test("Nicht-Admin kann D-Day und Einladungen nicht ändern", async ({ page }) => {

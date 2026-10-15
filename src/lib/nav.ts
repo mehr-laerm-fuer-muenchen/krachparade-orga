@@ -8,7 +8,7 @@ export type NavItem = {
 /** Main navigation in the header (wide screens), in this order. */
 export const MAIN_NAV: readonly NavItem[] = [
   { href: "/", label: "Überblick" },
-  { href: "/referate", label: "Referate" },
+  { href: "/arbeitskreise", label: "AKs" },
   { href: "/protokolle", label: "Protokolle" },
   { href: "/meine", label: "Meine Aufgaben" },
   { href: "/kollektive", label: "Kollektive", badge: "R3" },
@@ -25,7 +25,7 @@ export type TabItem = {
 /** Bottom tab bar (narrow screens). "Mehr" holds Kollektive and Abmelden. */
 export const TAB_NAV: readonly TabItem[] = [
   { href: "/", label: "Überblick" },
-  { href: "/referate", label: "Referate" },
+  { href: "/arbeitskreise", label: "AKs" },
   { href: "/protokolle", label: "Protokolle" },
   { href: "/meine", label: "Meine" },
   { href: "/einstellungen", label: "Mehr", alsoActiveFor: ["/kollektive"] },

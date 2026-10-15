@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageTitle } from "@/components/placeholder";
-import { FilterForm, FilterSearch, FilterSelect } from "@/components/protocol/filter-form";
+import { FilterDepartmentSelect, FilterForm, FilterSearch } from "@/components/protocol/filter-form";
 import { ProtocolTabs } from "@/components/protocol/protocol-tabs";
 import { param } from "@/components/protocol/todo-rows";
-import { listDepartments } from "@/db/departments";
 import { getCurrentEdition } from "@/db/editions";
 import { listEditionItems } from "@/db/meetings";
+import { listDepartmentsWithGroup } from "@/db/working-groups";
 import { formatGermanDate } from "@/lib/dday";
+import { departmentLabel, groupDepartmentOptions, toDepartmentOptions } from "@/lib/department-groups";
 import { filterDecisions } from "@/lib/protocol-rules";
 
 export const metadata: Metadata = {
@@ -35,25 +36,20 @@ async function Decisions({ searchParams }: Pick<PageProps<"/protokolle/beschlues
 
   const edition = await getCurrentEdition();
   const [items, departments] = edition
-    ? await Promise.all([listEditionItems(edition.id, "entscheidung"), listDepartments(edition.id)])
+    ? await Promise.all([listEditionItems(edition.id, "entscheidung"), listDepartmentsWithGroup(edition.id)])
     : [[], []];
   if (items.length === 0) {
     return <p className="rounded-md border border-line bg-surface px-4 py-3 text-muted">Noch keine Beschlüsse.</p>;
   }
 
-  const departmentNames = new Map(departments.map((department) => [department.id, department.name]));
+  const options = toDepartmentOptions(departments);
+  const departmentNames = new Map(options.map((option) => [option.id, departmentLabel(option)]));
   const shown = filterDecisions(items, { departmentId, query: search });
 
   return (
     <>
       <FilterForm key={`${departmentId}|${search}`} action="/protokolle/beschluesse">
-        <FilterSelect
-          label="Referat"
-          name="referat"
-          value={departmentId}
-          emptyLabel="Alle Referate"
-          options={departments.map((department) => ({ value: department.id, label: department.name }))}
-        />
+        <FilterDepartmentSelect name="referat" value={departmentId} groups={groupDepartmentOptions(options)} />
         <FilterSearch label="Suche im Text" name="q" value={search} />
       </FilterForm>
 
@@ -75,7 +71,7 @@ async function Decisions({ searchParams }: Pick<PageProps<"/protokolle/beschlues
                 </Link>
                 <span>TOP: {item.topic}</span>
                 {item.departmentId && departmentNames.has(item.departmentId) ? (
-                  <span>Referat: {departmentNames.get(item.departmentId)}</span>
+                  <span>Aufgabenbereich: {departmentNames.get(item.departmentId)}</span>
                 ) : null}
               </span>
             </li>
