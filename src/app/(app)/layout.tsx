@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import { AppHeader } from "@/components/app-header";
+import { AppMain } from "@/components/app-main";
 import { getCurrentMember } from "@/components/current-member";
 import { TabBar } from "@/components/tab-bar";
 
@@ -8,11 +9,11 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] desk:px-6 desk:pb-12">
+      <AppMain>
         <Suspense fallback={null}>
           <MemberGate>{children}</MemberGate>
         </Suspense>
-      </main>
+      </AppMain>
       <TabBar />
     </>
   );

@@ -1,8 +1,17 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq } from "drizzle-orm";
 import { dateToDay } from "@/lib/plan-days";
 import type { PlanElementInput, PlanElementKind, PlanLinkInput } from "@/lib/plan-engine";
 import { db } from "./index";
-import { departments, editions, members, planElements, planLinks, planTodos, workingGroups } from "./schema";
+import {
+  departments,
+  editions,
+  members,
+  planElements,
+  planLinks,
+  planNotes,
+  planTodos,
+  workingGroups,
+} from "./schema";
 
 /** A plan element ready for the engine, with names for display (never e-mail addresses). */
 export type LoadedPlanElement = PlanElementInput & {
@@ -83,5 +92,60 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
       openTodos: openTodos.get(row.id) ?? 0,
     })),
     links: linkRows,
+  };
+}
+
+export type LoadedPlanTodo = {
+  id: string;
+  elementId: string;
+  text: string;
+  ownerName: string | null;
+  anchor: "start" | "end";
+  daysBefore: number;
+  done: boolean;
+};
+
+export type LoadedPlanNote = { id: string; elementId: string; authorName: string; createdAt: Date; text: string };
+
+/**
+ * To-dos (in their order) and notes (newest first) of an edition's plan for
+ * the detail panel (spec 007). Names only, never e-mail addresses. Read only.
+ */
+export async function loadPlanDetails(
+  editionId: string
+): Promise<{ todos: LoadedPlanTodo[]; notes: LoadedPlanNote[] }> {
+  const [todos, notes] = await Promise.all([
+    db
+      .select({
+        id: planTodos.id,
+        elementId: planTodos.elementId,
+        text: planTodos.text,
+        ownerName: members.name,
+        anchor: planTodos.anchor,
+        daysBefore: planTodos.daysBefore,
+        done: planTodos.done,
+      })
+      .from(planTodos)
+      .innerJoin(planElements, eq(planElements.id, planTodos.elementId))
+      .leftJoin(members, eq(members.id, planTodos.ownerId))
+      .where(eq(planElements.editionId, editionId))
+      .orderBy(asc(planTodos.sortOrder), asc(planTodos.createdAt)),
+    db
+      .select({
+        id: planNotes.id,
+        elementId: planNotes.elementId,
+        authorName: members.name,
+        createdAt: planNotes.createdAt,
+        text: planNotes.text,
+      })
+      .from(planNotes)
+      .innerJoin(planElements, eq(planElements.id, planNotes.elementId))
+      .innerJoin(members, eq(members.id, planNotes.authorId))
+      .where(eq(planElements.editionId, editionId))
+      .orderBy(desc(planNotes.createdAt)),
+  ]);
+  return {
+    todos: todos.map((todo) => ({ ...todo, anchor: todo.anchor === "end" ? "end" : "start" })),
+    notes,
   };
 }
