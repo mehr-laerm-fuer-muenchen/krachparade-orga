@@ -1,54 +1,95 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getCurrentMember } from "@/components/current-member";
-import { ComingSoon, PageTitle } from "@/components/placeholder";
-import { TodoList } from "@/components/protocol/todo-list";
-import { toTodoRows } from "@/components/protocol/todo-rows";
+import { MyTasksView } from "@/components/my-tasks/my-tasks-view";
+import { PageTitle } from "@/components/placeholder";
 import { getCurrentEdition } from "@/db/editions";
-import { listEditionItems } from "@/db/meetings";
-import { listDepartmentsWithGroup } from "@/db/working-groups";
+import { loadMyAgenda } from "@/db/my-tasks";
+import { loadPlanView } from "@/db/plan-view";
 import { todayInBerlin } from "@/lib/dday";
-import { toDepartmentOptions } from "@/lib/department-groups";
-import { filterTodos } from "@/lib/protocol-rules";
+import { PlanCycleError } from "@/lib/plan-engine";
 
 export const metadata: Metadata = {
   title: "Meine Aufgaben – Krachparade Orga",
 };
 
+const NOTICE = "rounded-md border border-line bg-surface px-4 py-3 text-muted";
+
 export default function MyTasksPage() {
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle>Meine Aufgaben</PageTitle>
-      <ComingSoon>Meilenstein-Aufgaben kommen mit R1</ComingSoon>
-      <Suspense fallback={<p className="text-muted">Lade To-dos …</p>}>
-        <MyTodos />
+      <Suspense
+        fallback={
+          <>
+            <PageTitle>Meine Aufgaben</PageTitle>
+            <p className="text-muted">Lade Aufgaben …</p>
+          </>
+        }
+      >
+        <MyTasks />
       </Suspense>
     </div>
   );
 }
 
-/** Open to-dos with the signed-in member as owner (free-text owners never show up here). */
-async function MyTodos() {
-  const [member, edition] = await Promise.all([getCurrentMember(), getCurrentEdition()]);
-  const [items, departments] = edition
-    ? await Promise.all([listEditionItems(edition.id, "todo", member.id), listDepartmentsWithGroup(edition.id)])
-    : [[], []];
-  const open = filterTodos(items, { done: false });
-  if (open.length === 0) {
-    return <p className="rounded-md border border-line bg-surface px-4 py-3 text-muted">Keine offenen To-dos.</p>;
+/**
+ * "Meine Aufgaben" (spec 009). "Today" and all computing on the server; the
+ * plan is loaded as on the start page for the detail panel.
+ */
+async function MyTasks() {
+  const member = await getCurrentMember();
+  const edition = await getCurrentEdition();
+  if (!edition) {
+    return (
+      <>
+        <PageTitle>Meine Aufgaben</PageTitle>
+        <p className={NOTICE}>Noch keine aktuelle Ausgabe angelegt.</p>
+      </>
+    );
   }
-  const rows = toTodoRows(
-    open,
-    [{ id: member.id, name: member.name, active: true }],
-    toDepartmentOptions(departments),
-    todayInBerlin(new Date())
-  );
+
+  const today = todayInBerlin(new Date());
+  let loaded: Awaited<ReturnType<typeof loadMyAgenda>>;
+  let view: Awaited<ReturnType<typeof loadPlanView>>;
+  try {
+    [loaded, view] = await Promise.all([
+      loadMyAgenda(member.id, today),
+      loadPlanView(edition, member.id, today),
+    ]);
+  } catch (error) {
+    if (!(error instanceof PlanCycleError)) throw error;
+    view = { status: "cycle" };
+    loaded = null;
+  }
+  if (view.status === "cycle") {
+    return (
+      <>
+        <PageTitle>Meine Aufgaben</PageTitle>
+        <p role="alert" className="font-medium text-status-late">
+          Der Plan lässt sich nicht berechnen: Die Verbindungen enthalten einen Kreis. Deine Aufgaben erscheinen
+          wieder, sobald der Kreis im Plan aufgelöst ist.
+        </p>
+      </>
+    );
+  }
+  if (!loaded) {
+    return (
+      <>
+        <PageTitle>Meine Aufgaben</PageTitle>
+        <p className={NOTICE}>Noch keine aktuelle Ausgabe angelegt.</p>
+      </>
+    );
+  }
+
   return (
-    <section aria-labelledby="meine-todos" className="flex flex-col gap-2">
-      <h2 id="meine-todos" className="text-lg font-semibold">
-        Offene To-dos aus Protokollen
-      </h2>
-      <TodoList todos={rows} label="Meine offenen To-dos" />
-    </section>
+    <MyTasksView
+      data={{
+        agenda: loaded.agenda,
+        recentlyDone: loaded.recentlyDone,
+        today: loaded.today,
+        hasGroups: loaded.myGroupIds.length > 0,
+        plan: view.status === "ok" ? view.data : null,
+      }}
+    />
   );
 }

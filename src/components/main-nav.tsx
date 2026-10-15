@@ -2,10 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { MAIN_NAV, isActivePath } from "@/lib/nav";
 
+/**
+ * Small numbers per nav target (href → node rendered on the server), e.g. the
+ * overdue count at "/meine" (spec 009). Drawn next to the link, so the link's
+ * name stays the same.
+ */
+export type NavBadges = Partial<Record<string, ReactNode>>;
+
 /** Navigation in the header, only on wide screens. */
-export function MainNav({ className = "" }: { className?: string }) {
+export function MainNav({ className = "", badges }: { className?: string; badges?: NavBadges }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Hauptnavigation" className={className}>
@@ -13,7 +21,7 @@ export function MainNav({ className = "" }: { className?: string }) {
         {MAIN_NAV.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
-            <li key={item.href}>
+            <li key={item.href} className="relative">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
@@ -30,6 +38,7 @@ export function MainNav({ className = "" }: { className?: string }) {
                   </span>
                 ) : null}
               </Link>
+              {badges?.[item.href] ? <span className="absolute -top-1 -right-1">{badges[item.href]}</span> : null}
             </li>
           );
         })}

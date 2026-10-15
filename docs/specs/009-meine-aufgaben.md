@@ -121,6 +121,14 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 - Vitest für `my-tasks` grün; Klicktest `e2e/meine.spec.ts` und alle bisherigen grün bei 375 × 812 und 1280 × 800, gegen `pnpm dev` **und** gegen den lokalen Production-Build
 - `pnpm typecheck`, `lint`, `test`, `build` grün
 
+## Abweichungen beim Bau
+
+- Neu laden: Die Actions aus 004/008 rufen weiter `refresh()` auf; `revalidatePath` für `/meine` und für das Layout (Zähler an „Meine“) ist zusätzlich ergänzt (`src/actions/revalidate-my-tasks.ts`). (Freigabe Franz)
+- `src/db/plan.ts`: `ownerId` der Plan-To-dos sowie `done_at` von Elementen und Plan-To-dos ergänzt, nur hinzufügend. (Freigabe Franz)
+- Rückgängig-Leiste aus 008 herausgelöst: `useUndoBar` in `src/components/plan/plan-bar.tsx`, `run`/`drag` in `src/components/plan/use-plan-actions.ts`; Startseite und `/meine` nutzen beides, die Startseite verhält sich wie vorher. (Freigabe Franz)
+- Einträge unter „Aus meinen AKs – noch niemand eingetragen“ haben kein Kästchen zum Abhaken, nur „Übernehmen“ (abgehakt würden sie sonst verschwinden, da „Zuletzt erledigt“ nur eigene Einträge zeigt). (Freigabe Franz)
+- Kreis im Plan: `/meine` zeigt „Der Plan lässt sich nicht berechnen …“ statt abzustürzen, die Zahl an „Meine“ fehlt dann einfach; alle Seiten laden weiter. (Freigabe Franz)
+
 ## Deploy
 
 Keine DB-Änderung: `deploy`. Danach am iPhone in production: „Meine“ öffnen, ein eigenes Element bzw. To-do abhaken und mit „Rückgängig“ zurücknehmen; Zahl an „Meine“ prüfen.

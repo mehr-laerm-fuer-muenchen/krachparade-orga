@@ -222,7 +222,7 @@ test.describe("Protokoll", () => {
     // --- Alex: own to-do under /meine, no delete on Kim's meeting --------------
     await devLogin(page, "Alex Rauch");
     await page.goto("/meine");
-    const mine = page.getByRole("list", { name: "Meine offenen To-dos" });
+    const mine = page.getByRole("main");
     await expect(mine.getByRole("listitem", { name: todoAlex })).toBeVisible();
     await expect(page.getByRole("listitem", { name: todoGuest })).toHaveCount(0);
     await expectNoHorizontalScroll(page);

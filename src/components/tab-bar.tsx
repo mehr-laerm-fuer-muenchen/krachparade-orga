@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import type { NavBadges } from "@/components/main-nav";
 import { TAB_NAV, isActiveTab } from "@/lib/nav";
 
 // Simple line icons (24 × 24), drawn in the current text colour.
@@ -37,7 +38,7 @@ const ICONS: Record<string, ReactNode> = {
 };
 
 /** Bottom tab bar, only on narrow screens (up to 900 px). */
-export function TabBar() {
+export function TabBar({ badges }: { badges?: NavBadges }) {
   const pathname = usePathname();
   return (
     <nav
@@ -48,7 +49,7 @@ export function TabBar() {
         {TAB_NAV.map((tab) => {
           const active = isActiveTab(pathname, tab);
           return (
-            <li key={tab.href} className="flex-1">
+            <li key={tab.href} className="relative flex-1">
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
@@ -73,6 +74,9 @@ export function TabBar() {
                 </svg>
                 {tab.label}
               </Link>
+              {badges?.[tab.href] ? (
+                <span className="absolute top-1 left-1/2 ml-2">{badges[tab.href]}</span>
+              ) : null}
             </li>
           );
         })}
