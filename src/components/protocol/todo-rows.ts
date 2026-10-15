@@ -1,5 +1,6 @@
 import type { EditionItem } from "@/db/meetings";
-import type { Department, Member } from "@/db/schema";
+import type { Member } from "@/db/schema";
+import { departmentLabel, type DepartmentOption } from "@/lib/department-groups";
 import { isOverdue, sortTodos } from "@/lib/protocol-rules";
 import type { TodoRowData } from "./todo-list";
 
@@ -7,11 +8,11 @@ import type { TodoRowData } from "./todo-list";
 export function toTodoRows(
   items: readonly EditionItem[],
   members: readonly Pick<Member, "id" | "name" | "active">[],
-  departments: readonly Pick<Department, "id" | "name">[],
+  departments: readonly DepartmentOption[],
   today: string
 ): TodoRowData[] {
   const people = new Map(members.map((member) => [member.id, member]));
-  const departmentNames = new Map(departments.map((department) => [department.id, department.name]));
+  const departmentNames = new Map(departments.map((department) => [department.id, departmentLabel(department)]));
   return sortTodos(items).map((item) => {
     const member = item.ownerId ? people.get(item.ownerId) : undefined;
     const owner = member

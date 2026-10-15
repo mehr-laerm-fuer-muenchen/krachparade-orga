@@ -137,11 +137,11 @@ test.describe("Protokoll", () => {
     await entry.getByRole("combobox", { name: "Wer" }).fill("Alex");
     await entry.getByRole("option", { name: "Alex Rauch" }).click();
     await entry.getByLabel("Bis wann").fill("2026-10-30");
-    await entry.getByRole("combobox", { name: "Referat" }).selectOption({ label: "Finanzen" });
+    await entry.getByRole("combobox", { name: "Aufgabenbereich" }).selectOption({ label: "Finanzen" });
     await text.press("Enter");
     await expect(items).toHaveCount(4);
     await expect(items.nth(3)).toContainText("Wer: Alex Rauch");
-    await expect(items.nth(3)).toContainText("Referat: Finanzen");
+    await expect(items.nth(3)).toContainText("Aufgabenbereich: Finanzen");
 
     await text.fill(todoGuest);
     await entry.getByRole("combobox", { name: "Wer" }).fill("Gast Test");

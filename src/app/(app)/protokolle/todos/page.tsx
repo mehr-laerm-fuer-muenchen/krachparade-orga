@@ -2,15 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageTitle } from "@/components/placeholder";
-import { FilterForm, FilterSelect } from "@/components/protocol/filter-form";
+import { FilterDepartmentSelect, FilterForm, FilterSelect } from "@/components/protocol/filter-form";
 import { ProtocolTabs } from "@/components/protocol/protocol-tabs";
 import { TodoList } from "@/components/protocol/todo-list";
 import { param, toTodoRows } from "@/components/protocol/todo-rows";
-import { listDepartments } from "@/db/departments";
 import { getCurrentEdition } from "@/db/editions";
 import { listEditionItems } from "@/db/meetings";
 import { listMembers } from "@/db/members";
+import { listDepartmentsWithGroup } from "@/db/working-groups";
 import { todayInBerlin } from "@/lib/dday";
+import { groupDepartmentOptions, toDepartmentOptions } from "@/lib/department-groups";
 import { filterTodos, WITHOUT_ACCOUNT } from "@/lib/protocol-rules";
 
 export const metadata: Metadata = {
@@ -40,7 +41,7 @@ async function Todos({ searchParams }: Pick<PageProps<"/protokolle/todos">, "sea
   const [items, departments, members] = edition
     ? await Promise.all([
         listEditionItems(edition.id, "todo"),
-        listDepartments(edition.id),
+        listDepartmentsWithGroup(edition.id),
         listMembers(),
       ])
     : [[], [], []];
@@ -59,7 +60,8 @@ async function Todos({ searchParams }: Pick<PageProps<"/protokolle/todos">, "sea
   ];
 
   const shown = filterTodos(items, { done, person: person || undefined, departmentId: departmentId || undefined });
-  const rows = toTodoRows(shown, members, departments, todayInBerlin(new Date()));
+  const departmentOptions = toDepartmentOptions(departments);
+  const rows = toTodoRows(shown, members, departmentOptions, todayInBerlin(new Date()));
 
   const filters = new URLSearchParams({ ...(person && { person }), ...(departmentId && { referat: departmentId }) });
   const statusHref = (status: "offen" | "erledigt") => {
@@ -97,12 +99,10 @@ async function Todos({ searchParams }: Pick<PageProps<"/protokolle/todos">, "sea
         hidden={done ? { status: "erledigt" } : {}}
       >
         <FilterSelect label="Person" name="person" value={person} emptyLabel="Alle Personen" options={personOptions} />
-        <FilterSelect
-          label="Referat"
+        <FilterDepartmentSelect
           name="referat"
           value={departmentId}
-          emptyLabel="Alle Referate"
-          options={departments.map((department) => ({ value: department.id, label: department.name }))}
+          groups={groupDepartmentOptions(departmentOptions)}
         />
       </FilterForm>
 

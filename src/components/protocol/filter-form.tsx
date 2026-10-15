@@ -2,6 +2,7 @@
 
 import Form from "next/form";
 import type { ReactNode } from "react";
+import type { DepartmentOptionGroup } from "@/lib/department-groups";
 
 const INPUT =
   "min-h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-base text-text";
@@ -62,6 +63,35 @@ export function FilterSelect({
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Departments as a filter, one `optgroup` per working group. */
+export function FilterDepartmentSelect({
+  name,
+  value,
+  groups,
+}: {
+  name: string;
+  value: string;
+  groups: readonly DepartmentOptionGroup[];
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1 sm:w-56">
+      <span>Aufgabenbereich</span>
+      <select name={name} defaultValue={value} className={INPUT}>
+        <option value="">Alle Aufgabenbereiche</option>
+        {groups.map((group) => (
+          <optgroup key={group.label} label={group.label}>
+            {group.options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
     </label>

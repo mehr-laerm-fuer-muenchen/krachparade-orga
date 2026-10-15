@@ -8,7 +8,7 @@ import { TAB_NAV, isActiveTab } from "@/lib/nav";
 // Simple line icons (24 × 24), drawn in the current text colour.
 const ICONS: Record<string, ReactNode> = {
   "/": <path d="M4 18h16M6 18V9m6 9V5m6 13v-6" />,
-  "/referate": (
+  "/arbeitskreise": (
     <>
       <circle cx="9" cy="8" r="3" />
       <circle cx="17" cy="9" r="2.5" />

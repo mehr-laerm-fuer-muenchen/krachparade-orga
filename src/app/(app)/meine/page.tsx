@@ -4,10 +4,11 @@ import { getCurrentMember } from "@/components/current-member";
 import { ComingSoon, PageTitle } from "@/components/placeholder";
 import { TodoList } from "@/components/protocol/todo-list";
 import { toTodoRows } from "@/components/protocol/todo-rows";
-import { listDepartments } from "@/db/departments";
 import { getCurrentEdition } from "@/db/editions";
 import { listEditionItems } from "@/db/meetings";
+import { listDepartmentsWithGroup } from "@/db/working-groups";
 import { todayInBerlin } from "@/lib/dday";
+import { toDepartmentOptions } from "@/lib/department-groups";
 import { filterTodos } from "@/lib/protocol-rules";
 
 export const metadata: Metadata = {
@@ -30,7 +31,7 @@ export default function MyTasksPage() {
 async function MyTodos() {
   const [member, edition] = await Promise.all([getCurrentMember(), getCurrentEdition()]);
   const [items, departments] = edition
-    ? await Promise.all([listEditionItems(edition.id, "todo", member.id), listDepartments(edition.id)])
+    ? await Promise.all([listEditionItems(edition.id, "todo", member.id), listDepartmentsWithGroup(edition.id)])
     : [[], []];
   const open = filterTodos(items, { done: false });
   if (open.length === 0) {
@@ -39,7 +40,7 @@ async function MyTodos() {
   const rows = toTodoRows(
     open,
     [{ id: member.id, name: member.name, active: true }],
-    departments,
+    toDepartmentOptions(departments),
     todayInBerlin(new Date())
   );
   return (

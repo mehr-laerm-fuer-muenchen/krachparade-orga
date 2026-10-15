@@ -11,7 +11,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "3";
+export const SEED_VERSION = "4";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -50,6 +50,39 @@ export const DEPARTMENTS = [
   { name: "Pressearbeit", lead: "jo.kranz@example.org" },
   { name: "Finanzen", lead: "noa.fink@example.org" },
   { name: "Ressourcen / Material", lead: "ivy.lamm@example.org" },
+];
+
+/**
+ * Proposed working groups (spec 005) with their departments by name, also in
+ * production. Only created while the current edition has no working group.
+ */
+export const WORKING_GROUPS = [
+  { name: "Demo & Route", departments: ["Demoleitung", "Route", "Wagenreihung"] },
+  {
+    name: "Flächen & Technik",
+    departments: [
+      "Planung Auftakt/Abschlussfläche",
+      "Bühne / Soundkopplung",
+      "Wagenpakete",
+      "Ressourcen / Material",
+    ],
+  },
+  { name: "Programm", departments: ["Bühnenprogramm politisch", "Bühnenprogramm musikalisch"] },
+  {
+    name: "Kommunikation",
+    departments: ["Social Media", "Kommunikation E-Mails", "Kollektiv-Chats", "Teaser / Aftermovie", "Pressearbeit"],
+  },
+  { name: "Finanzen", departments: ["Finanzen"] },
+];
+
+/** Memberships of the test members (spec 005), never in production. */
+export const TEST_MEMBERSHIPS = [
+  { email: "kim.brenner@example.org", groups: ["Demo & Route", "Flächen & Technik"] },
+  { email: "alex.rauch@example.org", groups: ["Flächen & Technik"] },
+  { email: "sascha.moeller@example.org", groups: ["Programm"] },
+  { email: "jo.kranz@example.org", groups: ["Programm", "Kommunikation"] },
+  { email: "luca.pfeffer@example.org", groups: ["Kommunikation"] },
+  { email: "noa.fink@example.org", groups: ["Finanzen"] },
 ];
 
 /** Made-up meeting with minutes (spec 004), never in production. */
@@ -94,8 +127,10 @@ export async function seed({ prod }: { prod: boolean }) {
   const { db } = await import("./index");
   const { eq } = await import("drizzle-orm");
   const { and } = await import("drizzle-orm");
+  const { inArray, isNull } = await import("drizzle-orm");
   const { appMeta, departments, editions, meetingAttendees, meetingItems, meetings, members } =
     await import("./schema");
+  const { workingGroupMembers, workingGroups } = await import("./schema");
 
   await db
     .insert(appMeta)
@@ -144,6 +179,8 @@ export async function seed({ prod }: { prod: boolean }) {
     .onConflictDoNothing()
     .returning({ id: departments.id });
   console.log(`departments: ${inserted.length} neu, ${DEPARTMENTS.length - inserted.length} schon vorhanden`);
+
+  await seedWorkingGroups();
 
   if (!prod) {
     const [existing] = await db
@@ -199,6 +236,70 @@ export async function seed({ prod }: { prod: boolean }) {
       );
       console.log(`meetings: ${TEST_MEETING.title} mit ${TEST_MEETING.items.length} Punkten angelegt`);
     }
+  }
+
+  /**
+   * Spec 005, also in production: the proposed working groups, only while the
+   * current edition has none. Only departments without a working group are
+   * assigned, existing assignments are never overwritten. Test memberships
+   * only without `prod`; `working_groups_final` stays untouched.
+   */
+  async function seedWorkingGroups() {
+    const [current] = await db.select().from(editions).where(eq(editions.isCurrent, true)).limit(1);
+    if (!current) {
+      console.log("working_groups: keine aktuelle Ausgabe");
+      return;
+    }
+    const [existingGroup] = await db
+      .select({ id: workingGroups.id })
+      .from(workingGroups)
+      .where(eq(workingGroups.editionId, current.id))
+      .limit(1);
+    if (existingGroup) {
+      console.log("working_groups: schon vorhanden, nichts geändert");
+    } else {
+      let assigned = 0;
+      for (const [index, group] of WORKING_GROUPS.entries()) {
+        const [created] = await db
+          .insert(workingGroups)
+          .values({ editionId: current.id, name: group.name, sortOrder: index + 1 })
+          .returning({ id: workingGroups.id });
+        const updated = await db
+          .update(departments)
+          .set({ workingGroupId: created.id })
+          .where(
+            and(
+              eq(departments.editionId, current.id),
+              inArray(departments.name, group.departments),
+              isNull(departments.workingGroupId)
+            )
+          )
+          .returning({ id: departments.id });
+        assigned += updated.length;
+      }
+      console.log(`working_groups: ${WORKING_GROUPS.length} angelegt, ${assigned} Aufgabenbereiche zugeordnet`);
+    }
+
+    if (prod) return;
+    const groupIds = new Map(
+      (
+        await db
+          .select({ id: workingGroups.id, name: workingGroups.name })
+          .from(workingGroups)
+          .where(eq(workingGroups.editionId, current.id))
+      ).map((group) => [group.name, group.id])
+    );
+    const rows = TEST_MEMBERSHIPS.flatMap((membership) => {
+      const memberId = memberIds.get(membership.email);
+      return membership.groups.flatMap((name) => {
+        const workingGroupId = groupIds.get(name);
+        return memberId && workingGroupId ? [{ workingGroupId, memberId }] : [];
+      });
+    });
+    const inserted = rows.length
+      ? await db.insert(workingGroupMembers).values(rows).onConflictDoNothing().returning()
+      : [];
+    console.log(`working_group_members: ${inserted.length} neu, ${rows.length - inserted.length} schon vorhanden`);
   }
 }
 

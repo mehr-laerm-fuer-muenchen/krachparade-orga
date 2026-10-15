@@ -4,17 +4,10 @@ import { Suspense } from "react";
 import { logout } from "@/actions/auth";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
-import {
-  CreateDepartmentForm,
-  DDayForm,
-  DepartmentRow,
-  InviteForm,
-  MemberActionButton,
-} from "@/components/settings/forms";
-import { listDepartments } from "@/db/departments";
+import { DDayForm, InviteForm, MemberActionButton } from "@/components/settings/forms";
 import { getCurrentEdition } from "@/db/editions";
 import { listMembers } from "@/db/members";
-import type { Department, Edition, Member } from "@/db/schema";
+import type { Edition, Member } from "@/db/schema";
 import { isAdminEmail, parseAdminEmails } from "@/lib/access";
 
 export const metadata: Metadata = {
@@ -75,18 +68,18 @@ async function SignedInAs() {
 const SECTION = "flex flex-col gap-4 rounded-md border border-line bg-surface p-4";
 
 /**
- * Edition, people and departments (spec 003). Admin controls are only shown
- * to admins; the server actions check the rights again on every call.
+ * Edition and people (spec 003), plus a link to the working groups (spec
+ * 005). Admin controls are only shown to admins; the server actions check the
+ * rights again on every call.
  */
 async function SettingsSections() {
   const viewer = await getCurrentMember();
   const [edition, people] = await Promise.all([getCurrentEdition(), listMembers()]);
-  const departments = edition ? await listDepartments(edition.id) : [];
   return (
     <>
       <EditionSection edition={edition} canEdit={viewer.isAdmin} />
       <PeopleSection people={people} viewerId={viewer.id} isAdmin={viewer.isAdmin} />
-      <DepartmentsSection departments={departments} people={people} isAdmin={viewer.isAdmin} />
+      <WorkingGroupsSection />
     </>
   );
 }
@@ -203,66 +196,19 @@ function PeopleSection({
   );
 }
 
-function DepartmentsSection({
-  departments,
-  people,
-  isAdmin,
-}: {
-  departments: readonly Department[];
-  people: readonly Member[];
-  isAdmin: boolean;
-}) {
-  const names = new Map(people.map((person) => [person.id, person.name]));
-  // Active people can be chosen; a deactivated current lead stays visible.
-  const leads = people
-    .filter((person) => person.active || departments.some((d) => d.leadId === person.id))
-    .map((person) => ({ id: person.id, name: person.name, active: person.active }))
-    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+/** Departments are kept on the AK page since spec 005. */
+function WorkingGroupsSection() {
   return (
-    <section aria-labelledby="referate" className={SECTION}>
-      <h2 id="referate" className="text-lg font-semibold">
-        Referate
+    <section aria-labelledby="arbeitskreise" className={SECTION}>
+      <h2 id="arbeitskreise" className="text-lg font-semibold">
+        AKs und Aufgabenbereiche
       </h2>
-      {departments.length === 0 ? <p className="text-muted">Noch keine Referate angelegt.</p> : null}
-      {isAdmin ? (
-        <ul aria-label="Referate" className="flex flex-col rounded-md border border-line">
-          {departments.map((department, index) => (
-            <DepartmentRow
-              key={department.id}
-              id={department.id}
-              name={department.name}
-              leadId={department.leadId}
-              leads={leads}
-              isFirst={index === 0}
-              isLast={index === departments.length - 1}
-            />
-          ))}
-        </ul>
-      ) : (
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="border-b border-line text-muted">
-              <th scope="col" className="py-2 pr-3 font-medium">
-                Referat
-              </th>
-              <th scope="col" className="py-2 font-medium">
-                Leitung
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {departments.map((department) => (
-              <tr key={department.id} className="border-b border-line last:border-b-0">
-                <td className="py-2 pr-3">{department.name}</td>
-                <td className="py-2">
-                  {department.leadId ? (names.get(department.leadId) ?? "–") : "–"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {isAdmin ? <CreateDepartmentForm /> : null}
+      <Link
+        href="/arbeitskreise"
+        className="flex min-h-11 w-fit items-center font-medium text-primary underline underline-offset-4"
+      >
+        Auf der Seite AKs pflegen
+      </Link>
     </section>
   );
 }

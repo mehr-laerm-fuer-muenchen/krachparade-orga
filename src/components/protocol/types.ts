@@ -4,7 +4,7 @@ import type { ItemKind, MeetingStatus } from "@/lib/protocol-rules";
 
 export type Person = { id: string; name: string; active: boolean };
 
-export type DepartmentOption = { id: string; name: string };
+export type { DepartmentOption } from "@/lib/department-groups";
 
 export type MeetingData = {
   id: string;
