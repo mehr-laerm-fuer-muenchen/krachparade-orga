@@ -11,7 +11,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "4";
+export const SEED_VERSION = "5";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -118,6 +118,83 @@ export const TEST_MEETING = {
     },
   ],
 } as const;
+
+type TestPlanElement = {
+  name: string;
+  group: string;
+  kind: "milestone" | "task";
+  durationDays?: number;
+  department?: string;
+  owner?: string;
+  /** Successor by name with lag in days; `null` = the D-Day. */
+  next: { to: string | null; lag: number }[];
+  fixedDate?: string;
+  shiftDays?: number;
+  wobbly?: boolean;
+};
+
+/**
+ * Made-up example plan (spec 006, test layout v4), never in production. Only
+ * created while the current edition has no plan element.
+ */
+export const TEST_PLAN: TestPlanElement[] = [
+  { name: "Budget KP27 beschlossen", group: "Finanzen", kind: "milestone", department: "Finanzen", owner: "noa.fink@example.org", next: [{ to: "Voranmeldung geöffnet", lag: 12 }] },
+  { name: "Voranmeldung geöffnet", group: "Kommunikation", kind: "milestone", department: "Kommunikation E-Mails", owner: "mika.sonnleitner@example.org", next: [{ to: "Vortreffen Kollektive", lag: 20 }] },
+  { name: "Vortreffen Kollektive", group: "Kommunikation", kind: "milestone", department: "Kollektiv-Chats", owner: "noa.fink@example.org", next: [{ to: "Anmeldung offen", lag: 7 }] },
+  { name: "Anmeldung offen", group: "Kommunikation", kind: "task", durationDays: 21, department: "Kommunikation E-Mails", owner: "mika.sonnleitner@example.org", next: [{ to: "Auswahlkommission", lag: 0 }] },
+  { name: "Auswahlkommission", group: "Programm", kind: "task", durationDays: 10, next: [{ to: "Finale Zusage an Kollektive", lag: 0 }] },
+  { name: "Finale Zusage an Kollektive", group: "Programm", kind: "milestone", owner: "mika.sonnleitner@example.org", next: [{ to: "Zahlungsfrist Kollektive", lag: 0 }, { to: "Soundkopplung · Termin 1", lag: 7 }] },
+  { name: "Zahlungsfrist Kollektive", group: "Finanzen", kind: "task", durationDays: 23, department: "Finanzen", owner: "noa.fink@example.org", next: [{ to: null, lag: 57 }] },
+  { name: "Route & Aufstellung ausarbeiten", group: "Demo & Route", kind: "task", durationDays: 28, department: "Route", owner: "kim.brenner@example.org", next: [{ to: "Versammlungsanzeige beim KVR", lag: 0 }] },
+  { name: "Versammlungsanzeige beim KVR", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Kooperationsgespräch KVR/Polizei", lag: 50 }] },
+  { name: "Kooperationsgespräch KVR/Polizei", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Finaler Crosscheck", lag: 15 }], fixedDate: "2027-04-08" },
+  { name: "Sicherheitskonzept & Abschnittsleitungen", group: "Demo & Route", kind: "task", durationDays: 30, department: "Demoleitung", owner: "alex.rauch@example.org", next: [{ to: "Finaler Crosscheck", lag: 0 }] },
+  { name: "Wagenreihung", group: "Programm", kind: "task", durationDays: 14, owner: "robin.tal@example.org", next: [{ to: "Finaler Crosscheck", lag: 0 }] },
+  { name: "Finaler Crosscheck", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Briefing Abschnittsleitungen", lag: 3 }] },
+  { name: "Briefing Abschnittsleitungen", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Gesamtbriefing Wagenverantwortliche", lag: 4 }] },
+  { name: "Gesamtbriefing Wagenverantwortliche", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: null, lag: 10 }] },
+  { name: "Finales Vortreffen (Zoom)", group: "Demo & Route", kind: "milestone", department: "Demoleitung", next: [{ to: null, lag: 3 }] },
+  { name: "Shirt-Umfrage aktiv", group: "Flächen & Technik", kind: "task", durationDays: 30, department: "Ressourcen / Material", owner: "ivy.lamm@example.org", next: [{ to: "T-Shirts bestellt", lag: 0 }] },
+  { name: "T-Shirts bestellt", group: "Flächen & Technik", kind: "milestone", department: "Ressourcen / Material", owner: "ivy.lamm@example.org", next: [{ to: null, lag: 49 }], wobbly: true },
+  { name: "Soundkopplung · Termin 1", group: "Flächen & Technik", kind: "milestone", department: "Bühne / Soundkopplung", owner: "sascha.moeller@example.org", next: [{ to: "Soundkopplung · Termin 2", lag: 45 }] },
+  { name: "Soundkopplung · Termin 2", group: "Flächen & Technik", kind: "milestone", department: "Bühne / Soundkopplung", owner: "sascha.moeller@example.org", next: [{ to: "Soundkopplung · Termin 3", lag: 25 }] },
+  { name: "Soundkopplung · Termin 3", group: "Flächen & Technik", kind: "milestone", department: "Bühne / Soundkopplung", owner: "sascha.moeller@example.org", next: [{ to: null, lag: 3 }] },
+  { name: "Westen, Binden & Funk zählen", group: "Flächen & Technik", kind: "task", durationDays: 14, department: "Ressourcen / Material", owner: "alex.rauch@example.org", next: [{ to: "Wagenpakete packen", lag: 0 }] },
+  { name: "Wagenpakete packen", group: "Flächen & Technik", kind: "task", durationDays: 4, department: "Wagenpakete", owner: "alex.rauch@example.org", next: [{ to: "Gesamtbriefing Wagenverantwortliche", lag: 0 }] },
+  { name: "Bands & Reden anfragen", group: "Programm", kind: "task", durationDays: 40, department: "Bühnenprogramm musikalisch", owner: "mika.sonnleitner@example.org", next: [{ to: "Bühnenprogramm final", lag: 0 }] },
+  { name: "Bühnenprogramm final", group: "Programm", kind: "milestone", department: "Bühnenprogramm musikalisch", next: [{ to: null, lag: 14 }] },
+  { name: "Social-Media-Plan", group: "Kommunikation", kind: "task", durationDays: 20, department: "Social Media", owner: "luca.pfeffer@example.org", next: [{ to: "Pressemitteilung Vorbericht", lag: 0 }], shiftDays: -10 },
+  { name: "Pressemitteilung Vorbericht", group: "Kommunikation", kind: "milestone", department: "Pressearbeit", owner: "jo.kranz@example.org", next: [{ to: null, lag: 60 }] },
+  { name: "Schildermalen", group: "Kommunikation", kind: "milestone", department: "Social Media", next: [{ to: null, lag: 34 }] },
+  { name: "Teaser veröffentlicht", group: "Kommunikation", kind: "milestone", department: "Teaser / Aftermovie", owner: "ivy.lamm@example.org", next: [{ to: null, lag: 21 }], shiftDays: -5 },
+  { name: "Spendenkonto & Boxen bereit", group: "Finanzen", kind: "milestone", department: "Finanzen", next: [{ to: null, lag: 17 }] },
+];
+
+/** Made-up to-dos of the example plan (spec 006), by element name. */
+export const TEST_PLAN_TODOS: {
+  element: string;
+  text: string;
+  owner?: string;
+  anchor: "start" | "end";
+  daysBefore: number;
+}[] = [
+  { element: "Finaler Crosscheck", text: "Rechtliches geprüft", owner: "kim.brenner@example.org", anchor: "start", daysBefore: 2 },
+  { element: "Finaler Crosscheck", text: "Sicherheitskonzept geprüft", owner: "alex.rauch@example.org", anchor: "start", daysBefore: 2 },
+  { element: "Finaler Crosscheck", text: "Programm geprüft", owner: "sascha.moeller@example.org", anchor: "start", daysBefore: 2 },
+  { element: "Finaler Crosscheck", text: "Logistik & Material geprüft", owner: "alex.rauch@example.org", anchor: "start", daysBefore: 2 },
+  { element: "Finaler Crosscheck", text: "PR geprüft", owner: "jo.kranz@example.org", anchor: "start", daysBefore: 2 },
+  { element: "Finaler Crosscheck", text: "Ergebnis ins Plenum", owner: "kim.brenner@example.org", anchor: "end", daysBefore: 0 },
+  { element: "Auswahlkommission", text: "Auswahlkriterien beschlossen", anchor: "start", daysBefore: 14 },
+  { element: "Wagenpakete packen", text: "Mehr Helfende eingeteilt", anchor: "start", daysBefore: 7 },
+  { element: "Pressemitteilung Vorbericht", text: "Presseverteiler aktualisiert", anchor: "start", daysBefore: 14 },
+];
+
+/** Made-up notes of the example plan (spec 006), by element name. */
+export const TEST_PLAN_NOTES = [
+  { element: "Finaler Crosscheck", author: "kim.brenner@example.org", text: "Wir gehen die Liste gemeinsam im Plenum durch." },
+  { element: "Finaler Crosscheck", author: "alex.rauch@example.org", text: "Material-Liste vom Vorjahr als Vorlage nehmen." },
+  { element: "T-Shirts bestellt", author: "ivy.lamm@example.org", text: "Größen-Umfrage läuft noch, Rücklauf bisher gering." },
+];
 
 /**
  * Idempotent: a second run changes nothing. With `prod` only master data is
@@ -236,6 +313,108 @@ export async function seed({ prod }: { prod: boolean }) {
       );
       console.log(`meetings: ${TEST_MEETING.title} mit ${TEST_MEETING.items.length} Punkten angelegt`);
     }
+
+    await seedTestPlan();
+  }
+
+  /**
+   * Spec 006, never in production: the example plan, only while the current
+   * edition has no plan element. Working groups and departments by name.
+   */
+  async function seedTestPlan() {
+    const { planElements, planLinks, planNotes, planTodos } = await import("./schema");
+    const [current] = await db.select().from(editions).where(eq(editions.isCurrent, true)).limit(1);
+    if (!current) {
+      console.log("plan_elements: keine aktuelle Ausgabe");
+      return;
+    }
+    const [existingElement] = await db
+      .select({ id: planElements.id })
+      .from(planElements)
+      .where(eq(planElements.editionId, current.id))
+      .limit(1);
+    if (existingElement) {
+      console.log("plan_elements: schon vorhanden, nichts geändert");
+      return;
+    }
+
+    const groupIds = new Map(
+      (
+        await db
+          .select({ id: workingGroups.id, name: workingGroups.name })
+          .from(workingGroups)
+          .where(eq(workingGroups.editionId, current.id))
+      ).map((group) => [group.name, group.id])
+    );
+    const departmentIds = new Map(
+      (
+        await db
+          .select({ id: departments.id, name: departments.name })
+          .from(departments)
+          .where(eq(departments.editionId, current.id))
+      ).map((department) => [department.name, department.id])
+    );
+    const createdBy = memberIds.get("kim.brenner@example.org") ?? null;
+
+    const created = await db
+      .insert(planElements)
+      .values(
+        TEST_PLAN.map((element, index) => ({
+          editionId: current.id,
+          workingGroupId: groupIds.get(element.group) ?? null,
+          departmentId: element.department ? (departmentIds.get(element.department) ?? null) : null,
+          ownerId: element.owner ? (memberIds.get(element.owner) ?? null) : null,
+          kind: element.kind,
+          name: element.name,
+          durationDays: element.durationDays ?? 0,
+          shiftDays: element.shiftDays ?? 0,
+          fixedDate: element.fixedDate ?? null,
+          wobbly: element.wobbly ?? false,
+          sortOrder: index + 1,
+          createdBy,
+          updatedBy: createdBy,
+        }))
+      )
+      .returning({ id: planElements.id, name: planElements.name });
+    const elementIds = new Map(created.map((element) => [element.name, element.id]));
+    const elementId = (name: string) => {
+      const id = elementIds.get(name);
+      if (!id) throw new Error(`Plan-Element fehlt: ${name}`);
+      return id;
+    };
+
+    const links = TEST_PLAN.flatMap((element) =>
+      element.next.map((link) => ({
+        editionId: current.id,
+        fromElementId: elementId(element.name),
+        toElementId: link.to === null ? null : elementId(link.to),
+        lagDays: link.lag,
+      }))
+    );
+    await db.insert(planLinks).values(links);
+
+    await db.insert(planTodos).values(
+      TEST_PLAN_TODOS.map((todo, index) => ({
+        elementId: elementId(todo.element),
+        text: todo.text,
+        ownerId: todo.owner ? (memberIds.get(todo.owner) ?? null) : null,
+        anchor: todo.anchor,
+        daysBefore: todo.daysBefore,
+        sortOrder: index + 1,
+        createdBy,
+      }))
+    );
+
+    const notes = TEST_PLAN_NOTES.flatMap((note) => {
+      const authorId = memberIds.get(note.author);
+      return authorId ? [{ elementId: elementId(note.element), authorId, text: note.text }] : [];
+    });
+    if (notes.length > 0) {
+      await db.insert(planNotes).values(notes);
+    }
+    console.log(
+      `plan_elements: ${created.length} angelegt, ${links.length} Verbindungen, ${TEST_PLAN_TODOS.length} To-dos, ${notes.length} Notizen`
+    );
   }
 
   /**
