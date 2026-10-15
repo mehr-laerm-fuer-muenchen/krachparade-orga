@@ -2,6 +2,9 @@
 // passes --prod and targets production (DATABASE_URL_PROD). The override has
 // to happen before the database module is loaded, so import "./index" only
 // dynamically inside seed().
+import { parseAdminEmails } from "../lib/access";
+import { KP27_PLAN, KP27_PLAN_NOTES, KP27_PLAN_TODOS } from "./kp27-template";
+
 const isProd = process.argv.includes("--prod");
 if (isProd) {
   const prodUrl = process.env.DATABASE_URL_PROD;
@@ -11,7 +14,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "5";
+export const SEED_VERSION = "6";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -119,7 +122,8 @@ export const TEST_MEETING = {
   ],
 } as const;
 
-type TestPlanElement = {
+/** Plan template element (specs 006, 010); working group and department by name. */
+export type PlanTemplateElement = {
   name: string;
   group: string;
   kind: "milestone" | "task";
@@ -137,7 +141,7 @@ type TestPlanElement = {
  * Made-up example plan (spec 006, test layout v4), never in production. Only
  * created while the current edition has no plan element.
  */
-export const TEST_PLAN: TestPlanElement[] = [
+export const TEST_PLAN: PlanTemplateElement[] = [
   { name: "Budget KP27 beschlossen", group: "Finanzen", kind: "milestone", department: "Finanzen", owner: "noa.fink@example.org", next: [{ to: "Voranmeldung geöffnet", lag: 12 }] },
   { name: "Voranmeldung geöffnet", group: "Kommunikation", kind: "milestone", department: "Kommunikation E-Mails", owner: "mika.sonnleitner@example.org", next: [{ to: "Vortreffen Kollektive", lag: 20 }] },
   { name: "Vortreffen Kollektive", group: "Kommunikation", kind: "milestone", department: "Kollektiv-Chats", owner: "noa.fink@example.org", next: [{ to: "Anmeldung offen", lag: 7 }] },
@@ -170,14 +174,20 @@ export const TEST_PLAN: TestPlanElement[] = [
   { name: "Spendenkonto & Boxen bereit", group: "Finanzen", kind: "milestone", department: "Finanzen", next: [{ to: null, lag: 17 }] },
 ];
 
-/** Made-up to-dos of the example plan (spec 006), by element name. */
-export const TEST_PLAN_TODOS: {
+/** To-do of a plan template, by element name. */
+export type PlanTemplateTodo = {
   element: string;
   text: string;
   owner?: string;
   anchor: "start" | "end";
   daysBefore: number;
-}[] = [
+};
+
+/** Note of a plan template, by element name; without author the seed picks one. */
+export type PlanTemplateNote = { element: string; text: string; author?: string };
+
+/** Made-up to-dos of the example plan (spec 006), by element name. */
+export const TEST_PLAN_TODOS: PlanTemplateTodo[] = [
   { element: "Finaler Crosscheck", text: "Rechtliches geprüft", owner: "kim.brenner@example.org", anchor: "start", daysBefore: 2 },
   { element: "Finaler Crosscheck", text: "Sicherheitskonzept geprüft", owner: "alex.rauch@example.org", anchor: "start", daysBefore: 2 },
   { element: "Finaler Crosscheck", text: "Programm geprüft", owner: "sascha.moeller@example.org", anchor: "start", daysBefore: 2 },
@@ -190,7 +200,7 @@ export const TEST_PLAN_TODOS: {
 ];
 
 /** Made-up notes of the example plan (spec 006), by element name. */
-export const TEST_PLAN_NOTES = [
+export const TEST_PLAN_NOTES: PlanTemplateNote[] = [
   { element: "Finaler Crosscheck", author: "kim.brenner@example.org", text: "Wir gehen die Liste gemeinsam im Plenum durch." },
   { element: "Finaler Crosscheck", author: "alex.rauch@example.org", text: "Material-Liste vom Vorjahr als Vorlage nehmen." },
   { element: "T-Shirts bestellt", author: "ivy.lamm@example.org", text: "Größen-Umfrage läuft noch, Rücklauf bisher gering." },
@@ -202,7 +212,7 @@ export const TEST_PLAN_NOTES = [
  */
 export async function seed({ prod }: { prod: boolean }) {
   const { db } = await import("./index");
-  const { eq } = await import("drizzle-orm");
+  const { asc, eq } = await import("drizzle-orm");
   const { and } = await import("drizzle-orm");
   const { inArray, isNull } = await import("drizzle-orm");
   const { appMeta, departments, editions, meetingAttendees, meetingItems, meetings, members } =
@@ -315,28 +325,87 @@ export async function seed({ prod }: { prod: boolean }) {
     }
 
     await seedTestPlan();
+  } else {
+    await seedKp27Template();
   }
 
   /**
    * Spec 006, never in production: the example plan, only while the current
-   * edition has no plan element. Working groups and departments by name.
+   * edition has no plan element.
    */
   async function seedTestPlan() {
-    const { planElements, planLinks, planNotes, planTodos } = await import("./schema");
-    const [current] = await db.select().from(editions).where(eq(editions.isCurrent, true)).limit(1);
-    if (!current) {
+    const result = await seedPlan(
+      { elements: TEST_PLAN, todos: TEST_PLAN_TODOS, notes: TEST_PLAN_NOTES },
+      {
+        createdBy: memberIds.get("kim.brenner@example.org") ?? null,
+        noteAuthorId: (note) => (note.author ? memberIds.get(note.author) : undefined),
+      }
+    );
+    if (result === "no_edition") {
       console.log("plan_elements: keine aktuelle Ausgabe");
-      return;
+    } else if (result === "exists") {
+      console.log("plan_elements: schon vorhanden, nichts geändert");
+    } else {
+      console.log(
+        `plan_elements: ${result.elements} angelegt, ${result.links} Verbindungen, ${result.todos} To-dos, ${result.notes} Notizen`
+      );
     }
+  }
+
+  /**
+   * Spec 010, only in production: the KP27 template, only while the current
+   * edition has no plan element. The notes are written by the earliest created
+   * active member listed in `ADMIN_EMAILS`. The output never shows addresses.
+   */
+  async function seedKp27Template() {
+    const adminEmails = parseAdminEmails(process.env.ADMIN_EMAILS);
+    const [author] = adminEmails.length
+      ? await db
+          .select({ id: members.id })
+          .from(members)
+          .where(and(eq(members.active, true), inArray(members.email, adminEmails)))
+          .orderBy(asc(members.createdAt))
+          .limit(1)
+      : [];
+    const result = await seedPlan(
+      { elements: KP27_PLAN, todos: KP27_PLAN_TODOS, notes: author ? KP27_PLAN_NOTES : [] },
+      { createdBy: null, noteAuthorId: () => author?.id, changeSummary: "Angelegt (KP27-Vorlage)" }
+    );
+    if (result === "no_edition") {
+      console.log("KP27-Vorlage: keine aktuelle Ausgabe");
+    } else if (result === "exists") {
+      console.log("KP27-Vorlage übersprungen (Plan existiert schon)");
+    } else {
+      console.log(
+        `KP27-Vorlage: ${result.elements} Elemente, ${result.links} Verbindungen, ${result.todos} To-dos, ${result.notes} Notizen`
+      );
+      if (!author) console.log("Notizen übersprungen (kein Admin-Mitglied)");
+    }
+  }
+
+  /**
+   * Creates a plan template (specs 006, 010) in the current edition, only while
+   * it has no plan element. Working groups and departments by name, a missing
+   * name leaves the field empty. With `changeSummary` every element gets an
+   * entry in `plan_changes` without member.
+   */
+  async function seedPlan(
+    template: { elements: PlanTemplateElement[]; todos: PlanTemplateTodo[]; notes: PlanTemplateNote[] },
+    options: {
+      createdBy: string | null;
+      noteAuthorId: (note: PlanTemplateNote) => string | undefined;
+      changeSummary?: string;
+    }
+  ) {
+    const { planChanges, planElements, planLinks, planNotes, planTodos } = await import("./schema");
+    const [current] = await db.select().from(editions).where(eq(editions.isCurrent, true)).limit(1);
+    if (!current) return "no_edition" as const;
     const [existingElement] = await db
       .select({ id: planElements.id })
       .from(planElements)
       .where(eq(planElements.editionId, current.id))
       .limit(1);
-    if (existingElement) {
-      console.log("plan_elements: schon vorhanden, nichts geändert");
-      return;
-    }
+    if (existingElement) return "exists" as const;
 
     const groupIds = new Map(
       (
@@ -354,12 +423,12 @@ export async function seed({ prod }: { prod: boolean }) {
           .where(eq(departments.editionId, current.id))
       ).map((department) => [department.name, department.id])
     );
-    const createdBy = memberIds.get("kim.brenner@example.org") ?? null;
+    const { createdBy } = options;
 
     const created = await db
       .insert(planElements)
       .values(
-        TEST_PLAN.map((element, index) => ({
+        template.elements.map((element, index) => ({
           editionId: current.id,
           workingGroupId: groupIds.get(element.group) ?? null,
           departmentId: element.department ? (departmentIds.get(element.department) ?? null) : null,
@@ -383,7 +452,7 @@ export async function seed({ prod }: { prod: boolean }) {
       return id;
     };
 
-    const links = TEST_PLAN.flatMap((element) =>
+    const links = template.elements.flatMap((element) =>
       element.next.map((link) => ({
         editionId: current.id,
         fromElementId: elementId(element.name),
@@ -393,28 +462,36 @@ export async function seed({ prod }: { prod: boolean }) {
     );
     await db.insert(planLinks).values(links);
 
-    await db.insert(planTodos).values(
-      TEST_PLAN_TODOS.map((todo, index) => ({
-        elementId: elementId(todo.element),
-        text: todo.text,
-        ownerId: todo.owner ? (memberIds.get(todo.owner) ?? null) : null,
-        anchor: todo.anchor,
-        daysBefore: todo.daysBefore,
-        sortOrder: index + 1,
-        createdBy,
-      }))
-    );
+    if (template.todos.length > 0) {
+      await db.insert(planTodos).values(
+        template.todos.map((todo, index) => ({
+          elementId: elementId(todo.element),
+          text: todo.text,
+          ownerId: todo.owner ? (memberIds.get(todo.owner) ?? null) : null,
+          anchor: todo.anchor,
+          daysBefore: todo.daysBefore,
+          sortOrder: index + 1,
+          createdBy,
+        }))
+      );
+    }
 
-    const notes = TEST_PLAN_NOTES.flatMap((note) => {
-      const authorId = memberIds.get(note.author);
+    const notes = template.notes.flatMap((note) => {
+      const authorId = options.noteAuthorId(note);
       return authorId ? [{ elementId: elementId(note.element), authorId, text: note.text }] : [];
     });
     if (notes.length > 0) {
       await db.insert(planNotes).values(notes);
     }
-    console.log(
-      `plan_elements: ${created.length} angelegt, ${links.length} Verbindungen, ${TEST_PLAN_TODOS.length} To-dos, ${notes.length} Notizen`
-    );
+
+    const { changeSummary } = options;
+    if (changeSummary) {
+      await db
+        .insert(planChanges)
+        .values(created.map((element) => ({ elementId: element.id, memberId: null, summary: changeSummary })));
+    }
+
+    return { elements: created.length, links: links.length, todos: template.todos.length, notes: notes.length };
   }
 
   /**
