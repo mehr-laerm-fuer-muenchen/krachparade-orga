@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Status } from "@/components/status-pill";
 // Relative imports for runtime code (as in src/lib/): Vitest renders this
 // component and does not resolve the "@/" alias.
@@ -23,6 +23,8 @@ import {
   type Zoom,
 } from "../../lib/gantt-layout";
 import { dayToDate } from "../../lib/plan-days";
+import { dragChanges, dragDays, isDrag, previewPlan, type DragMode } from "../../lib/plan-drag";
+import type { PlanInput } from "../../lib/plan-engine";
 import { formatBuffer } from "../../lib/plan-preview";
 
 const NAME_WIDTH = 240;
@@ -45,6 +47,23 @@ function dayLabelBox(x: number, label: string, side: "left" | "right"): LabelBox
 }
 
 const overlaps = (a: LabelBox, b: LabelBox) => a.left < b.right && b.left < a.right;
+
+/** Width of the drag handles at both ends of a task. */
+const HANDLE_WIDTH = 8;
+
+/** Escape in a form field (detail panel) does not clear the selection. */
+function isFieldTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest("input, textarea, select") !== null;
+}
+
+/** Dragging (spec 008): the plan for the preview and saving on release. */
+export type GanttEdit = {
+  plan: PlanInput;
+  /** Saves the drag; resolves once the page shows the server's result. False = failed. */
+  onDrag: (id: string, mode: DragMode, delta: number) => Promise<boolean>;
+};
+
+type Drag = { id: string; mode: DragMode; delta: number };
 
 const FILL: Record<Status, string> = {
   done: "fill-status-done",
@@ -69,6 +88,8 @@ export type PlanGanttProps = {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onToggleLane: (laneKey: string) => void;
+  /** Without it the Gantt is read only (as in spec 007). */
+  edit?: GanttEdit;
 };
 
 /**
@@ -91,8 +112,12 @@ export function PlanGantt({
   selectedId,
   onSelect,
   onToggleLane,
+  edit,
 }: PlanGanttProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  // A press that turned into a drag must not select on the following click.
+  const suppressClick = useRef(false);
   const px = ZOOM_PX[zoom];
   const range = timeRange(elements, today, dDay);
   const x = (day: number) => xOf(day, range, px);
@@ -125,14 +150,65 @@ export function PlanGantt({
   useEffect(() => {
     if (selectedId === null) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onSelect(null);
+      if (event.key === "Escape" && !isFieldTarget(event.target)) onSelect(null);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedId, onSelect]);
 
-  const toggle = (id: string) => onSelect(selectedId === id ? null : id);
-  const selected = selectedId === null ? undefined : byId.get(selectedId);
+  const toggle = (id: string) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    onSelect(selectedId === id ? null : id);
+  };
+
+  // While dragging, the browser computes a preview with the engine; the rows
+  // keep their order (they come from the server values).
+  const preview = useMemo(
+    () =>
+      drag && edit && drag.delta !== 0
+        ? previewPlan(edit.plan, dragChanges(edit.plan, drag.id, drag.mode, drag.delta), today)
+        : null,
+    [drag, edit, today]
+  );
+  const shown = (element: GanttElement): GanttElement => {
+    const values = preview?.get(element.id);
+    return values ? { ...element, ...values } : element;
+  };
+
+  /** Mouse and pen only (no dragging on touch screens); saves on release. */
+  const startDrag = (event: ReactPointerEvent, id: string, mode: DragMode) => {
+    if (!edit || event.button !== 0 || event.pointerType === "touch") return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let current: Drag | null = null;
+    const onMove = (move: PointerEvent) => {
+      const dx = move.clientX - startX;
+      if (current === null && !isDrag(dx, move.clientY - startY)) return;
+      current = { id, mode, delta: dragDays(dx, px) };
+      setDrag(current);
+    };
+    const onUp = async () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (current === null) return;
+      suppressClick.current = true;
+      // Clicks on a handle are not followed by a click on the element.
+      window.setTimeout(() => (suppressClick.current = false), 0);
+      if (current.delta !== 0) await edit.onDrag(id, mode, current.delta);
+      setDrag(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
+  const selectedRaw = selectedId === null ? undefined : byId.get(selectedId);
+  const selected = selectedRaw ? shown(selectedRaw) : undefined;
 
   const months = monthTicks(range, dDay);
   const weeks = weekTicks(range, dDay);
@@ -172,7 +248,9 @@ export function PlanGantt({
           width={width}
           height={height}
           viewBox={`0 0 ${width} ${height}`}
-          className="block text-[11px]"
+          className={`block text-[11px] select-none ${
+            drag ? (drag.mode === "move" ? "cursor-grabbing" : "cursor-ew-resize") : ""
+          }`}
         >
           <defs>
             <marker id="gantt-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto">
@@ -249,12 +327,14 @@ export function PlanGantt({
             return (
               <ElementMark
                 key={row.key}
-                element={row.element}
+                element={shown(row.element)}
                 center={center}
                 x={x}
                 dDay={dDay}
                 selected={row.element.id === selectedId}
                 onSelect={toggle}
+                onDragStart={edit ? startDrag : undefined}
+                dragging={drag !== null}
               />
             );
           })}
@@ -269,12 +349,16 @@ export function PlanGantt({
               {links.map((link, index) => {
                 let from: GanttElement | undefined;
                 let to: GanttElement | undefined;
+                const get = (id: string) => {
+                  const element = byId.get(id);
+                  return element ? shown(element) : undefined;
+                };
                 if (link.toId === selected.id) {
-                  from = byId.get(link.fromId);
+                  from = get(link.fromId);
                   to = selected;
                 } else if (link.fromId === selected.id) {
                   from = selected;
-                  to = link.toId === null ? undefined : byId.get(link.toId);
+                  to = link.toId === null ? undefined : get(link.toId);
                   if (link.toId === null) {
                     const y = yOf(selected);
                     return <Arrow key={index} d={elbowPath(endX(selected, x), y, x(0), y)} />;
@@ -353,6 +437,8 @@ function ElementMark({
   dDay,
   selected,
   onSelect,
+  onDragStart,
+  dragging,
 }: {
   element: GanttElement;
   center: number;
@@ -360,6 +446,9 @@ function ElementMark({
   dDay: string;
   selected: boolean;
   onSelect: (id: string) => void;
+  /** Only when editable (spec 008). */
+  onDragStart?: (event: ReactPointerEvent, id: string, mode: DragMode) => void;
+  dragging: boolean;
 }) {
   const open = !element.done;
   const milestone = element.kind === "milestone";
@@ -384,8 +473,10 @@ function ElementMark({
     <g
       data-testid="gantt-element"
       data-element-id={element.id}
-      className="cursor-pointer"
+      data-element-name={element.name}
+      className={`group ${onDragStart ? (dragging ? "" : "cursor-grab") : "cursor-pointer"}`}
       onClick={() => onSelect(element.id)}
+      onPointerDown={onDragStart ? (event) => onDragStart(event, element.id, "move") : undefined}
     >
       {showLate ? (
         <rect
@@ -407,9 +498,10 @@ function ElementMark({
         />
       ) : null}
       {milestone ? (
-        <polygon points={diamond(DIAMOND)} className={`${FILL[element.status]} ${outline}`} />
+        <polygon data-testid="gantt-mark" points={diamond(DIAMOND)} className={`${FILL[element.status]} ${outline}`} />
       ) : (
         <rect
+          data-testid="gantt-mark"
           x={left}
           y={center - BAR_HEIGHT / 2}
           width={barWidth}
@@ -434,6 +526,24 @@ function ElementMark({
           />
         )
       ) : null}
+      {onDragStart && !milestone
+        ? (["start", "end"] as const).map((edge) => (
+            <rect
+              key={edge}
+              data-testid={`gantt-handle-${edge}`}
+              x={(edge === "start" ? left : left + barWidth) - HANDLE_WIDTH / 2}
+              y={center - BAR_HEIGHT / 2 - 2}
+              width={HANDLE_WIDTH}
+              height={BAR_HEIGHT + 4}
+              rx={2}
+              className={`fill-text opacity-0 group-hover:opacity-50 ${dragging ? "" : "cursor-ew-resize"}`}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onDragStart(event, element.id, edge);
+              }}
+            />
+          ))
+        : null}
       <text x={labelX} y={center + 4} className="fill-text">
         {dates}
         {open && element.buffer !== 0 ? (

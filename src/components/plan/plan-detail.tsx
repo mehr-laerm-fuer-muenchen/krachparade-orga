@@ -1,18 +1,53 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
+import { loadPlanHistory } from "@/actions/plan-history";
+import {
+  addLink,
+  addNote,
+  addTodo,
+  deleteElement,
+  deleteNote,
+  deleteTodo,
+  removeLink,
+  resetShift,
+  setDone,
+  setFixedDate,
+  setWobbly,
+  toggleTodo,
+  updateElement,
+  updateLinkLag,
+  updateNote,
+  type PlanConflict,
+} from "@/actions/plan";
 import { StatusPill } from "@/components/status-pill";
 import { formatDLabel } from "@/lib/dday";
 import {
   formatWeekdayDate,
-  type GanttLink,
+  type GanttGroup,
   type PlanTodoView,
   type PlanViewElement,
+  type PlanViewLink,
 } from "@/lib/gantt-layout";
+import type { DragMode } from "@/lib/plan-drag";
 import { dayToDate } from "@/lib/plan-days";
+import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
+import { displayGroupName } from "@/lib/working-groups";
 
-export const EDIT_LATER = "Bearbeiten kommt mit dem nächsten Update.";
+/** Result of a plan action as the panel sees it. */
+export type PlanResult = { ok: true; conflict?: PlanConflict | null } | { ok: false; message: string };
+
+/** Runs an action, shows a conflict notice; returns the error message or null. */
+export type RunAction = (call: () => Promise<PlanResult>) => Promise<string | null>;
+
+/** Moves or resizes an element with the "Rückgängig" bar; false if it failed. */
+export type DragAction = (id: string, mode: DragMode, delta: number) => Promise<boolean>;
+
+export type PlanOption = { id: string; name: string };
+export type PlanDepartmentOption = PlanOption & { workingGroupId: string | null };
+
+export const PRIVACY_HINT = "Keine Telefonnummern, Adressen oder Kontodaten eintragen.";
 
 /** "+5 T Puffer", "0 T Puffer", "−2 T Verzug" or "erledigt". */
 export function bufferLabel(element: Pick<PlanViewElement, "buffer" | "done">): string {
@@ -32,6 +67,11 @@ function dueText(todo: PlanTodoView, dDay: string): string {
   return `${formatWeekdayShort(dayToDate(todo.due, dDay))} · ${when}`;
 }
 
+/** Escape in a form field does not close the panel. */
+export function isFieldTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest("input, textarea, select") !== null;
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2 border-t border-line pt-3">
@@ -41,38 +81,91 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-type LinkItem = { key: string; id: string | null; name: string; lag: number };
+function FieldError({ message }: { message?: string | null }) {
+  return message ? (
+    <p role="alert" className="text-sm font-medium text-status-late">
+      {message}
+    </p>
+  ) : null;
+}
 
+const INPUT =
+  "min-h-11 rounded-md border border-line-strong bg-surface px-3 text-base disabled:opacity-50 aria-invalid:border-status-late";
+const SMALL_BUTTON =
+  "min-h-11 shrink-0 rounded-md border border-line bg-surface px-3 font-medium hover:bg-surface-2 disabled:opacity-50";
+const PRIMARY_BUTTON =
+  "min-h-11 shrink-0 rounded-md bg-primary px-4 font-semibold text-on-primary hover:opacity-90 disabled:opacity-50";
+const REMOVE_BUTTON =
+  "flex size-11 shrink-0 items-center justify-center rounded-md text-xl leading-none text-muted hover:bg-surface-2";
+const CHECKBOX = "size-5 shrink-0 accent-[var(--primary)]";
 const EMPTY = <p className="text-muted">Noch keine.</p>;
 
-/**
- * Read-only details of a plan element (spec 007). Next to the plan on wide
- * screens, a sheet from the bottom on phones. Closes with "×" or Escape.
- */
-export function PlanDetail({
-  element,
-  elements,
-  links,
-  today,
-  dDay,
-  onSelect,
-  onClose,
-}: {
+function Labeled({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-sm text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/** Whole number from a field, NaN for anything else (the server then answers). */
+function toInt(value: string): number {
+  return value.trim() === "" ? Number.NaN : Number(value);
+}
+
+type LinkRow = { link: PlanViewLink; id: string | null; name: string };
+
+export type PlanDetailProps = {
   element: PlanViewElement;
   elements: ReadonlyMap<string, PlanViewElement>;
-  links: readonly GanttLink[];
+  links: readonly PlanViewLink[];
+  groups: readonly GanttGroup[];
+  departments: readonly PlanDepartmentOption[];
+  members: readonly PlanOption[];
   today: number;
   dDay: string;
   onSelect: (id: string) => void;
   onClose: () => void;
-}) {
+  run: RunAction;
+  drag: DragAction;
+};
+
+/**
+ * Details of a plan element, editable (spec 008, layout like test layout
+ * v4). Next to the plan on wide screens, a sheet from the bottom on phones.
+ * Fields save when leaving them or on selection. Closes with "×" or Escape.
+ */
+export function PlanDetail(props: PlanDetailProps) {
+  const { element, elements, links, groups, departments, members, today, dDay, onSelect, onClose, run, drag } =
+    props;
+  const seen = element.updatedAt;
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [savedAt, setSavedAt] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !isFieldTarget(event.target)) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
+
+  // "Gespeichert" disappears after two seconds.
+  useEffect(() => {
+    if (savedAt === 0) return;
+    const timer = window.setTimeout(() => setSavedAt(0), 2000);
+    return () => window.clearTimeout(timer);
+  }, [savedAt]);
+
+  /** Runs an action for a field; the message appears at that field. */
+  const save = async (field: string, call: () => Promise<PlanResult>): Promise<boolean> => {
+    const message = await run(call);
+    setErrors((previous) => ({ ...previous, [field]: message }));
+    if (message === null) setSavedAt(Date.now());
+    return message === null;
+  };
 
   const open = !element.done;
   const milestone = element.kind === "milestone";
@@ -83,49 +176,30 @@ export function PlanDetail({
     element.ownerName,
   ].filter(Boolean);
 
-  const predecessors = links.flatMap((link): LinkItem[] => {
-    const from = link.toId === element.id ? elements.get(link.fromId) : undefined;
-    return from ? [{ key: `${link.fromId}-p`, id: from.id, name: from.name, lag: link.lagDays }] : [];
-  });
-  const successors = links.flatMap((link): LinkItem[] => {
-    if (link.fromId !== element.id) return [];
-    if (link.toId === null) return [{ key: "dday", id: null, name: "D-Day", lag: link.lagDays }];
-    const to = elements.get(link.toId);
-    return to ? [{ key: `${to.id}-s`, id: to.id, name: to.name, lag: link.lagDays }] : [];
-  });
-
   let hint: string | null = null;
   if (open) {
     if (element.buffer < 0) hint = `Liegt ${-element.buffer} Tage zu spät für die Nachfolger.`;
     else if (element.buffer > 0) hint = `${element.buffer} Tage Luft bis zum spätesten Termin.`;
     else hint = "Liegt auf dem spätesten Termin. Jede Verzögerung schiebt Nachfolger.";
   }
+  const shift = element.fixed ? null : shiftText(element.shiftDays);
 
-  const linkList = (items: LinkItem[]) =>
-    items.length === 0 ? (
-      EMPTY
-    ) : (
-      <ul className="flex flex-col">
-        {items.map(({ key, id, name, lag }) => {
-          const label = `${name} · ${lag} T Abstand`;
-          return (
-            <li key={key}>
-              {id === null ? (
-                <span className="flex min-h-11 items-center">{label}</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onSelect(id)}
-                  className="flex min-h-11 w-full items-center rounded-sm text-left text-primary underline-offset-2 hover:underline"
-                >
-                  {label}
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    );
+  const predecessors = links.flatMap((link): LinkRow[] => {
+    const from = link.toId === element.id ? elements.get(link.fromId) : undefined;
+    return from ? [{ link, id: from.id, name: from.name }] : [];
+  });
+  const successors = links.flatMap((link): LinkRow[] => {
+    if (link.fromId !== element.id) return [];
+    if (link.toId === null) return [{ link, id: null, name: "D-Day" }];
+    const to = elements.get(link.toId);
+    return to ? [{ link, id: to.id, name: to.name }] : [];
+  });
+  const all = [...elements.values()];
+  const predecessorOptions = predecessorCandidates(all, links, element.id);
+  const successorOptions = successorCandidates(all, links, element.id);
+  const groupDepartments = departments.filter((department) => department.workingGroupId === element.workingGroupId);
+  // Fields show the stored values again after every change from the server.
+  const version = `${element.id}-${element.updatedAt}`;
 
   return (
     <>
@@ -143,8 +217,11 @@ export function PlanDetail({
               >
                 {bufferLabel(element)}
               </span>
+              <span role="status" className="text-sm font-medium text-primary">
+                {savedAt !== 0 ? "Gespeichert" : null}
+              </span>
             </div>
-            <h2 className="text-lg leading-snug font-semibold">{element.name}</h2>
+            <h2 className="text-lg leading-snug font-semibold break-words">{element.name}</h2>
             <p className="text-sm text-muted">{meta.join(" · ")}</p>
           </div>
           <button
@@ -163,82 +240,699 @@ export function PlanDetail({
               {milestone ? (
                 <>
                   <dt className="text-muted">Datum</dt>
-                  <dd>{dateWithD(element.start, dDay)}</dd>
+                  <dd data-testid="detail-start">{dateWithD(element.start, dDay)}</dd>
                 </>
               ) : (
                 <>
                   <dt className="text-muted">Start</dt>
-                  <dd>{dateWithD(element.start, dDay)}</dd>
+                  <dd data-testid="detail-start">{dateWithD(element.start, dDay)}</dd>
                   <dt className="text-muted">Ende</dt>
-                  <dd>{dateWithD(element.end, dDay)}</dd>
+                  <dd data-testid="detail-end">{dateWithD(element.end, dDay)}</dd>
                 </>
               )}
               <dt className="text-muted">Spätestens</dt>
               <dd>{dateWithD(element.latestEnd, dDay)}</dd>
             </dl>
             {hint ? <p className={element.buffer < 0 ? "text-status-late" : "text-muted"}>{hint}</p> : null}
-            {element.fixed ? <p className="font-medium">Fixtermin (extern festgelegt)</p> : null}
-            {element.wobbly ? <p className="font-medium">Wackelt (Einschätzung)</p> : null}
+            {shift ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="min-w-0 flex-1">{shift}</p>
+                <button
+                  type="button"
+                  onClick={() => save("shift", () => resetShift(element.id, seen))}
+                  className={SMALL_BUTTON}
+                >
+                  Auf spätesten Termin
+                </button>
+              </div>
+            ) : null}
+            <FieldError message={errors.shift} />
+            <div role="group" aria-label="Verschieben" className="grid grid-cols-4 gap-2 desk:hidden">
+              {[-7, -1, 1, 7].map((delta) => (
+                <button
+                  key={delta}
+                  type="button"
+                  onClick={() => void drag(element.id, "move", delta)}
+                  className={SMALL_BUTTON}
+                >
+                  {delta < 0 ? `−${-delta} T` : `+${delta} T`}
+                </button>
+              ))}
+            </div>
           </Section>
 
-          <Section title="To-dos & Voraussetzungen">
-            {element.todos.length === 0 ? (
-              EMPTY
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {element.todos.map((todo) => {
-                  const overdue = !todo.done && todo.due < today;
-                  return (
-                    <li key={todo.id} className="flex gap-2">
-                      <span
-                        aria-label={todo.done ? "erledigt" : "offen"}
-                        role="img"
-                        className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border ${
-                          todo.done ? "border-status-done bg-status-done text-on-status-done" : "border-line-strong"
-                        }`}
-                      >
-                        {todo.done ? (
-                          <svg aria-hidden viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M3.5 8.5l3 3 6-7" />
-                          </svg>
-                        ) : null}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className={todo.done ? "text-muted line-through" : ""}>{todo.text}</p>
-                        <p className={`text-sm ${overdue ? "font-semibold text-status-late" : "text-muted"}`}>
-                          {[todo.ownerName, dueText(todo, dDay)].filter(Boolean).join(" · ")}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+          <Section title="Zuständig">
+            <div key={version} className="flex flex-col gap-3">
+              <Labeled label="AK">
+                <select
+                  defaultValue={element.workingGroupId ?? ""}
+                  onChange={(event) =>
+                    save("group", () =>
+                      updateElement(element.id, { workingGroupId: event.target.value || null }, seen)
+                    )
+                  }
+                  className={INPUT}
+                >
+                  <option value="">– ohne AK –</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {displayGroupName(group.name)}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.group} />
+              </Labeled>
+              <Labeled label="Aufgabenbereich">
+                <select
+                  defaultValue={element.departmentId ?? ""}
+                  onChange={(event) =>
+                    save("department", () =>
+                      updateElement(element.id, { departmentId: event.target.value || null }, seen)
+                    )
+                  }
+                  className={INPUT}
+                >
+                  <option value="">– keiner –</option>
+                  {groupDepartments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.name}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.department} />
+              </Labeled>
+              <Labeled label="Verantwortlich">
+                <select
+                  defaultValue={element.ownerId ?? ""}
+                  onChange={(event) =>
+                    save("owner", () => updateElement(element.id, { ownerId: event.target.value || null }, seen))
+                  }
+                  className={INPUT}
+                >
+                  <option value="">– niemand –</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.owner} />
+              </Labeled>
+            </div>
           </Section>
 
-          <Section title="Notizen">
-            {element.notes.length === 0 ? (
-              EMPTY
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {element.notes.map((note) => (
-                  <li key={note.id}>
-                    <p className="text-sm text-muted">
-                      {note.authorName} · {formatWeekdayShort(note.date)}
-                    </p>
-                    <p className="whitespace-pre-line">{note.text}</p>
-                  </li>
+          <Section title="Element">
+            <div key={version} className="flex flex-col gap-3">
+              <Labeled label="Name">
+                <input
+                  type="text"
+                  defaultValue={element.name}
+                  maxLength={120}
+                  onBlur={(event) => {
+                    const value = event.target.value;
+                    if (value.trim() !== element.name) {
+                      void save("name", () => updateElement(element.id, { name: value }, seen));
+                    }
+                  }}
+                  aria-invalid={Boolean(errors.name)}
+                  className={INPUT}
+                />
+                <FieldError message={errors.name} />
+              </Labeled>
+              <div role="group" aria-label="Art" className="flex overflow-hidden rounded-md border border-line">
+                {(
+                  [
+                    ["milestone", "Meilenstein"],
+                    ["task", "Vorgang"],
+                  ] as const
+                ).map(([kind, label]) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={element.kind === kind}
+                    onClick={() => {
+                      if (element.kind !== kind) void save("kind", () => updateElement(element.id, { kind }, seen));
+                    }}
+                    className="min-h-11 flex-1 font-medium not-first:border-l not-first:border-line aria-pressed:bg-primary aria-pressed:text-on-primary not-aria-pressed:hover:bg-surface-2"
+                  >
+                    {label}
+                  </button>
                 ))}
-              </ul>
-            )}
+              </div>
+              <FieldError message={errors.kind} />
+              {milestone ? null : (
+                <Labeled label="Dauer in Tagen">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={365}
+                    defaultValue={element.durationDays}
+                    onBlur={(event) => {
+                      const value = toInt(event.target.value);
+                      if (value !== element.durationDays) {
+                        void save("duration", () => updateElement(element.id, { durationDays: value }, seen));
+                      }
+                    }}
+                    aria-invalid={Boolean(errors.duration)}
+                    className={`${INPUT} w-28`}
+                  />
+                  <FieldError message={errors.duration} />
+                </Labeled>
+              )}
+              <label className="flex min-h-11 items-center gap-3">
+                <input
+                  type="checkbox"
+                  defaultChecked={element.fixed}
+                  onChange={(event) =>
+                    save("fixed", () => setFixedDate(element.id, event.target.checked ? undefined : null, seen))
+                  }
+                  className={CHECKBOX}
+                />
+                <span>Fixtermin (extern festgelegt)</span>
+              </label>
+              {element.fixed ? (
+                <Labeled label="Fixtermin">
+                  <input
+                    type="date"
+                    defaultValue={element.fixedDate ?? ""}
+                    onBlur={(event) => {
+                      const value = event.target.value;
+                      if (value && value !== element.fixedDate) {
+                        void save("fixed", () => setFixedDate(element.id, value, seen));
+                      }
+                    }}
+                    className={`${INPUT} w-48`}
+                  />
+                </Labeled>
+              ) : null}
+              <FieldError message={errors.fixed} />
+            </div>
           </Section>
 
-          <Section title="Vorgänger">{linkList(predecessors)}</Section>
-          <Section title="Nachfolger">{linkList(successors)}</Section>
+          <Section title="Status">
+            <div key={version} className="flex flex-col">
+              <label className="flex min-h-11 items-center gap-3">
+                <input
+                  type="checkbox"
+                  defaultChecked={element.done}
+                  onChange={(event) => save("status", () => setDone(element.id, event.target.checked, seen))}
+                  className={CHECKBOX}
+                />
+                <span>Erreicht</span>
+              </label>
+              <label className="flex min-h-11 items-center gap-3 has-disabled:opacity-50">
+                <input
+                  type="checkbox"
+                  defaultChecked={element.wobbly}
+                  disabled={element.done}
+                  onChange={(event) => save("status", () => setWobbly(element.id, event.target.checked, seen))}
+                  className={CHECKBOX}
+                />
+                <span>Wackelt (Einschätzung)</span>
+              </label>
+              <p className="text-sm text-muted">{reasonText(element)}</p>
+              <FieldError message={errors.status} />
+            </div>
+          </Section>
 
-          <p className="text-sm text-muted">{EDIT_LATER}</p>
+          <TodoSection element={element} members={members} today={today} dDay={dDay} save={save} errors={errors} />
+
+          <NoteSection element={element} save={save} errors={errors} />
+
+          <Section title="Vorgänger">
+            <LinkList
+              rows={predecessors}
+              direction="from"
+              onSelect={onSelect}
+              onLag={(row, lag) =>
+                save(`link-${row.link.id}`, () => updateLinkLag(row.link.id, lag, { id: element.id, updatedAt: seen }))
+              }
+              onRemove={(row) =>
+                save(`link-${row.link.id}`, () => removeLink(row.link.id, { id: element.id, updatedAt: seen }))
+              }
+              errors={errors}
+              version={version}
+            />
+            <AddLink
+              label="Vorgänger wählen"
+              options={predecessorOptions}
+              onAdd={(id) =>
+                save("add-predecessor", () => addLink(id!, element.id, 0, { id: element.id, updatedAt: seen }))
+              }
+              error={errors["add-predecessor"]}
+            />
+          </Section>
+
+          <Section title="Nachfolger">
+            <LinkList
+              rows={successors}
+              direction="to"
+              onSelect={onSelect}
+              onLag={(row, lag) =>
+                save(`link-${row.link.id}`, () => updateLinkLag(row.link.id, lag, { id: element.id, updatedAt: seen }))
+              }
+              onRemove={(row) =>
+                save(`link-${row.link.id}`, () => removeLink(row.link.id, { id: element.id, updatedAt: seen }))
+              }
+              errors={errors}
+              version={version}
+            />
+            <AddLink
+              label="Nachfolger wählen"
+              options={successorOptions}
+              onAdd={(id) => save("add-successor", () => addLink(element.id, id, 0, { id: element.id, updatedAt: seen }))}
+              error={errors["add-successor"]}
+            />
+            <p className="text-sm text-muted">Nur Ende → Start. Kreise sind ausgeschlossen.</p>
+          </Section>
+
+          <HistorySection elementId={element.id} updatedAt={element.updatedAt} />
+
+          <section className="flex flex-col gap-2 border-t border-line pt-3">
+            {confirmDelete ? (
+              <div role="group" aria-label="Element löschen" className="flex flex-col gap-2 rounded-md border border-status-late p-3">
+                <p className="font-semibold">„{element.name}“ löschen?</p>
+                <p className="text-sm">
+                  Vorgänger werden mit den Nachfolgern verbunden. {element.todos.length} To-dos und{" "}
+                  {element.notes.length} Notizen werden mitgelöscht.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (await save("delete", () => deleteElement(element.id, seen))) onClose();
+                    }}
+                    className="min-h-11 rounded-md bg-status-late px-4 font-semibold text-on-status-late hover:opacity-90"
+                  >
+                    Löschen
+                  </button>
+                  <button type="button" onClick={() => setConfirmDelete(false)} className={SMALL_BUTTON}>
+                    Abbrechen
+                  </button>
+                </div>
+                <FieldError message={errors.delete} />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className={`${SMALL_BUTTON} self-start text-status-late`}
+              >
+                Element löschen
+              </button>
+            )}
+          </section>
         </div>
       </aside>
     </>
+  );
+}
+
+type Save = (field: string, call: () => Promise<PlanResult>) => Promise<boolean>;
+
+function LinkList({
+  rows,
+  direction,
+  onSelect,
+  onLag,
+  onRemove,
+  errors,
+  version,
+}: {
+  rows: LinkRow[];
+  direction: "from" | "to";
+  onSelect: (id: string) => void;
+  onLag: (row: LinkRow, lag: number) => void;
+  onRemove: (row: LinkRow) => void;
+  errors: Record<string, string | null>;
+  version: string;
+}) {
+  if (rows.length === 0) return EMPTY;
+  return (
+    <ul className="flex flex-col gap-1">
+      {rows.map((row) => (
+        <li key={row.link.id} className="flex flex-col">
+          <div className="flex items-center gap-2">
+            {row.id === null ? (
+              <span className="flex min-h-11 min-w-0 flex-1 items-center">{row.name}</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSelect(row.id!)}
+                className="flex min-h-11 min-w-0 flex-1 items-center rounded-sm text-left break-words text-primary underline-offset-2 hover:underline"
+              >
+                {row.name}
+              </button>
+            )}
+            <label className="flex shrink-0 items-center gap-1 text-sm text-muted">
+              <input
+                key={`${version}-${row.link.lagDays}`}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={365}
+                defaultValue={row.link.lagDays}
+                aria-label={direction === "from" ? `Abstand von ${row.name} in Tagen` : `Abstand zu ${row.name} in Tagen`}
+                onBlur={(event) => {
+                  const value = toInt(event.target.value);
+                  if (value !== row.link.lagDays) onLag(row, value);
+                }}
+                className={`${INPUT} w-20 text-text`}
+              />
+              T Abstand
+            </label>
+            <button
+              type="button"
+              aria-label={`Verbindung mit ${row.name} lösen`}
+              onClick={() => onRemove(row)}
+              className={REMOVE_BUTTON}
+            >
+              ×
+            </button>
+          </div>
+          <FieldError message={errors[`link-${row.link.id}`]} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AddLink({
+  label,
+  options,
+  onAdd,
+  error,
+}: {
+  label: string;
+  options: { id: string | null; name: string }[];
+  onAdd: (id: string | null) => Promise<boolean>;
+  error?: string | null;
+}) {
+  const [value, setValue] = useState("");
+  const valueOf = (id: string | null) => id ?? "dday";
+  const chosen = options.find((option) => valueOf(option.id) === value);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-2">
+        <select
+          aria-label={label}
+          value={chosen ? value : ""}
+          onChange={(event) => setValue(event.target.value)}
+          className={`${INPUT} min-w-0 flex-1`}
+        >
+          <option value="">{label} …</option>
+          {options.map((option) => (
+            <option key={valueOf(option.id)} value={valueOf(option.id)}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!chosen}
+          onClick={async () => {
+            if (chosen && (await onAdd(chosen.id))) setValue("");
+          }}
+          className={SMALL_BUTTON}
+        >
+          Verbinden
+        </button>
+      </div>
+      <FieldError message={error} />
+    </div>
+  );
+}
+
+function TodoSection({
+  element,
+  members,
+  today,
+  dDay,
+  save,
+  errors,
+}: {
+  element: PlanViewElement;
+  members: readonly PlanOption[];
+  today: number;
+  dDay: string;
+  save: Save;
+  errors: Record<string, string | null>;
+}) {
+  const hintId = useId();
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const ok = await save("add-todo", () =>
+      addTodo(element.id, {
+        text: String(data.get("text") ?? ""),
+        ownerId: String(data.get("owner") ?? "") || null,
+        anchor: data.get("anchor") === "end" ? "end" : "start",
+        daysBefore: toInt(String(data.get("days") ?? "")),
+      })
+    );
+    if (ok) form.reset();
+  };
+
+  return (
+    <Section title="To-dos & Voraussetzungen">
+      {element.todos.length === 0 ? (
+        EMPTY
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {element.todos.map((todo) => {
+            const overdue = !todo.done && todo.due < today;
+            return (
+              <li key={todo.id} className="flex flex-col">
+                <div className="flex items-start gap-2">
+                  <label className="flex min-h-11 min-w-0 flex-1 items-start gap-3 py-2.5">
+                    <input
+                      key={`${todo.id}-${todo.done}`}
+                      type="checkbox"
+                      defaultChecked={todo.done}
+                      aria-label={`Erledigt: ${todo.text}`}
+                      onChange={(event) => save(`todo-${todo.id}`, () => toggleTodo(todo.id, event.target.checked))}
+                      className={`${CHECKBOX} mt-0.5`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block break-words ${todo.done ? "text-muted line-through" : ""}`}>
+                        {todo.text}
+                      </span>
+                      <span className={`block text-sm ${overdue ? "font-semibold text-status-late" : "text-muted"}`}>
+                        {[todo.ownerName, dueText(todo, dDay)].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    aria-label={`To-do löschen: ${todo.text}`}
+                    onClick={() => save(`todo-${todo.id}`, () => deleteTodo(todo.id))}
+                    className={REMOVE_BUTTON}
+                  >
+                    ×
+                  </button>
+                </div>
+                <FieldError message={errors[`todo-${todo.id}`]} />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <form onSubmit={submit} aria-label="To-do hinzufügen" className="flex flex-col gap-2">
+        <input
+          name="text"
+          type="text"
+          maxLength={200}
+          required
+          placeholder="Neues To-do"
+          aria-label="Neues To-do"
+          aria-describedby={hintId}
+          className={INPUT}
+        />
+        <div className="flex flex-wrap gap-2">
+          <select name="owner" aria-label="Wer?" defaultValue="" className={`${INPUT} min-w-0 flex-1`}>
+            <option value="">wer? (optional)</option>
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.name}
+              </option>
+            ))}
+          </select>
+          <input
+            name="days"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={365}
+            defaultValue={0}
+            aria-label="Tage vorher"
+            className={`${INPUT} w-20`}
+          />
+          <select name="anchor" aria-label="Bezug" defaultValue="start" className={INPUT}>
+            <option value="start">vor Start</option>
+            <option value="end">vor Ende</option>
+          </select>
+        </div>
+        <button type="submit" className={`${PRIMARY_BUTTON} self-start`}>
+          Hinzufügen
+        </button>
+        <p id={hintId} className="text-sm text-muted">
+          {PRIVACY_HINT}
+        </p>
+        <FieldError message={errors["add-todo"]} />
+      </form>
+    </Section>
+  );
+}
+
+function NoteSection({
+  element,
+  save,
+  errors,
+}: {
+  element: PlanViewElement;
+  save: Save;
+  errors: Record<string, string | null>;
+}) {
+  const hintId = useId();
+  const [editing, setEditing] = useState<string | null>(null);
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const text = String(new FormData(form).get("text") ?? "");
+    if (await save("add-note", () => addNote(element.id, text))) form.reset();
+  };
+
+  return (
+    <Section title="Notizen">
+      <form onSubmit={submit} aria-label="Notiz schreiben" className="flex flex-col gap-2">
+        <textarea
+          name="text"
+          rows={3}
+          maxLength={2000}
+          required
+          aria-label="Neue Notiz"
+          aria-describedby={hintId}
+          className={`${INPUT} py-2`}
+        />
+        <button type="submit" className={`${PRIMARY_BUTTON} self-start`}>
+          Notiz speichern
+        </button>
+        <p id={hintId} className="text-sm text-muted">
+          {PRIVACY_HINT}
+        </p>
+        <FieldError message={errors["add-note"]} />
+      </form>
+      {element.notes.length === 0 ? (
+        EMPTY
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {element.notes.map((note) => (
+            <li key={note.id} className="flex flex-col gap-1">
+              <p className="text-sm text-muted">
+                {note.authorName} · {formatWeekdayShort(note.date)}
+                {note.edited ? " · bearbeitet" : ""}
+              </p>
+              {editing === note.id ? (
+                <form
+                  className="flex flex-col gap-2"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const text = String(new FormData(event.currentTarget).get("text") ?? "");
+                    if (await save(`note-${note.id}`, () => updateNote(note.id, text))) setEditing(null);
+                  }}
+                >
+                  <textarea
+                    name="text"
+                    rows={3}
+                    maxLength={2000}
+                    required
+                    defaultValue={note.text}
+                    aria-label="Notiz bearbeiten"
+                    className={`${INPUT} py-2`}
+                  />
+                  <div className="flex gap-2">
+                    <button type="submit" className={PRIMARY_BUTTON}>
+                      Speichern
+                    </button>
+                    <button type="button" onClick={() => setEditing(null)} className={SMALL_BUTTON}>
+                      Abbrechen
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="whitespace-pre-line break-words">{note.text}</p>
+              )}
+              {note.own && editing !== note.id ? (
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setEditing(note.id)} className={SMALL_BUTTON}>
+                    Bearbeiten
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => save(`note-${note.id}`, () => deleteNote(note.id))}
+                    className={SMALL_BUTTON}
+                  >
+                    Löschen
+                  </button>
+                </div>
+              ) : null}
+              <FieldError message={errors[`note-${note.id}`]} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+type History = { entries: { id: string; text: string }[]; total: number } | { error: string } | null;
+
+/** The last 10 plan changes, "Alle anzeigen" loads the rest (loaded from the server). */
+function HistorySection({ elementId, updatedAt }: { elementId: string; updatedAt: string }) {
+  const [showAll, setShowAll] = useState(false);
+  const [history, setHistory] = useState<History>(null);
+
+  useEffect(() => {
+    let current = true;
+    loadPlanHistory(elementId, showAll).then(
+      (result) => {
+        if (current) setHistory(result.ok ? { entries: result.entries, total: result.total } : { error: result.message });
+      },
+      () => {
+        if (current) setHistory({ error: "Verlauf konnte nicht geladen werden." });
+      }
+    );
+    return () => {
+      current = false;
+    };
+  }, [elementId, updatedAt, showAll]);
+
+  return (
+    <Section title="Verlauf">
+      {history === null ? (
+        <p className="text-muted">Lade Verlauf …</p>
+      ) : "error" in history ? (
+        <p className="text-status-late">{history.error}</p>
+      ) : history.entries.length === 0 ? (
+        EMPTY
+      ) : (
+        <>
+          <ul className="flex flex-col gap-1 text-sm">
+            {history.entries.map((entry) => (
+              <li key={entry.id} className="break-words">
+                {entry.text}
+              </li>
+            ))}
+          </ul>
+          {history.total > history.entries.length ? (
+            <button type="button" onClick={() => setShowAll(true)} className={`${SMALL_BUTTON} self-start`}>
+              Alle anzeigen ({history.total})
+            </button>
+          ) : null}
+        </>
+      )}
+    </Section>
   );
 }

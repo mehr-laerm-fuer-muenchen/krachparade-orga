@@ -102,7 +102,8 @@ test.describe("Plan", () => {
     await expect(panel.getByText("Verzug", { exact: true })).toBeVisible();
     await expect(panel.getByText("−2 T Verzug", { exact: true })).toBeVisible();
     await expect(panel.getByText("Fixtermin (extern festgelegt)")).toBeVisible();
-    await expect(panel.getByRole("button", { name: "Finaler Crosscheck · 15 T Abstand" })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Finaler Crosscheck", exact: true })).toBeVisible();
+    await expect(panel.getByLabel("Abstand zu Finaler Crosscheck in Tagen")).toHaveValue("15");
     await expect(page.getByTestId("gantt-arrows").locator("path").first()).toBeAttached();
     expect(await page.getByTestId("gantt-arrows").locator("path").count()).toBeGreaterThanOrEqual(2);
     await page.keyboard.press("Escape");

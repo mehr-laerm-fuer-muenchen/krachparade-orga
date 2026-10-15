@@ -4,7 +4,7 @@ import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
 import { PlanView, type PlanViewData } from "@/components/plan/plan-view";
 import { getCurrentEdition } from "@/db/editions";
-import { loadPlan, loadPlanDetails } from "@/db/plan";
+import { loadPlan, loadPlanDetails, loadPlanOptions } from "@/db/plan";
 import { listWorkingGroupMembers, listWorkingGroups } from "@/db/working-groups";
 import { todayInBerlin } from "@/lib/dday";
 import type { PlanNoteView, PlanTodoView, PlanViewElement } from "@/lib/gantt-layout";
@@ -40,9 +40,10 @@ function groupBy<T extends { elementId: string }>(items: T[]): Map<string, T[]> 
 }
 
 /**
- * The plan of the current edition (spec 007), read only. Loading and the plan
- * engine run here on the server; the client components only draw the result.
- * Names only, never e-mail addresses.
+ * The plan of the current edition (spec 007, editable from spec 008).
+ * Loading and the plan engine run here on the server; the client components
+ * draw the result and call the server actions. Names only, never e-mail
+ * addresses.
  */
 async function Plan() {
   const member = await getCurrentMember();
@@ -83,10 +84,11 @@ async function Plan() {
     );
   }
 
-  const [details, groups, memberships] = await Promise.all([
+  const [details, groups, memberships, options] = await Promise.all([
     loadPlanDetails(edition.id),
     listWorkingGroups(edition.id),
     listWorkingGroupMembers(edition.id),
+    loadPlanOptions(edition.id),
   ]);
   const todosByElement = groupBy(details.todos);
   const notesByElement = groupBy(details.notes);
@@ -107,6 +109,8 @@ async function Plan() {
       authorName: note.authorName,
       date: todayInBerlin(note.createdAt),
       text: note.text,
+      own: note.authorId === member.id,
+      edited: note.updatedAt.getTime() > note.createdAt.getTime(),
     }));
     return {
       id: element.id,
@@ -128,6 +132,14 @@ async function Plan() {
       ownerName: element.ownerName,
       todos,
       notes,
+      updatedAt: element.updatedAt.toISOString(),
+      durationDays: element.durationDays,
+      shiftDays: element.shiftDays,
+      fixedDay: element.fixedDay,
+      fixedDate: element.fixedDate,
+      sortOrder: element.sortOrder,
+      departmentId: element.departmentId,
+      ownerId: element.ownerId,
     };
   });
 
@@ -141,6 +153,8 @@ async function Plan() {
     criticalPath: computed.criticalPath,
     latestProjectStart: computed.latestProjectStart,
     myGroupIds: memberships.filter((row) => row.memberId === member.id).map((row) => row.workingGroupId),
+    departments: options.departments,
+    members: options.members,
   };
 
   return <PlanView data={data} />;

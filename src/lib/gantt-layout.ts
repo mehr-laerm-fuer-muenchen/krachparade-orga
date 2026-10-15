@@ -256,8 +256,14 @@ export type PlanTodoView = {
   done: boolean;
 };
 
-/** A note on a plan element; `date` is the calendar day in Europe/Berlin. */
-export type PlanNoteView = { id: string; authorName: string; date: string; text: string };
+/**
+ * A note on a plan element; `date` is the calendar day in Europe/Berlin.
+ * `own`: written by the signed-in member (only they may edit it, spec 008).
+ */
+export type PlanNoteView = { id: string; authorName: string; date: string; text: string; own: boolean; edited: boolean };
+
+/** A link with its id, for editing in the detail panel (spec 008). */
+export type PlanViewLink = GanttLink & { id: string };
 
 /** Everything the plan page shows of an element, computed on the server. */
 export type PlanViewElement = GanttElement & {
@@ -271,6 +277,16 @@ export type PlanViewElement = GanttElement & {
   todos: PlanTodoView[];
   /** Newest first. */
   notes: PlanNoteView[];
+  // Stored values for editing (spec 008).
+  /** ISO time of the last change, sent back for the conflict notice. */
+  updatedAt: string;
+  durationDays: number;
+  shiftDays: number;
+  fixedDay: number | null;
+  fixedDate: string | null;
+  sortOrder: number;
+  departmentId: string | null;
+  ownerId: string | null;
 };
 
 export type AgendaElement = GanttElement & {

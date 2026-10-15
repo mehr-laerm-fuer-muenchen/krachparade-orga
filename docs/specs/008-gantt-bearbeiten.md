@@ -120,6 +120,16 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 - Vitest für `plan-edit` grün; Klicktests `e2e/plan-bearbeiten.spec.ts`, `e2e/plan.spec.ts` und alle bisherigen grün bei 375 × 812 und 1280 × 800, gegen `pnpm dev` **und** gegen den lokalen Production-Build
 - `pnpm typecheck`, `lint`, `test`, `build` grün
 
+## Abweichungen beim Bau
+
+- „Erreicht“ setzt `done` **und** `done_at` (die Tabelle hat beide Spalten). Freigabe Franz: ☑
+- Neuladen nach jeder Änderung über `refresh()` aus `next/cache`, wie in den Actions aus 004/005 (statt `revalidatePath`). Freigabe Franz: ☑
+- Verbindungs-Actions (`addLink`, `updateLinkLag`, `removeLink`) prüfen den Konflikt am Element des Panels, aus dem die Änderung kommt: letzter Parameter `seen = { id, updatedAt }`, `id` muss ein Ende der Verbindung sein. Freigabe Franz: ☑
+- `moveElement` und `resizeElement` geben zusätzlich das neue `updatedAt` zurück, damit „Rückgängig“ direkt danach keinen falschen Konflikt meldet. Freigabe Franz: ☑
+- `deleteElement` lehnt das Löschen ab, wenn beim Umhängen ein Abstand über 365 Tage entstünde (die Datenbank erlaubt höchstens 365). Freigabe Franz: ☑
+- „Auf spätesten Termin“ erscheint nur bei Elementen ohne Fixtermin. Freigabe Franz: ☑
+- `loadPlan` liefert zusätzlich `updatedAt` je Element und die IDs der Verbindungen. Freigabe Franz: ☑
+
 ## Deploy
 
 Keine DB-Änderung: `deploy`. Danach am Laptop in production ein Test-Element anlegen, ziehen, Rückgängig, wieder löschen; am iPhone ein Element öffnen und „+1 T“ / „Rückgängig“ prüfen.
