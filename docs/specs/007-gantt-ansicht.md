@@ -130,3 +130,9 @@ Auftrag 2 beginnt mit „Teil A ist bereits umgesetzt – ändere daran nichts�
 ## Deploy
 
 Keine DB-Änderung: `deploy`. Danach am Laptop und am iPhone: Navigation „Plan“, leerer Zustand „Noch kein Plan …“ in production.
+
+## Abweichungen beim Bau
+
+- `timeRange` bekommt den D-Day als dritten Wert (`timeRange(elements, today, dDay)`), weil der Montag vor dem Beginn nur mit dem Kalenderdatum bestimmt werden kann. Freigabe Franz.
+- `src/components/plan/plan-gantt.tsx` importiert `src/lib` per relativem Pfad, weil Vitest den Kürzel `@/` nicht kennt (Render-Test). Freigabe Franz.
+- Zeilenhöhe im Gantt 30 px (Element) / 34 px (Spur) statt 44 px Tippfläche, weil der Gantt erst ab 901 px Breite erscheint (Maus und Tastatur, am Handy die Wochenliste). Freigabe Franz.

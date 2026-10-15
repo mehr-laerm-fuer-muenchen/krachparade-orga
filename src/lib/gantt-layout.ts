@@ -2,8 +2,10 @@
 // Days are whole numbers relative to the D-Day as in the plan engine
 // (0 = D-Day, -80 = 80 days before). Pure functions, no database, no clock.
 import type { Status } from "@/components/status-pill";
+import { formatDLabel } from "./dday";
 import { dayToDate } from "./plan-days";
-import type { PlanElementKind } from "./plan-engine";
+import type { PlanElementKind, PlanStatusReason } from "./plan-engine";
+import { formatWeekdayShort } from "./plan-preview";
 import { displayGroupName } from "./working-groups";
 
 /** A computed plan element as the Gantt draws it (from loadPlan + computePlan). */
@@ -238,4 +240,191 @@ export function elbowPath(x1: number, y1: number, x2: number, y2: number): strin
 export function formatDayMonth(day: number, dDay: string): string {
   const [, month, date] = dayToDate(day, dDay).split("-");
   return `${date}.${month}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Week list "Was steht an" and detail panel (spec 007, part B).
+
+/** A to-do of a plan element; `due` is computed on the server (todoDueDay). */
+export type PlanTodoView = {
+  id: string;
+  text: string;
+  ownerName: string | null;
+  anchor: "start" | "end";
+  daysBefore: number;
+  due: number;
+  done: boolean;
+};
+
+/** A note on a plan element; `date` is the calendar day in Europe/Berlin. */
+export type PlanNoteView = { id: string; authorName: string; date: string; text: string };
+
+/** Everything the plan page shows of an element, computed on the server. */
+export type PlanViewElement = GanttElement & {
+  latestStart: number;
+  reason: PlanStatusReason;
+  wobbly: boolean;
+  /** Display name "AK ‹Name›". */
+  workingGroupName: string | null;
+  departmentName: string | null;
+  ownerName: string | null;
+  todos: PlanTodoView[];
+  /** Newest first. */
+  notes: PlanNoteView[];
+};
+
+export type AgendaElement = GanttElement & {
+  reason: PlanStatusReason;
+  /** Display name "AK ‹Name›". */
+  workingGroupName: string | null;
+  ownerName: string | null;
+  todos: readonly Pick<PlanTodoView, "id" | "text" | "ownerName" | "anchor" | "due" | "done">[];
+};
+
+export type AgendaTodo = AgendaElement["todos"][number];
+
+export type AgendaEntry =
+  | { type: "element"; key: string; day: number; element: AgendaElement; text: string }
+  | { type: "todo"; key: string; day: number; element: AgendaElement; todo: AgendaTodo; text: string };
+
+export type AgendaWeek = {
+  monday: number;
+  /** "Diese Woche", "Nächste Woche" or "KW n". */
+  title: string;
+  /** "TT.MM.–TT.MM. · D-x" */
+  range: string;
+  entries: AgendaEntry[];
+};
+
+export type Agenda = { overdue: AgendaEntry[]; weeks: AgendaWeek[]; hasMore: boolean };
+
+export type AgendaOptions = {
+  /** Number of weeks to show at most (the current week counts). */
+  weeks: number;
+  /** Only elements of these working groups; null = all (also without AK). */
+  myGroupIds: readonly string[] | null;
+};
+
+function weekday(day: number, dDay: string): string {
+  return formatWeekdayShort(dayToDate(day, dDay));
+}
+
+function lateText(element: AgendaElement): string {
+  if (element.reason === "fixed_too_late") return `Fixtermin liegt ${-element.buffer} Tage zu spät`;
+  if (element.reason === "overdue") return "Termin vorbei, nicht abgehakt";
+  return "Puffer negativ";
+}
+
+function todoText(element: AgendaElement, todo: AgendaTodo, dDay: string, overdue: boolean): string {
+  if (overdue) return `für ${element.name} · war fällig ${weekday(todo.due, dDay)}`;
+  const parts = [`für ${element.name}`, `fällig ${weekday(todo.due, dDay)}`];
+  if (todo.ownerName) parts.push(todo.ownerName);
+  return parts.join(" · ");
+}
+
+function byDayThenName(a: AgendaEntry, b: AgendaEntry): number {
+  const nameA = a.type === "todo" ? a.todo.text : a.element.name;
+  const nameB = b.type === "todo" ? b.todo.text : b.element.name;
+  return a.day - b.day || nameA.localeCompare(nameB, "de");
+}
+
+/**
+ * "Was steht an": overdue and late items first, then weeks (Mo–Su) from the
+ * current week on. The current week is always there, further weeks only with
+ * entries, until `weeks` weeks are shown or the week of the D-Day is over.
+ */
+export function weekAgenda(
+  plan: { dDay: string; elements: readonly AgendaElement[] },
+  today: number,
+  options: AgendaOptions
+): Agenda {
+  const { dDay } = plan;
+  const mine = options.myGroupIds === null ? null : new Set(options.myGroupIds);
+  const elements = plan.elements.filter(
+    (element) => mine === null || (element.workingGroupId !== null && mine.has(element.workingGroupId))
+  );
+
+  const overdue: AgendaEntry[] = [];
+  const lateIds = new Set<string>();
+  for (const element of elements) {
+    if (!element.done && element.status === "late") {
+      lateIds.add(element.id);
+      overdue.push({ type: "element", key: element.id, day: element.end, element, text: lateText(element) });
+    }
+    for (const todo of element.todos) {
+      if (!todo.done && todo.due < today) {
+        overdue.push({
+          type: "todo",
+          key: `todo-${todo.id}`,
+          day: todo.due,
+          element,
+          todo,
+          text: todoText(element, todo, dDay, true),
+        });
+      }
+    }
+  }
+  overdue.sort(byDayThenName);
+
+  const current = mondayOf(today, dDay);
+  const lastMonday = Math.max(current, mondayOf(0, dDay));
+  const found: AgendaWeek[] = [];
+  for (let monday = current; monday <= lastMonday; monday += 7) {
+    const sunday = monday + 6;
+    const inWeek = (day: number) => day >= monday && day <= sunday;
+    const entries: AgendaEntry[] = [];
+    for (const element of elements) {
+      if (!lateIds.has(element.id)) {
+        const entry = (day: number, text: string): AgendaEntry => ({
+          type: "element",
+          key: element.id,
+          day,
+          element,
+          text,
+        });
+        if (element.kind === "milestone") {
+          if (inWeek(element.start)) entries.push(entry(element.start, `Meilenstein · ${weekday(element.start, dDay)}`));
+        } else if (inWeek(element.start)) {
+          entries.push(
+            entry(element.start, `startet ${weekday(element.start, dDay)} · ${element.end - element.start} Tage`)
+          );
+        } else if (inWeek(element.end)) {
+          entries.push(entry(element.end, `endet ${weekday(element.end, dDay)}`));
+        } else if (monday === current && !element.done && element.start < monday && element.end > sunday) {
+          entries.push(entry(element.start, `läuft bis ${weekday(element.end, dDay)}`));
+        }
+      }
+      for (const todo of element.todos) {
+        if (!todo.done && todo.due >= today && inWeek(todo.due)) {
+          entries.push({
+            type: "todo",
+            key: `todo-${todo.id}`,
+            day: todo.due,
+            element,
+            todo,
+            text: todoText(element, todo, dDay, false),
+          });
+        }
+      }
+    }
+    if (monday !== current && entries.length === 0) continue;
+    const index = (monday - current) / 7;
+    found.push({
+      monday,
+      title: index === 0 ? "Diese Woche" : index === 1 ? "Nächste Woche" : `KW ${isoWeek(monday, dDay)}`,
+      range: `${formatDayMonth(monday, dDay)}–${formatDayMonth(sunday, dDay)} · ${formatDLabel(
+        dayToDate(monday, dDay),
+        dDay
+      )}`,
+      entries: entries.sort(byDayThenName),
+    });
+  }
+
+  return { overdue, weeks: found.slice(0, options.weeks), hasMore: found.length > options.weeks };
+}
+
+/** "Mi 17.02.2027" */
+export function formatWeekdayDate(day: number, dDay: string): string {
+  const date = dayToDate(day, dDay);
+  return `${formatWeekdayShort(date)}${date.slice(0, 4)}`;
 }
