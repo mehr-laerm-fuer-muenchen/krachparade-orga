@@ -8,6 +8,7 @@ import {
   members,
   planElements,
   planLinks,
+  planChanges,
   planNotes,
   planTodos,
   workingGroups,
@@ -148,4 +149,32 @@ export async function loadPlanDetails(
     todos: todos.map((todo) => ({ ...todo, anchor: todo.anchor === "end" ? "end" : "start" })),
     notes,
   };
+}
+
+export type LoadedPlanChange = { id: string; memberName: string | null; createdAt: Date; summary: string };
+
+/**
+ * Change history of one plan element (spec 008): the newest `limit` entries
+ * (newest first) with the name of who changed it, plus the total count.
+ */
+export async function loadPlanChanges(
+  elementId: string,
+  limit: number
+): Promise<{ changes: LoadedPlanChange[]; total: number }> {
+  const [changes, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: planChanges.id,
+        memberName: members.name,
+        createdAt: planChanges.createdAt,
+        summary: planChanges.summary,
+      })
+      .from(planChanges)
+      .leftJoin(members, eq(members.id, planChanges.memberId))
+      .where(eq(planChanges.elementId, elementId))
+      .orderBy(desc(planChanges.createdAt), desc(planChanges.id))
+      .limit(limit),
+    db.select({ total: count() }).from(planChanges).where(eq(planChanges.elementId, elementId)),
+  ]);
+  return { changes, total };
 }
