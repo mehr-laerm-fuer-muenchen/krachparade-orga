@@ -109,6 +109,11 @@ Wenn etwas davon grundlegend anders ist als hier beschrieben: stoppen, Unterschi
 - Alle bisherigen Klicktests grün bei 375 × 812 und 1280 × 800 gegen `pnpm dev` und den lokalen Production-Build
 - `pnpm typecheck`, `lint`, `test`, `build` grün
 
+## Abweichungen beim Bau
+
+- 24 statt 25 Verbindungen – die Zählung in der Spec war falsch, erwartete Ausgabe des Seeds: „KP27-Vorlage: 23 Elemente, 24 Verbindungen, 33 To-dos, 10 Notizen“ (Freigabe Franz)
+- Lokaler Production-Build-Test braucht `AUTH_TRUST_HOST=1` beim Start und `VERCEL_ENV=preview ENABLE_DEV_LOGIN=1` bei Build und Start (Freigabe Franz)
+
 ## Deploy
 
 Keine Schemaänderung, aber Daten für production:
