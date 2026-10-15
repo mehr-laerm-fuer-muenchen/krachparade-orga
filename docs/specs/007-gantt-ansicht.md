@@ -139,3 +139,4 @@ Keine DB-Änderung: `deploy`. Danach am Laptop und am iPhone: Navigation „Plan
 - Die Filter „Kritischer Pfad“ und „Nur offene“ wirken auch auf die Wochenliste (sie bleiben am Handy sichtbar). Freigabe Franz.
 - Die Startseite `/` darf am Laptop bis 1400 px breit werden, damit neben dem Detail-Panel genug Zeitachse bleibt; alle anderen Seiten behalten ihre Breite. Umgesetzt über `src/components/app-main.tsx` im Layout `(app)`. Freigabe Franz.
 - Eine KW-Beschriftung, die unter dem Schild „Heute“ oder „D-Day“ läge, entfällt. Freigabe Franz.
+- Im Gantt kein „· 0 T“ bei Puffer 0 (Freigabe Franz).

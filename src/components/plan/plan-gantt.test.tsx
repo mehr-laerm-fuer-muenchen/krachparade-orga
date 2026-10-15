@@ -133,4 +133,25 @@ describe("PlanGantt", () => {
     expect(html).toContain(">KW 43<");
     expect(html).toContain(">KW 18<");
   });
+
+  it("adds the buffer to the label only if it is not 0", () => {
+    const onTime: GanttElement = {
+      id: "brief",
+      name: "Briefing",
+      kind: "milestone",
+      workingGroupId: "demo",
+      start: -100,
+      end: -100,
+      latestEnd: -100,
+      buffer: 0,
+      status: "ok",
+      done: false,
+      fixed: false,
+    };
+    const html = render({ elements: [...ELEMENTS, onTime] });
+    expect(html).toContain(">28.01.</text>");
+    expect(html).not.toContain("0 T");
+    expect(html).toContain("+5 T");
+    expect(html).toContain("−2 T");
+  });
 });

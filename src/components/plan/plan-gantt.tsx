@@ -436,7 +436,7 @@ function ElementMark({
       ) : null}
       <text x={labelX} y={center + 4} className="fill-text">
         {dates}
-        {open ? (
+        {open && element.buffer !== 0 ? (
           <>
             {" · "}
             <tspan className={element.buffer < 0 ? "fill-status-late font-semibold" : undefined}>
