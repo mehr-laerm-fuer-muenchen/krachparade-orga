@@ -54,3 +54,31 @@ export async function listAttendeeIds(meetingId: string): Promise<string[]> {
     .where(eq(meetingAttendees.meetingId, meetingId));
   return rows.map((row) => row.memberId);
 }
+
+export type EditionItem = MeetingItem & { meetingDate: string };
+
+/** Items of one kind in all meetings of an edition, newest meeting first. */
+export async function listEditionItems(
+  editionId: string,
+  kind: "entscheidung" | "todo",
+  ownerId?: string
+): Promise<EditionItem[]> {
+  const rows = await db
+    .select({ item: meetingItems, meetingDate: meetings.date })
+    .from(meetingItems)
+    .innerJoin(meetings, eq(meetings.id, meetingItems.meetingId))
+    .where(
+      and(
+        eq(meetings.editionId, editionId),
+        eq(meetingItems.kind, kind),
+        ownerId ? eq(meetingItems.ownerId, ownerId) : undefined
+      )
+    )
+    .orderBy(
+      desc(meetings.date),
+      desc(meetings.createdAt),
+      asc(meetingItems.sortOrder),
+      asc(meetingItems.createdAt)
+    );
+  return rows.map((row) => ({ ...row.item, meetingDate: row.meetingDate }));
+}

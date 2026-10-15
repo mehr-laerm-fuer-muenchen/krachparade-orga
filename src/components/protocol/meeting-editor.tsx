@@ -12,6 +12,7 @@ import {
   type MeetingHeadInput,
 } from "@/actions/meetings";
 import { groupByTopic, type MeetingStatus } from "@/lib/protocol-rules";
+import { ExportButtons } from "./export-buttons";
 import { ItemRow } from "./item-row";
 import { QuickEntry } from "./quick-entry";
 import {
@@ -70,6 +71,13 @@ export function MeetingEditor({
         attendeeIds={attendeeIds}
         people={people}
         canDelete={canDelete}
+        report={report}
+      />
+      <ExportButtons
+        meeting={meeting}
+        attendeeIds={attendeeIds}
+        items={items}
+        people={people}
         report={report}
       />
       <div className="flex flex-col gap-6 desk:grid desk:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] desk:items-start">

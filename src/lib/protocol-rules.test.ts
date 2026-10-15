@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canDeleteMeeting, groupByTopic, isOverdue, sortTodos } from "./protocol-rules";
+import {
+  canDeleteMeeting,
+  filterDecisions,
+  filterTodos,
+  groupByTopic,
+  isOverdue,
+  sortTodos,
+  WITHOUT_ACCOUNT,
+} from "./protocol-rules";
 
 describe("isOverdue", () => {
   const todo = (dueDate: string | null, done = false) => ({ kind: "todo", done, dueDate });
@@ -88,5 +96,51 @@ describe("groupByTopic", () => {
       ["B", [1, 3]],
       ["A", [2]],
     ]);
+  });
+});
+
+describe("filterDecisions", () => {
+  const items = [
+    { id: 1, text: "Start am Odeonsplatz", departmentId: "route" },
+    { id: 2, text: "Budget für Bühne", departmentId: "finanzen" },
+    { id: 3, text: "Kein Referat, aber BÜHNE", departmentId: null },
+  ];
+
+  it("searches the text ignoring case", () => {
+    expect(filterDecisions(items, { query: "bühne" }).map((item) => item.id)).toEqual([2, 3]);
+    expect(filterDecisions(items, { query: "  ODEON " }).map((item) => item.id)).toEqual([1]);
+  });
+
+  it("filters by department", () => {
+    expect(filterDecisions(items, { departmentId: "finanzen" }).map((item) => item.id)).toEqual([2]);
+    expect(filterDecisions(items, { departmentId: "finanzen", query: "start" })).toEqual([]);
+  });
+
+  it("returns everything without filters", () => {
+    expect(filterDecisions(items, {})).toHaveLength(3);
+  });
+});
+
+describe("filterTodos", () => {
+  const items = [
+    { id: 1, done: false, ownerId: "alex", ownerName: null, departmentId: "finanzen" },
+    { id: 2, done: false, ownerId: null, ownerName: "Gast Beispiel", departmentId: null },
+    { id: 3, done: true, ownerId: "alex", ownerName: null, departmentId: null },
+    { id: 4, done: false, ownerId: null, ownerName: null, departmentId: "finanzen" },
+  ];
+  const ids = (list: { id: number }[]) => list.map((item) => item.id);
+
+  it("separates open and done", () => {
+    expect(ids(filterTodos(items, { done: false }))).toEqual([1, 2, 4]);
+    expect(ids(filterTodos(items, { done: true }))).toEqual([3]);
+  });
+
+  it("filters by member and by people without an account", () => {
+    expect(ids(filterTodos(items, { done: false, person: "alex" }))).toEqual([1]);
+    expect(ids(filterTodos(items, { done: false, person: WITHOUT_ACCOUNT }))).toEqual([2]);
+  });
+
+  it("filters by department", () => {
+    expect(ids(filterTodos(items, { done: false, departmentId: "finanzen" }))).toEqual([1, 4]);
   });
 });

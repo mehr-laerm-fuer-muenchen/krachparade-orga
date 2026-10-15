@@ -68,3 +68,35 @@ export function groupByTopic<T extends { topic: string }>(items: readonly T[]): 
   }
   return topics;
 }
+
+/** Person filter on the to-do list: a member id or everyone without an account. */
+export const WITHOUT_ACCOUNT = "ohne";
+
+/** Decisions of one department (if given) whose text contains `query`, ignoring case. */
+export function filterDecisions<T extends { text: string; departmentId: string | null }>(
+  items: readonly T[],
+  { departmentId, query }: { departmentId?: string; query?: string }
+): T[] {
+  const needle = query?.trim().toLocaleLowerCase("de") ?? "";
+  return items.filter(
+    (item) =>
+      (!departmentId || item.departmentId === departmentId) &&
+      (!needle || item.text.toLocaleLowerCase("de").includes(needle))
+  );
+}
+
+/** Open or done to-dos, optionally of one person and one department. */
+export function filterTodos<
+  T extends { done: boolean; ownerId: string | null; ownerName: string | null; departmentId: string | null },
+>(
+  items: readonly T[],
+  { done, person, departmentId }: { done: boolean; person?: string; departmentId?: string }
+): T[] {
+  return items.filter(
+    (item) =>
+      item.done === done &&
+      (!person ||
+        (person === WITHOUT_ACCOUNT ? item.ownerName !== null : item.ownerId === person)) &&
+      (!departmentId || item.departmentId === departmentId)
+  );
+}
