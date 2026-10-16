@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   deleteMeeting,
@@ -301,7 +302,13 @@ function SummaryField({
   const [summary, setSummary] = useState(initial);
   // Last saved value, so leaving an unchanged field does not save.
   const saved = useRef(initial.trim());
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   const counter = summaryCounter(summary.length);
+
+  // "Hinzufügen" in the read view leads here with "#kurzfassung" (spec 017).
+  useEffect(() => {
+    if (window.location.hash === "#kurzfassung") fieldRef.current?.focus();
+  }, []);
 
   function save(value: string) {
     const next = value.trim();
@@ -325,6 +332,7 @@ function SummaryField({
       <label htmlFor="kurzfassung">Kurzfassung</label>
       <textarea
         id="kurzfassung"
+        ref={fieldRef}
         rows={3}
         maxLength={SUMMARY_MAX}
         value={summary}
@@ -354,6 +362,7 @@ function StatusSwitch({
   status: MeetingStatus;
   report: Report;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [current, setCurrent] = useOptimistic(status);
   const options: { value: MeetingStatus; label: string }[] = [
@@ -372,7 +381,10 @@ function StatusSwitch({
             if (current === option.value) return;
             startTransition(async () => {
               setCurrent(option.value);
-              report(await setMeetingStatus(meetingId, option.value));
+              const result = await setMeetingStatus(meetingId, option.value);
+              report(result);
+              // Final minutes are for reading (spec 017); on an error the page stays here.
+              if (result.ok && option.value === "final") router.replace("?ansicht=lesen");
             });
           }}
           className={`min-h-11 rounded px-4 font-medium ${
