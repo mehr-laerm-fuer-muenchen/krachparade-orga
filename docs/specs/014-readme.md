@@ -58,3 +58,10 @@ Stil: knapp, sachlich, Du-Form. Keine echten Namen oder E-Mails. Keine Werte von
 ## Deploy
 
 Keine DB. `deploy`.
+
+## Abweichungen beim Bau
+
+- **SVGs nicht gelöscht:** `public/file.svg`, `globe.svg`, `next.svg`, `vercel.svg` und `window.svg` sind weiterhin nirgends referenziert (Suche ohne `node_modules`, `.next`, `.git`). Das Löschen per `git rm` hat der Auto-Modus von Claude Code als unumkehrbar blockiert; auf Franz' Entscheidung bleiben sie liegen und fliegen in einer späteren Änderung raus.
+- **Start ohne Google-Werte:** Die App startet ohne `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`. Auth.js prüft beim Start nur `AUTH_SECRET` und vertrauenswürdigen Host, nicht die Client-ID des Google-Providers; der Dev-Login braucht keine Google-Werte. Nur „Mit Google anmelden“ funktioniert dann nicht. Kein Umbau nötig, im README so beschrieben.
+- **`AUTH_SECRET`-Befehl:** Das Projekt sieht keinen eigenen Befehl vor. Das README nennt `openssl rand -base64 33` (in der Auth.js-Doku als Alternative zu `npx auth secret` genannt), weil das README weder npm noch npx erwähnen soll und `auth secret` selbst in `.env.local` schreiben würde.
+- **Production-Build-Test:** Der Klicktest auf Port 3100 braucht einen Build mit `VERCEL_ENV=preview ENABLE_DEV_LOGIN=1`. Im normalen `pnpm build` wird `/dev/login` statisch als 404 vorgerendert, dann kann sich der Klicktest nicht anmelden.
