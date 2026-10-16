@@ -177,3 +177,13 @@ DB-Änderung (nur hinzufügend: Spalte, Teil-Index, Tabelle). `deploy` → hält
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+1. **Bereich löschen:** `plan_elements.department_id` ist `ON DELETE SET NULL`; ein leeres Element „Laufende Aufgaben“ wird deshalb beim Löschen des Bereichs im selben Batch ausdrücklich gelöscht. `FinalNotice` bekommt eine optionale Prop ohne den Knopf „Als beschlossen markieren“; die Übersichts-Karte baut „Mach ich mit“ mit derselben Action nach. (von Franz freigegeben)
+2. **Zentraler Filter:** `loadPlan` liefert nur Elemente mit `is_ongoing = false` und nur Verbindungen, deren Enden in dieser Liste stehen; neuer Loader `loadOngoingElements(editionId)`; `loadPlanDetails` bleibt unverändert. (von Franz freigegeben)
+3. **Server-Schutz:** zusätzliche Abfrage auf `is_ongoing` in `loadElementContext` für die Meldung „Laufende Aufgaben lassen sich nicht im Plan bearbeiten.“ (von Franz freigegeben)
+4. **„+ Plan-Element“:** `createInput` mit optionalem `departmentId` inkl. Prüfung `DEPARTMENT_OTHER_GROUP`; `PlanNewElement` mit optionalen Props `departments` und `defaultDepartmentId`, Feld „Aufgabenbereich“ nur, wenn übergeben; auf `/` unverändert. (von Franz freigegeben)
+5. **`ElementCard`:** aus `plan-week-list.tsx` nach `src/components/plan/element-card.tsx` herausgelöst; die Wochenliste nutzt sie, Darstellung unverändert. (von Franz freigegeben)
+6. **`NoteHistory`:** aus dem Panel nach `src/components/note-history.tsx` herausgelöst; das Panel ruft sie ohne die optionalen Props auf und sieht aus wie bisher. Datenschutz-Hinweis ist der bestehende Text `PRIVACY_HINT` („Keine Telefonnummern, Adressen oder Kontodaten eintragen.“). (von Franz freigegeben)
+7. **`/meine`:** neuer Eingang `ongoing` in `MyTasksInput`; To-dos ohne Person an laufenden Elementen erscheinen zusätzlich unter „Aus meinen AKs – noch niemand eingetragen“, wenn der AK des Bereichs zu meinen gehört, mit „Übernehmen“ über `claimPlanTodo`. (von Franz freigegeben)
+8. **Protokoll-Punkte:** Titel des Treffens über eine eigene Abfrage in `src/db/ak-workspace.ts`; Treffen im Entwurf zählen mit. (von Franz freigegeben)
+9. **Seed/Reset:** laufende Elemente und AK-Notizen im Seed nach `seedTestPlan` und nur ohne `--prod`, `SEED_VERSION` 9; `reset-dev.ts` bleibt unverändert, weil es alle Tabellen aus `schema.ts` in einem `TRUNCATE … CASCADE` leert. (von Franz freigegeben)

@@ -4,6 +4,7 @@
 // database, no clock: "today" is passed in.
 import type { Status } from "@/components/status-pill";
 import { todayInBerlin } from "./dday";
+import { ongoingDisplayName } from "./ak-workspace";
 import { formatDayMonth, lateText, mondayOf, weekday, weekHeading } from "./gantt-layout";
 import { dateToDay, dayToDate } from "./plan-days";
 import { todoDueDay, type PlanElementKind, type PlanStatusReason } from "./plan-engine";
@@ -55,6 +56,15 @@ export type MyMeetingTodoInput = {
   doneAt: Date | null;
 };
 
+/** A "Laufende Aufgaben" element (spec 018): its to-dos have no date. */
+export type MyOngoingInput = {
+  id: string;
+  departmentName: string;
+  workingGroupId: string | null;
+  /** Stored name of the working group, without "AK". */
+  workingGroupName: string | null;
+};
+
 /** Department → working group (stored name, without "AK"). */
 export type DepartmentGroup = { id: string; workingGroupId: string | null; workingGroupName: string | null };
 
@@ -90,6 +100,11 @@ export type MyTask =
       anchor: "start" | "end";
       /** `start` → "Voraussetzung", `end` → "To-do". */
       anchorLabel: "Voraussetzung" | "To-do";
+      /**
+       * Set for a to-do of "Laufende Aufgaben" (spec 018): opens the AK
+       * workspace of this working group instead of the panel (null = no AK).
+       */
+      ongoing?: { workingGroupId: string | null };
     })
   | (MyTaskBase & { kind: "meeting_todo"; meetingId: string; meetingDate: string });
 
@@ -108,7 +123,7 @@ export type MyAgenda = {
   weeks: MyWeek[];
   /** Everything after these weeks, by week. */
   later: MyWeek[];
-  /** Own protocol to-dos without a due date. */
+  /** Own protocol to-dos without a due date and own to-dos of "Laufende Aufgaben" (spec 018). */
   undated: MyTask[];
   /** "Aus meinen AKs – noch niemand eingetragen". */
   unassigned: MyTask[];
@@ -119,6 +134,8 @@ export type MyTasksInput = {
   computed: readonly MyElementInput[];
   todos: readonly MyPlanTodoInput[];
   meetingTodos: readonly MyMeetingTodoInput[];
+  /** "Laufende Aufgaben" elements (spec 018); their to-dos are in `todos`. */
+  ongoing?: readonly MyOngoingInput[];
   meId: string;
   /** Working groups the member takes part in (spec 005). */
   myGroupIds: readonly string[];
@@ -152,15 +169,21 @@ function ownsTodo(todo: MyPlanTodoInput, element: MyElementInput, meId: string):
 /** Builds the entries; `text` is set by the caller. */
 class Builder {
   private readonly elementsById: Map<string, MyElementInput>;
+  private readonly ongoingById: Map<string, MyOngoingInput>;
   private readonly departments: Map<string, DepartmentGroup>;
 
   constructor(private readonly input: MyTasksInput) {
     this.elementsById = new Map(input.computed.map((element) => [element.id, element]));
+    this.ongoingById = new Map((input.ongoing ?? []).map((element) => [element.id, element]));
     this.departments = new Map(input.departmentGroups.map((department) => [department.id, department]));
   }
 
   elementOf(todo: MyPlanTodoInput): MyElementInput | undefined {
     return this.elementsById.get(todo.elementId);
+  }
+
+  ongoingOf(todo: MyPlanTodoInput): MyOngoingInput | undefined {
+    return this.ongoingById.get(todo.elementId);
   }
 
   departmentOf(todo: MyMeetingTodoInput): DepartmentGroup | undefined {
@@ -198,6 +221,25 @@ class Builder {
       elementName: element.name,
       anchor: todo.anchor,
       anchorLabel: todo.anchor === "start" ? "Voraussetzung" : "To-do",
+    };
+  }
+
+  /** A to-do of "Laufende Aufgaben": no date, "Laufende Aufgaben · ‹Bereich›" as origin. */
+  ongoingTodo(todo: MyPlanTodoInput, ongoing: MyOngoingInput, day: number | null, text: string): MyTask {
+    return {
+      kind: "plan_todo",
+      key: `plan_todo-${todo.id}`,
+      id: todo.id,
+      title: todo.text,
+      text,
+      day,
+      workingGroupName: groupLabel(ongoing.workingGroupName),
+      onOwnElement: false,
+      elementId: ongoing.id,
+      elementName: ongoingDisplayName(ongoing.departmentName),
+      anchor: todo.anchor,
+      anchorLabel: "To-do",
+      ongoing: { workingGroupId: ongoing.workingGroupId },
     };
   }
 
@@ -294,8 +336,17 @@ export function myAgenda(input: MyTasksInput & { weeks?: number }): MyAgenda {
     }
   }
   for (const todo of input.todos) {
+    if (todo.done) continue;
+    const ongoing = builder.ongoingOf(todo);
+    if (ongoing) {
+      // No date: "Ohne Datum", never overdue (spec 018).
+      const task = builder.ongoingTodo(todo, ongoing, null, ongoingDisplayName(ongoing.departmentName));
+      if (todo.ownerId === meId) mine.push({ task, overdue: false });
+      else if (todo.ownerId === null && inMyGroups(ongoing.workingGroupId)) unassigned.push(task);
+      continue;
+    }
     const element = builder.elementOf(todo);
-    if (todo.done || !element) continue;
+    if (!element) continue;
     if (ownsTodo(todo, element, meId)) mine.push(describe.planTodo(todo, element));
     else if (todo.ownerId === null && element.ownerId === null && inMyGroups(element.workingGroupId)) {
       unassigned.push(describe.planTodo(todo, element).task);
@@ -360,6 +411,14 @@ export function recentlyDone(input: MyTasksInput & { days?: number }): MyTask[] 
     if (day !== null) found.push({ task: builder.element(element, day, doneText(day)), doneAt: element.doneAt! });
   }
   for (const todo of input.todos) {
+    const ongoing = builder.ongoingOf(todo);
+    if (ongoing) {
+      const day = todo.done && todo.ownerId === meId ? recentDay(todo.doneAt) : null;
+      if (day !== null) {
+        found.push({ task: builder.ongoingTodo(todo, ongoing, day, doneText(day)), doneAt: todo.doneAt! });
+      }
+      continue;
+    }
     const element = builder.elementOf(todo);
     const day = todo.done && element && ownsTodo(todo, element, meId) ? recentDay(todo.doneAt) : null;
     if (day !== null) {

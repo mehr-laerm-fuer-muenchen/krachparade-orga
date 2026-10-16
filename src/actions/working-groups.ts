@@ -7,7 +7,19 @@ import { auth } from "@/auth";
 import { getCurrentEdition } from "@/db/editions";
 import { db } from "@/db/index";
 import { findMemberById } from "@/db/members";
-import { departments, editions, meetingItems, workingGroupMembers, workingGroups, type Member } from "@/db/schema";
+import { revalidateMyTasks } from "@/actions/revalidate-my-tasks";
+import {
+  departments,
+  editions,
+  meetingItems,
+  planElements,
+  planNotes,
+  planTodos,
+  workingGroupMembers,
+  workingGroups,
+  type Member,
+} from "@/db/schema";
+import { DEPARTMENT_HAS_ONGOING } from "@/lib/ak-workspace";
 import { moveItem } from "@/lib/permissions";
 import {
   canChangeMembership,
@@ -355,8 +367,16 @@ export async function assignDepartment(
   const workingGroupId = await resolveGroupId(groupId, context.editionId);
   if (workingGroupId === undefined) return fail(GROUP_NOT_FOUND);
 
-  await db.update(departments).set({ workingGroupId }).where(eq(departments.id, context.department.id));
+  // Its "Laufende Aufgaben" (spec 018) move along into the same working group.
+  await db.batch([
+    db.update(departments).set({ workingGroupId }).where(eq(departments.id, context.department.id)),
+    db
+      .update(planElements)
+      .set({ workingGroupId, updatedAt: new Date(), updatedBy: context.actor.id })
+      .where(and(eq(planElements.departmentId, context.department.id), eq(planElements.isOngoing, true))),
+  ]);
   refresh();
+  revalidateMyTasks();
   return OK;
 }
 
@@ -403,22 +423,43 @@ export async function moveDepartment(departmentId: string, direction: string): P
   return OK;
 }
 
-/** Only while no minutes item points to the department. */
+/**
+ * Only while no minutes item points to the department and its "Laufende
+ * Aufgaben" (spec 018) have neither to-dos nor notes; an empty "Laufende
+ * Aufgaben" element goes with it (`department_id` would only be cleared).
+ */
 export async function deleteDepartment(departmentId: string): Promise<WorkingGroupActionResult> {
   const context = await loadDepartmentContext(departmentId);
   if (!("department" in context)) return context;
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(meetingItems)
-    .where(eq(meetingItems.departmentId, context.department.id));
-  if (!canDeleteDepartment(total)) return fail(DEPARTMENT_IN_USE);
+  const { department } = context;
+  const [[{ total }], [{ todos }], [{ notes }]] = await Promise.all([
+    db.select({ total: count() }).from(meetingItems).where(eq(meetingItems.departmentId, department.id)),
+    db
+      .select({ todos: count() })
+      .from(planTodos)
+      .innerJoin(planElements, eq(planElements.id, planTodos.elementId))
+      .where(and(eq(planElements.departmentId, department.id), eq(planElements.isOngoing, true))),
+    db
+      .select({ notes: count() })
+      .from(planNotes)
+      .innerJoin(planElements, eq(planElements.id, planNotes.elementId))
+      .where(and(eq(planElements.departmentId, department.id), eq(planElements.isOngoing, true))),
+  ]);
+  if (total > 0) return fail(DEPARTMENT_IN_USE);
+  if (!canDeleteDepartment(total, todos + notes)) return fail(DEPARTMENT_HAS_ONGOING);
 
   try {
-    await db.delete(departments).where(eq(departments.id, context.department.id));
+    await db.batch([
+      db
+        .delete(planElements)
+        .where(and(eq(planElements.departmentId, department.id), eq(planElements.isOngoing, true))),
+      db.delete(departments).where(eq(departments.id, department.id)),
+    ]);
   } catch {
     // A minutes item added in the meantime blocks the delete (foreign key).
     return fail(DEPARTMENT_IN_USE);
   }
   refresh();
+  revalidateMyTasks();
   return OK;
 }

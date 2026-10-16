@@ -60,6 +60,27 @@ export const workingGroups = pgTable(
 
 export type WorkingGroup = typeof workingGroups.$inferSelect;
 
+/** Free notes of a working group as a history (spec 018); only the author changes them. */
+export const workingGroupNotes = pgTable(
+  "working_group_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workingGroupId: uuid("working_group_id")
+      .notNull()
+      .references(() => workingGroups.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => members.id),
+    text: text("text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("working_group_notes_text", sql`char_length(${table.text}) between 1 and 2000`),
+    index("working_group_notes_group").on(table.workingGroupId),
+  ]
+);
+
 /** Who takes part in which working group (spec 005); one person may be in several. */
 export const workingGroupMembers = pgTable(
   "working_group_members",
@@ -123,6 +144,11 @@ export const planElements = pgTable(
     doneAt: timestamp("done_at", { withTimezone: true }),
     /** "Wackelt" as a manual assessment. */
     wobbly: boolean("wobbly").notNull().default(false),
+    /**
+     * "Laufende Aufgaben" of a department (spec 018): to-dos and notes without
+     * a date, hidden in the plan (filtered out before the engine computes).
+     */
+    isOngoing: boolean("is_ongoing").notNull().default(false),
     sortOrder: integer("sort_order").notNull(),
     createdBy: uuid("created_by").references(() => members.id),
     updatedBy: uuid("updated_by").references(() => members.id),
@@ -137,6 +163,9 @@ export const planElements = pgTable(
       sql`(${table.kind} = 'milestone' and ${table.durationDays} = 0) or (${table.kind} = 'task' and ${table.durationDays} between 1 and 365)`
     ),
     index("plan_elements_edition").on(table.editionId, table.sortOrder),
+    uniqueIndex("plan_elements_ongoing_department")
+      .on(table.editionId, table.departmentId)
+      .where(sql`${table.isOngoing} = true`),
   ]
 );
 

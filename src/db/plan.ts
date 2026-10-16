@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq } from "drizzle-orm";
+import { withoutOngoing } from "@/lib/ak-workspace";
 import { dateToDay } from "@/lib/plan-days";
 import type { PlanElementInput, PlanElementKind, PlanLinkInput } from "@/lib/plan-engine";
 import { db } from "./index";
@@ -41,7 +42,11 @@ export type LoadedPlan = {
   links: LoadedPlanLink[];
 };
 
-/** The plan of an edition (spec 006): elements, links and open to-dos per element. Read only. */
+/**
+ * The plan of an edition (spec 006): elements, links and open to-dos per
+ * element. Read only. "Laufende Aufgaben" (spec 018) are left out here, the
+ * one central place: they never reach the engine, Gantt, lists or choices.
+ */
 export async function loadPlan(editionId: string): Promise<LoadedPlan> {
   const [edition] = await db
     .select({ dDay: editions.dDay })
@@ -64,6 +69,7 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
         done: planElements.done,
         doneAt: planElements.doneAt,
         wobbly: planElements.wobbly,
+        isOngoing: planElements.isOngoing,
         sortOrder: planElements.sortOrder,
         workingGroupId: planElements.workingGroupId,
         workingGroupName: workingGroups.name,
@@ -98,16 +104,45 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
   ]);
 
   const openTodos = new Map(todoRows.map((row) => [row.elementId, row.total]));
+  const plan = withoutOngoing(rows, linkRows);
   return {
     dDay: edition.dDay,
-    elements: rows.map((row) => ({
+    elements: plan.elements.map((row) => ({
       ...row,
       kind: row.kind as PlanElementKind,
       fixedDay: row.fixedDate === null ? null : dateToDay(row.fixedDate, edition.dDay),
       openTodos: openTodos.get(row.id) ?? 0,
     })),
-    links: linkRows,
+    links: plan.links,
   };
+}
+
+/** A "Laufende Aufgaben" element (spec 018): one per department, no dates. */
+export type LoadedOngoingElement = {
+  id: string;
+  departmentId: string | null;
+  departmentName: string | null;
+  workingGroupId: string | null;
+  workingGroupName: string | null;
+  updatedAt: Date;
+};
+
+/** The "Laufende Aufgaben" elements of an edition (spec 018). Read only. */
+export async function loadOngoingElements(editionId: string): Promise<LoadedOngoingElement[]> {
+  return db
+    .select({
+      id: planElements.id,
+      departmentId: planElements.departmentId,
+      departmentName: departments.name,
+      workingGroupId: planElements.workingGroupId,
+      workingGroupName: workingGroups.name,
+      updatedAt: planElements.updatedAt,
+    })
+    .from(planElements)
+    .leftJoin(workingGroups, eq(workingGroups.id, planElements.workingGroupId))
+    .leftJoin(departments, eq(departments.id, planElements.departmentId))
+    .where(and(eq(planElements.editionId, editionId), eq(planElements.isOngoing, true)))
+    .orderBy(asc(departments.sortOrder), asc(departments.name));
 }
 
 export type LoadedPlanTodo = {

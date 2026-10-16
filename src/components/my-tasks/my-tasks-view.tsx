@@ -58,13 +58,16 @@ function dayMonth(date: string): string {
 }
 
 function titleOf(task: MyTask): string {
-  return task.kind === "plan_todo" ? `${task.anchorLabel} · ${task.title}` : task.title;
+  return task.kind === "plan_todo" && !task.ongoing ? `${task.anchorLabel} · ${task.title}` : task.title;
 }
 
 /** "AK ‹Name› · ‹Zusatztext›", plus element or meeting where the text does not name it yet. */
 function metaOf(task: MyTask): string {
   const parts = [task.workingGroupName, task.text];
-  if (task.kind === "plan_todo") {
+  if (task.kind === "plan_todo" && task.ongoing) {
+    // "Laufende Aufgaben · ‹Bereich›" (spec 018); done entries name it after the date.
+    if (task.text !== task.elementName) parts.push(task.elementName);
+  } else if (task.kind === "plan_todo") {
     if (!task.text.startsWith("für ")) parts.push(`für ${task.elementName}`);
     if (task.onOwnElement) parts.push("an deinem Element");
   } else if (task.kind === "meeting_todo" && !task.text.startsWith("aus Treffen")) {
@@ -146,6 +149,14 @@ function TaskCard({
       )}
       {task.kind === "meeting_todo" ? (
         <Link href={`/protokolle/${task.meetingId}`} className={MAIN}>
+          {body}
+        </Link>
+      ) : task.kind === "plan_todo" && task.ongoing ? (
+        // "Laufende Aufgaben" are not in the plan: they open the AK workspace (spec 018).
+        <Link
+          href={task.ongoing.workingGroupId ? `/arbeitskreise/${task.ongoing.workingGroupId}` : "/arbeitskreise"}
+          className={MAIN}
+        >
           {body}
         </Link>
       ) : (
