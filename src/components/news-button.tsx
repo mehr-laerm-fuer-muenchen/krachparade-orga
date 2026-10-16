@@ -71,14 +71,33 @@ export function NewsButton({ className = "" }: { className?: string }) {
     return () => dialog.removeEventListener("keydown", stop);
   }, []);
 
-  // The page behind the panel does not scroll while it is open.
+  // The page behind the panel does not scroll while it is open. iOS Safari
+  // ignores overflow: hidden for touch scrolling, so the body is pinned at the
+  // current position and the page jumps back there on close.
   useEffect(() => {
     if (!isOpen) return;
     const root = document.documentElement;
-    const previous = root.style.overflow;
+    const { body } = document;
+    const scrollY = window.scrollY;
+    const previous = {
+      overflow: root.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+    };
     root.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
     return () => {
-      root.style.overflow = previous;
+      root.style.overflow = previous.overflow;
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.left = previous.left;
+      body.style.right = previous.right;
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen]);
 
@@ -136,9 +155,9 @@ export function NewsButton({ className = "" }: { className?: string }) {
           setIsOpen(false);
           buttonRef.current?.focus();
         }}
-        className="news-panel fixed inset-x-0 top-auto bottom-0 m-0 max-h-[88dvh] w-full max-w-none flex-col overflow-hidden rounded-t-xl border-t border-line bg-surface p-0 text-text shadow-[0_-8px_24px_rgb(0_0_0/0.2)] backdrop:bg-black/50 open:flex desk:top-0 desk:right-0 desk:left-auto desk:h-dvh desk:max-h-none desk:w-[420px] desk:rounded-none desk:border-t-0 desk:border-l desk:shadow-xl"
+        className="news-panel fixed inset-x-0 top-auto bottom-0 m-0 w-full max-w-none flex-col overflow-hidden rounded-t-xl border-t border-line bg-surface p-0 text-text shadow-[0_-8px_24px_rgb(0_0_0/0.2)] backdrop:bg-black/50 open:flex desk:top-0 desk:right-0 desk:left-auto desk:h-dvh desk:max-h-none desk:w-[420px] desk:rounded-none desk:border-t-0 desk:border-l desk:shadow-xl"
       >
-        <div className="flex items-start gap-2 border-b border-line py-2 pr-1 pl-4">
+        <div className="flex shrink-0 items-start gap-2 border-b border-line py-2 pr-1 pl-4">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-1.5">
             <h2
               ref={headingRef}
@@ -160,7 +179,7 @@ export function NewsButton({ className = "" }: { className?: string }) {
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pt-2 [-webkit-overflow-scrolling:touch] pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <ul className="flex flex-col divide-y divide-line">
             {NEWS.map((entry) => {
               const isExpanded = expanded.has(entry.id);

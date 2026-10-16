@@ -61,3 +61,10 @@ Keine DB-Änderung: `deploy` merged nach grünen Prüfungen automatisch. Deshalb
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+- **Abgleich:** Der Aufbau war schon fast wie gewünscht (`<dialog>` mit `showModal()`, Kopf und scrollender Inhalt, `max-h-[88dvh]`). In Playwright (Chromium und WebKit, 375 × 812 und 375 × 667) ließ sich der Fehler nicht nachstellen. Der iPhone-Screenshot von Franz (Safari mit schwebender Leiste) zeigte, dass das Blatt nach unten verschoben hängen blieb. Wahrscheinliche Ursache: die Einfahr-Animation (`transform` mit `@starting-style` und `overlay`/`display allow-discrete`). (von Franz freigegeben)
+- **Höhe 85 % statt bisher 88 %:** am Handy `max-height: 85vh` mit `85dvh` darüber, als CSS-Regel in `globals.css` statt als Tailwind-Klasse. (von Franz freigegeben)
+- **Animation am Handy geändert:** Das Blatt fährt nicht mehr ein, sondern blendet über eine `@keyframes`-Animation nur kurz ein (150 ms, nur `opacity`). Eine Keyframe-Animation endet immer in der Ruhelage, deshalb kann nichts verschoben hängen bleiben. Bei „Bewegung reduzieren“ gibt es keine Animation. Die Laptop-Animation ist unverändert, steht jetzt aber nur noch im Breakpoint ab 901 px. (von Franz freigegeben)
+- **Seite sperren iOS-sicher:** Zusätzlich zu `overflow: hidden` auf `<html>` wird `body` mit `position: fixed` an der aktuellen Scroll-Position festgehalten. Beim Schließen springt die Seite dorthin zurück. Das gilt auch am Laptop, sichtbar ändert sich dort nichts. (von Franz freigegeben)
+- **WebKit** nur für die eigene Prüfung über eine eigene Playwright-Config außerhalb des Projekts. `playwright.config.ts` bleibt unverändert. (von Franz freigegeben)
+- **Backlog (nicht angefasst):** Das Plan-Blatt (`plan-detail.tsx`), das Kurzformular „Neues Plan-Element“ (`plan-new-element.tsx`) und der Käfer (`feedback-button.tsx`) nutzen eigene Klassen, aber ähnliche Muster (`88dvh` bzw. `100dvh`, keine iOS-sichere Sperre). Am iPhone sollte man sie bei langem Inhalt prüfen.

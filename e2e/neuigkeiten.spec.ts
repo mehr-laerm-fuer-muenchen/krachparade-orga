@@ -216,6 +216,74 @@ test.describe("Neuigkeiten", () => {
     await expect(dot).toBeVisible();
   });
 
+  test("Handy: Blatt passt auf den Bildschirm, Inhalt scrollt, Seite bleibt stehen", async ({ page }) => {
+    test.skip(!isNarrow(page), "nur am Handy");
+    const dialog = panel(page);
+    const heading = dialog.getByRole("heading", { name: "Neuigkeiten" });
+    const closeButton = dialog.getByRole("button", { name: "Neuigkeiten schließen" });
+    const pageHeading = page.getByRole("heading", { level: 1, name: "Plan KP27" });
+
+    for (const height of [667, 812]) {
+      await page.setViewportSize({ width: 375, height });
+      await page.evaluate(() => window.scrollTo(0, 300));
+      const scrollY = await page.evaluate(() => window.scrollY);
+      expect(scrollY, "Seite lässt sich nicht scrollen").toBeGreaterThan(0);
+      const headingBefore = await box(pageHeading);
+
+      await bell(page).click();
+      await expect(dialog).toBeVisible();
+
+      // Sheet at the bottom, at most 85 % of the screen, head fully visible.
+      const sheet = await box(dialog);
+      expect(sheet.height).toBeLessThanOrEqual(height * 0.85 + 1);
+      expect(Math.abs(sheet.y + sheet.height - height)).toBeLessThanOrEqual(1);
+      for (const target of [heading, closeButton]) {
+        const targetBox = await box(target);
+        expect(targetBox.y).toBeGreaterThanOrEqual(sheet.y);
+        expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(height);
+      }
+
+      // Scroll the content to the end: the oldest entry shows, the head stays.
+      await dialog.evaluate((element) => {
+        const scroller = [...element.querySelectorAll("div")].find(
+          (candidate) => getComputedStyle(candidate).overflowY === "auto"
+        );
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+      await expect(entryToggle(page, OLDEST_TITLE)).toBeInViewport();
+      await expect(heading).toBeInViewport();
+      await expect(closeButton).toBeInViewport();
+      // The page behind has not moved.
+      expect((await box(pageHeading)).y).toBeCloseTo(headingBefore.y, 0);
+
+      await closeButton.click();
+      await expect(dialog).toBeHidden();
+      // React releases the page right after the dialog closes.
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scrollY);
+      expect((await box(pageHeading)).y).toBeCloseTo(headingBefore.y, 0);
+      await expect(page.getByTestId("news-dot")).toHaveCount(0);
+    }
+  });
+
+  test("Laptop: Panel von rechts, volle Höhe", async ({ page }) => {
+    test.skip(isNarrow(page), "nur am Laptop");
+    await bell(page).click();
+    const dialog = panel(page);
+    await expect(dialog).toBeVisible();
+    const viewport = page.viewportSize()!;
+    // Wait for the slide-in to end before measuring.
+    await expect(async () => {
+      const sheet = await box(dialog);
+      expect(sheet.x + sheet.width).toBeCloseTo(viewport.width, 0);
+    }).toPass();
+    const sheet = await box(dialog);
+    expect(sheet.width).toBeCloseTo(420, 0);
+    expect(sheet.y).toBeCloseTo(0, 0);
+    expect(sheet.height).toBeCloseTo(viewport.height, 0);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
+
   test("Liegt über Kopfleiste und offenem Plan-Element, das danach offen bleibt", async ({ page }) => {
     const details = await openPlanElement(page);
 
