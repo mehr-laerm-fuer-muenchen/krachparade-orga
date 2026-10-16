@@ -6,6 +6,7 @@ import { logout } from "@/actions/auth";
 import { FeedbackButton } from "@/components/feedback-button";
 import { getCurrentMember } from "@/components/current-member";
 import { MainNav, type NavBadges } from "@/components/main-nav";
+import { NewsButton } from "@/components/news-button";
 import { formatCountdown, formatGermanDate, todayInBerlin } from "@/lib/dday";
 import { getCurrentEdition } from "@/db/editions";
 import { countNewFeedback } from "@/db/feedback";
@@ -16,9 +17,9 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
     // z-35: above the dimming behind the plan sheet on phones (z-30), so the
     // bug button stays reachable with an element open; below the sheet (z-40).
     <header className="sticky top-0 z-35 border-b-[3px] border-accent bg-header-bg pt-[env(safe-area-inset-top)] text-header-text">
-      {/* Phones: one row, the app name shortens (navigation is in the tab bar). */}
+      {/* Phones: one row with the logo only (navigation is in the tab bar). */}
       <div className="mx-auto flex max-w-screen-2xl items-center gap-x-2 gap-y-1 px-[max(1rem,env(safe-area-inset-left))] py-2 desk:flex-wrap desk:gap-x-4 desk:px-6">
-        <Link href="/" className="flex min-w-0 items-center gap-3 rounded-md">
+        <Link href="/" aria-label="Krachparade Orga" className="flex min-w-0 items-center gap-3 rounded-md">
           <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
             <Image
               src="/mlfm-logo.png"
@@ -29,7 +30,8 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
               className="size-11 object-cover"
             />
           </span>
-          <span className="flex min-w-0 flex-col leading-tight">
+          {/* Phones: no app name, so bell, bug button and countdown fit (spec 015). */}
+          <span className="hidden min-w-0 flex-col leading-tight desk:flex">
             <span className="truncate text-base font-semibold">Krachparade Orga</span>
             <span className="truncate text-xs text-header-muted">Mehr Lärm für München</span>
           </span>
@@ -44,6 +46,8 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
           <Suspense fallback={<DDayFallback />}>
             <DDayCounter />
           </Suspense>
+          {/* Bell always directly left of the bug button (spec 015). */}
+          <NewsButton className={NEWS_ORDER} />
           {/* Phones: left of the D-Day counter; wide screens: left of the name. */}
           <Suspense fallback={<FeedbackButton className={FEEDBACK_ORDER} />}>
             <FeedbackButtonWithCount className={FEEDBACK_ORDER} />
@@ -57,6 +61,7 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
   );
 }
 
+const NEWS_ORDER = "-order-2 desk:order-none";
 const FEEDBACK_ORDER = "-order-1 desk:order-none";
 
 /**

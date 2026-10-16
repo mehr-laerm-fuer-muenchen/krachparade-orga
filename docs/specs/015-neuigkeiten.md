@@ -139,6 +139,19 @@ Existiert die Vorlage nicht oder ist anders aufgebaut: im Abgleich melden, nicht
 
 Siehe Starteintrag `015-neuigkeiten` oben.
 
+## Abweichungen beim Bau
+
+1. Starteintrag `013-begriff-krachparade`: Datum 2026-10-16, Titel „Alles zählt auf die Krachparade“, zwei Punkte („Neuer Begriff.“ … auch die Linie im Gantt; „Countdown in Tagen.“ … „noch 204 T“ … „80 T vorher“). In keinem Neuigkeiten-Text steht „D-Day“ oder „D-N“, auch nicht als Erklärung; ein Vitest prüft das. (Freigabe Franz)
+2. Kopfleiste am Handy: 013 hatte den App-Namen nicht auf das Logo reduziert (er wurde nur per `truncate` gekürzt), daher entfällt der Schriftzug jetzt unter 901 px (`desk`-Grenze wie die Tab-Leiste). Countdown und Käfer unverändert groß. Einzeiligkeit bei 375 × 812 als Admin mit pinker Zahl und vorübergehend erzwungenem „noch 365 T“ geprüft (nur im Prüfskript, nicht committet): Kopfleiste 63 px wie vorher, `scrollWidth` 375. Der Klicktest prüft zusätzlich `scrollWidth <= 375` und Tippflächen ≥ 44 px. (Freigabe Franz)
+3. `e2e/begriff-krachparade.spec.ts` bleibt grün. (Freigabe Franz)
+4. Shell-grep nur mit Pfad `src/` oder `e2e/`. (Freigabe Franz)
+
+Weitere Abweichungen:
+
+- Starteinträge nach dem Abgleich angepasst: r1-Plan „als Gantt oder Liste am Laptop und als Liste nach Wochen am Handy“; Punkt „AKs.“ mit Knopf „Mach ich mit“ und „Die AKs sind noch ein Vorschlag, bis sie gemeinsam beschlossen sind.“ statt „Leitung … Plenum“; Protokolle „Notizen und Transkripte einfügen“; Lead „Meine Aufgaben.“ statt „Meine.“.
+- `e2e/fundament.spec.ts`: Am Handy ist der Schriftzug „Krachparade Orga“ ausgeblendet; der Test prüft dort stattdessen den Link-Namen „Krachparade Orga“ am Logo.
+- Panel als natives `<dialog>` (Top Layer, wie der Feedback-Dialog) statt einer eigenen `z-index`-Stufe; die Animation steht als kleiner Block `.news-panel` in `src/app/globals.css`.
+
 ## Deploy
 
 Keine DB. Vor dem `deploy` lokale Sichtprüfung bei 375 px und 1280 px. Dann `deploy`, danach Live-Check am iPhone (Punkt sichtbar, Panel, Kopfleiste einzeilig).

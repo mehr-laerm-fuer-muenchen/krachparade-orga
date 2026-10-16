@@ -29,6 +29,11 @@ Was soll danach anders sein – für wen, und woran merkt man es? Zwei bis fünf
 - Mindestens ein Klicktest in `e2e/`, der die neue Funktion durchklickt.
 - Test-Daten mit Präfix „E2E " anlegen und am Ende wieder löschen; nur ausgedachte Daten mit `@example.org`.
 
+## Neuigkeiten
+Eintrag für die Glocke (`src/lib/news/entries.ts`): ID = Spec-Name, Datum = Tag des Baus,
+Titel (max. 60 Zeichen) und 1–5 Punkte (fetter Anfang + ein Satz, Du-Form, für das Team verständlich).
+Oder „keiner“, wenn sich für das Team nichts Sichtbares ändert.
+
 ## Akzeptanzkriterien
 
 1. …
