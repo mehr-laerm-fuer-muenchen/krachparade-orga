@@ -83,6 +83,7 @@ async function Meeting({ params }: Pick<PageProps<"/protokolle/[id]">, "params">
           minuteTakerId: meeting.minuteTakerId,
           guests: meeting.guests,
           rawNotes: meeting.rawNotes,
+          summary: meeting.summary ?? "",
           status: meeting.status === "final" ? "final" : "entwurf",
         }}
         attendeeIds={attendeeIds}

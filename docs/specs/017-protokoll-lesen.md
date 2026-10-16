@@ -139,3 +139,9 @@ DB-Änderung (nur hinzufügende Spalte). `deploy` → hält vor der DB an, PR st
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+- **Abgleich 3 – `?ansicht=`:** `searchParams` wird wie `params` an die Suspense-Komponente durchgereicht und erst dort awaited (Muster wie `/protokolle/todos`, `/feedback`); Umschalten per Link mit `replace`, nach Final per `router.replace("?ansicht=lesen")` nur nach erfolgreichem `setMeetingStatus` (Teil B). (von Franz freigegeben)
+- **Abgleich 4 – Abhaken in der Leseansicht:** `TickBox` und `useUndoBar()` unverändert, mit `setTodoDone` nach dem Muster von `/meine` (Teil B); die Bearbeiten-Ansicht behält ihr eigenes Kästchen. (von Franz freigegeben)
+- **Teil A, kleine Änderungen außerhalb der Liste:** `summary` in `MeetingData` (`src/components/protocol/types.ts`) und in `src/app/(app)/protokolle/[id]/page.tsx` für Feld und Export. `export-buttons.tsx` musste dafür nicht geändert werden, es reicht `meeting` schon samt `summary` an den Export weiter. (von Franz freigegeben)
+- **Teil A, Seed:** `SEED_VERSION` „8“; das bestehende „Testtreffen“ bekommt die Kurzfassung nur, wenn `summary` leer ist. (von Franz freigegeben)
+- **Teil A, Zähler:** Grenze und Zähler-Text als reine Funktion `summaryCounter` mit `SUMMARY_MAX` in `src/lib/protocol-read.ts` (von der Action mitgenutzt); das Feld hat die feste id `kurzfassung` für den späteren Link „Hinzufügen“ (Teil B). (von Franz freigegeben)

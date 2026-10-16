@@ -6,12 +6,14 @@ import {
   moveTopic,
   renameTopic,
   saveMeetingNotes,
+  saveMeetingSummary,
   setAttendance,
   setMeetingStatus,
   updateMeetingHead,
   type MeetingHeadInput,
 } from "@/actions/meetings";
 import { useSaveStatus, type FieldStatus, type TrackSave } from "@/components/save-status";
+import { SUMMARY_MAX, summaryCounter } from "@/lib/protocol-read";
 import { groupByTopic, type MeetingStatus } from "@/lib/protocol-rules";
 import { ExportButtons } from "./export-buttons";
 import { ItemRow } from "./item-row";
@@ -274,11 +276,72 @@ function MeetingHead({
         {status("guests")}
       </div>
 
+      <SummaryField meetingId={meeting.id} initial={meeting.summary} track={track} status={status} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <StatusSwitch meetingId={meeting.id} status={meeting.status} report={report} />
         {canDelete ? <DeleteMeetingButton meetingId={meeting.id} report={report} /> : null}
       </div>
     </section>
+  );
+}
+
+/** "Kurzfassung" (spec 017): saved on leaving, "Gespeichert ✓" below the field. */
+function SummaryField({
+  meetingId,
+  initial,
+  track,
+  status,
+}: {
+  meetingId: string;
+  initial: string;
+  track: TrackSave;
+  status: FieldStatus;
+}) {
+  const [summary, setSummary] = useState(initial);
+  // Last saved value, so leaving an unchanged field does not save.
+  const saved = useRef(initial.trim());
+  const counter = summaryCounter(summary.length);
+
+  function save(value: string) {
+    const next = value.trim();
+    const last = saved.current;
+    if (next === last) return;
+    void track("summary", async () => {
+      saved.current = next;
+      let ok = false;
+      try {
+        const result = await saveMeetingSummary(meetingId, next);
+        ok = result.ok;
+        return result;
+      } finally {
+        if (!ok) saved.current = last;
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor="kurzfassung">Kurzfassung</label>
+      <textarea
+        id="kurzfassung"
+        rows={3}
+        maxLength={SUMMARY_MAX}
+        value={summary}
+        onChange={(event) => setSummary(event.target.value)}
+        onBlur={(event) => save(event.target.value)}
+        placeholder="Ein paar Sätze: Worum ging es, was ist rausgekommen?"
+        aria-describedby="kurzfassung-hinweis"
+        className="min-h-24 w-full resize-y rounded-md border border-line-strong bg-surface p-3 text-base text-text field-sizing-content"
+      />
+      {status("summary")}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <p id="kurzfassung-hinweis" className="text-xs text-muted">
+          Erscheint oben in der Leseansicht. Keine Telefonnummern, Adressen oder Kontodaten.
+        </p>
+        {counter ? <span className="text-xs text-muted tabular-nums">{counter}</span> : null}
+      </div>
+    </div>
   );
 }
 

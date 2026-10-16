@@ -12,6 +12,8 @@ export type ExportMeeting = {
   minuteTakerId: string | null;
   attendeeIds: readonly string[];
   guests: string;
+  /** Short summary (spec 017), its own paragraph after the attendees. */
+  summary?: string | null;
 };
 
 /** Items in their display order (`sortOrder`). */
@@ -65,6 +67,9 @@ export function toTelegramText(meeting: ExportMeeting, items: readonly ExportIte
     blocks[0] += `\nAnwesend: ${present.join(", ")}`;
   }
 
+  const summary = meeting.summary?.trim();
+  if (summary) blocks.push(summary);
+
   const decisions = items.filter((item) => item.kind === "entscheidung");
   if (decisions.length > 0) {
     blocks.push(["Beschlüsse:", ...decisions.map((item) => `– ${item.text}`)].join("\n"));
@@ -107,6 +112,9 @@ export function toMarkdown(meeting: ExportMeeting, items: readonly ExportItem[],
     "",
     ...head.filter(([, value]) => value).map(([label, value]) => `- **${label}:** ${value}`),
   ];
+
+  const summary = meeting.summary?.trim();
+  if (summary) lines.push("", "**Kurzfassung**", "", summary);
 
   for (const { topic, items: topicItems } of groupByTopic(items)) {
     lines.push("", `## ${topic}`, "");
