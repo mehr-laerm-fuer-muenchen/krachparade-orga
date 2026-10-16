@@ -44,6 +44,10 @@ describe("latestNewsId", () => {
     expect(latestNewsId(ENTRIES)).toBe("new");
     expect(latestNewsId([])).toBeNull();
   });
+
+  it("is the AK workspace entry of spec 018", () => {
+    expect(latestNewsId(NEWS)).toBe("018-ak-arbeitsbereich");
+  });
 });
 
 describe("hasUnread", () => {

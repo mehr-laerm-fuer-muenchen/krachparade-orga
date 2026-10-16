@@ -4,7 +4,7 @@ import { computePlan } from "@/lib/plan-engine";
 import { myAgenda, recentlyDone, type MyAgenda, type MyTask, type MyTasksInput } from "@/lib/my-tasks";
 import { getCurrentEdition } from "./editions";
 import { listEditionItems } from "./meetings";
-import { loadPlan, loadPlanDetails, loadPlanOptions } from "./plan";
+import { loadOngoingElements, loadPlan, loadPlanDetails, loadPlanOptions } from "./plan";
 import { listWorkingGroupMembers, listWorkingGroups } from "./working-groups";
 
 export type LoadedMyAgenda = {
@@ -28,8 +28,9 @@ export const loadMyAgenda = cache(async (memberId: string, today: string): Promi
   const edition = await getCurrentEdition();
   if (!edition) return null;
 
-  const [plan, details, meetingTodos, memberships, groups, options] = await Promise.all([
+  const [plan, ongoing, details, meetingTodos, memberships, groups, options] = await Promise.all([
     loadPlan(edition.id),
+    loadOngoingElements(edition.id),
     loadPlanDetails(edition.id),
     listEditionItems(edition.id, "todo"),
     listWorkingGroupMembers(edition.id),
@@ -62,6 +63,12 @@ export const loadMyAgenda = cache(async (memberId: string, today: string): Promi
       };
     }),
     todos: details.todos,
+    ongoing: ongoing.map((element) => ({
+      id: element.id,
+      departmentName: element.departmentName ?? "",
+      workingGroupId: element.workingGroupId,
+      workingGroupName: element.workingGroupName,
+    })),
     meetingTodos: meetingTodos.map((item) => ({
       id: item.id,
       meetingId: item.meetingId,

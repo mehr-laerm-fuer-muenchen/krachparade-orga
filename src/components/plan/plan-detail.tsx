@@ -20,6 +20,8 @@ import {
   updateNote,
   type PlanConflict,
 } from "@/actions/plan";
+import { FieldError } from "@/components/field-error";
+import { NoteHistory, PRIVACY_HINT } from "@/components/note-history";
 import { useSaveStatus, type FieldStatus, type SaveOutcome } from "@/components/save-status";
 import { StatusPill } from "@/components/status-pill";
 import { formatRelativeDay } from "@/lib/dday";
@@ -52,8 +54,6 @@ export type DragAction = (id: string, mode: DragMode, delta: number) => Promise<
 export type PlanOption = { id: string; name: string };
 export type PlanDepartmentOption = PlanOption & { workingGroupId: string | null };
 
-export const PRIVACY_HINT = "Keine Telefonnummern, Adressen oder Kontodaten eintragen.";
-
 /** "+5 T Puffer", "0 T Puffer", "−2 T Verzug" or "erledigt". */
 export function bufferLabel(element: Pick<PlanViewElement, "buffer" | "done">): string {
   if (element.done) return "erledigt";
@@ -85,14 +85,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </section>
   );
-}
-
-function FieldError({ message }: { message?: string | null }) {
-  return message ? (
-    <p role="alert" className="text-sm font-medium text-status-late">
-      {message}
-    </p>
-  ) : null;
 }
 
 const INPUT =
@@ -833,103 +825,18 @@ function NoteSection({
   status: FieldStatus;
   errors: Record<string, string | null>;
 }) {
-  const hintId = useId();
-  const [editing, setEditing] = useState<string | null>(null);
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const text = String(new FormData(form).get("text") ?? "");
-    await save("add-note", async () => {
-      const result = await addNote(element.id, text);
-      if (result.ok) form.reset();
-      return result;
-    });
-  };
-
   return (
     <Section title="Notizen">
-      <form onSubmit={submit} aria-label="Notiz schreiben" className="flex flex-col gap-2">
-        <textarea
-          name="text"
-          rows={3}
-          maxLength={2000}
-          required
-          aria-label="Neue Notiz"
-          aria-describedby={hintId}
-          className={`${INPUT} py-2`}
-        />
-        <button type="submit" className={`${PRIMARY_BUTTON} self-start`}>
-          Notiz speichern
-        </button>
-        <p id={hintId} className="text-sm text-muted">
-          {PRIVACY_HINT}
-        </p>
-        {status("add-note")}
-      </form>
-      {element.notes.length === 0 ? (
-        EMPTY
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {element.notes.map((note) => (
-            <li key={note.id} className="flex flex-col gap-1">
-              <p className="text-sm text-muted">
-                {note.authorName} · {formatWeekdayShort(note.date)}
-                {note.edited ? " · bearbeitet" : ""}
-              </p>
-              {editing === note.id ? (
-                <form
-                  className="flex flex-col gap-2"
-                  onSubmit={async (event) => {
-                    event.preventDefault();
-                    const text = String(new FormData(event.currentTarget).get("text") ?? "");
-                    await save(`note-${note.id}`, async () => {
-                      const result = await updateNote(note.id, text);
-                      if (result.ok) setEditing(null);
-                      return result;
-                    });
-                  }}
-                >
-                  <textarea
-                    name="text"
-                    rows={3}
-                    maxLength={2000}
-                    required
-                    defaultValue={note.text}
-                    aria-label="Notiz bearbeiten"
-                    className={`${INPUT} py-2`}
-                  />
-                  <div className="flex gap-2">
-                    <button type="submit" className={PRIMARY_BUTTON}>
-                      Speichern
-                    </button>
-                    <button type="button" onClick={() => setEditing(null)} className={SMALL_BUTTON}>
-                      Abbrechen
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <p className="whitespace-pre-line break-words">{note.text}</p>
-              )}
-              {note.own && editing !== note.id ? (
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setEditing(note.id)} className={SMALL_BUTTON}>
-                    Bearbeiten
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => act(`note-delete-${note.id}`, () => deleteNote(note.id))}
-                    className={SMALL_BUTTON}
-                  >
-                    Löschen
-                  </button>
-                </div>
-              ) : null}
-              {status(`note-${note.id}`)}
-              <FieldError message={errors[`note-delete-${note.id}`]} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <NoteHistory
+        notes={element.notes}
+        onAdd={(text) => addNote(element.id, text)}
+        onUpdate={updateNote}
+        onDelete={deleteNote}
+        save={save}
+        act={act}
+        status={status}
+        errors={errors}
+      />
     </Section>
   );
 }

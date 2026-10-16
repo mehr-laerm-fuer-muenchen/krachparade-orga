@@ -86,4 +86,10 @@ describe("delete rules", () => {
     expect(canDeleteDepartment(0)).toBe(true);
     expect(canDeleteDepartment(3)).toBe(false);
   });
+
+  it("blocks a department whose Laufende Aufgaben have to-dos or notes (spec 018)", () => {
+    expect(canDeleteDepartment(0, 0)).toBe(true);
+    expect(canDeleteDepartment(0, 2)).toBe(false);
+    expect(canDeleteDepartment(1, 2)).toBe(false);
+  });
 });

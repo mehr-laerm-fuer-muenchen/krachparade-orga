@@ -25,8 +25,9 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 async function openBoard(page: Page) {
-  await page.goto("/arbeitskreise");
-  await expect(page.getByRole("heading", { level: 1, name: "AKs" })).toBeVisible();
+  // Spec 018: managing the working groups moved to /arbeitskreise/verwalten.
+  await page.goto("/arbeitskreise/verwalten");
+  await expect(page.getByRole("heading", { level: 1, name: "AKs verwalten" })).toBeVisible();
   await expect(page.getByText("Lade AKs …").filter({ visible: true })).toHaveCount(0);
 }
 
@@ -126,6 +127,8 @@ test.describe("Arbeitskreise", () => {
       : page.getByRole("navigation", { name: "Hauptnavigation" });
     await expect(nav.getByRole("link", { name: "AKs", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(nav.getByText("Referate")).toHaveCount(0);
+    await openBoard(page);
+    await expect(nav.getByRole("link", { name: "AKs", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.getByText(/^Die AKs müssen noch gemeinsam definiert werden\./)).toBeVisible();
     await expect(page.getByRole("button", { name: "Als beschlossen markieren" })).toBeVisible();
     // Names only, never e-mail addresses.

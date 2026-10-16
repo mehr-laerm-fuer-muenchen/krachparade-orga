@@ -14,7 +14,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "8";
+export const SEED_VERSION = "9";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -210,6 +210,37 @@ export const TEST_PLAN_NOTES: PlanTemplateNote[] = [
 ];
 
 /**
+ * Made-up "Laufende Aufgaben" (spec 018) of two departments of AK Demo &
+ * Route, never in production. Only created where the department has none.
+ */
+export const TEST_ONGOING = [
+  {
+    department: "Route",
+    todos: [
+      { text: "Alte Routenskizzen sichten", owner: "kim.brenner@example.org", done: false },
+      { text: "Ideen für Zwischenkundgebungen sammeln", done: false },
+      { text: "Stadtplan für die Skizzen besorgen", done: true },
+    ],
+    note: { author: "kim.brenner@example.org", text: "Skizzen vom letzten Jahr liegen im Orga-Ordner (Beispiel)." },
+  },
+  {
+    department: "Wagenreihung",
+    todos: [
+      { text: "Liste der Wagen vom Vorjahr abgleichen", owner: "kim.brenner@example.org", done: false },
+      { text: "Reihenfolge-Wünsche einsammeln", done: false },
+      { text: "Vorlage für die Reihung anlegen", done: true },
+    ],
+    note: { author: "kim.brenner@example.org", text: "Laute Wagen nicht direkt hintereinander einplanen." },
+  },
+];
+
+/** Made-up notes of AK Demo & Route (spec 018), never in production; only while it has none. */
+export const TEST_GROUP_NOTES = [
+  { group: "Demo & Route", author: "kim.brenner@example.org", text: "Nächstes AK-Treffen nach dem Plenum, Raum wie immer." },
+  { group: "Demo & Route", author: "robin.tal@example.org", text: "Bitte Ideen für die Route bis Monatsende hier sammeln." },
+];
+
+/**
  * Made-up feedback (spec 014), never in production. Created once each,
  * recognised by text; the context is an element of `TEST_PLAN`.
  */
@@ -370,6 +401,8 @@ export async function seed({ prod }: { prod: boolean }) {
     }
 
     await seedTestPlan();
+    // After the plan: seedPlan only runs while the edition has no element at all.
+    await seedTestOngoing();
     await seedTestFeedback();
   } else {
     await seedKp27Template();
@@ -396,6 +429,92 @@ export async function seed({ prod }: { prod: boolean }) {
         `plan_elements: ${result.elements} angelegt, ${result.links} Verbindungen, ${result.todos} To-dos, ${result.notes} Notizen`
       );
     }
+  }
+
+  /**
+   * Spec 018, never in production: "Laufende Aufgaben" of the test
+   * departments (only where there is none yet) and notes of the test working
+   * group (only while it has none).
+   */
+  async function seedTestOngoing() {
+    const { planElements, planNotes, planTodos, workingGroupNotes } = await import("./schema");
+    const { count, sql } = await import("drizzle-orm");
+    const [current] = await db.select().from(editions).where(eq(editions.isCurrent, true)).limit(1);
+    if (!current) {
+      console.log("Laufende Aufgaben: keine aktuelle Ausgabe");
+      return;
+    }
+    const authorId = (email: string) => {
+      const id = memberIds.get(email);
+      if (!id) throw new Error(`Test-Mitglied fehlt: ${email}`);
+      return id;
+    };
+
+    let created = 0;
+    for (const entry of TEST_ONGOING) {
+      const [department] = await db
+        .select({ id: departments.id, workingGroupId: departments.workingGroupId })
+        .from(departments)
+        .where(and(eq(departments.editionId, current.id), eq(departments.name, entry.department)))
+        .limit(1);
+      if (!department?.workingGroupId) continue;
+      const [element] = await db
+        .insert(planElements)
+        .values({
+          editionId: current.id,
+          workingGroupId: department.workingGroupId,
+          departmentId: department.id,
+          kind: "milestone",
+          name: "Laufende Aufgaben",
+          durationDays: 0,
+          isOngoing: true,
+          sortOrder: 0,
+          createdBy: authorId("kim.brenner@example.org"),
+        })
+        .onConflictDoNothing({
+          target: [planElements.editionId, planElements.departmentId],
+          where: sql`${planElements.isOngoing} = true`,
+        })
+        .returning({ id: planElements.id });
+      if (!element) continue;
+      const now = new Date();
+      await db.insert(planTodos).values(
+        entry.todos.map((todo, index) => ({
+          elementId: element.id,
+          text: todo.text,
+          ownerId: "owner" in todo && todo.owner ? authorId(todo.owner) : null,
+          done: todo.done,
+          doneAt: todo.done ? now : null,
+          sortOrder: index + 1,
+          createdBy: authorId("kim.brenner@example.org"),
+        }))
+      );
+      await db.insert(planNotes).values({ elementId: element.id, authorId: authorId(entry.note.author), text: entry.note.text });
+      created += 1;
+    }
+    console.log(`Laufende Aufgaben: ${created} angelegt, ${TEST_ONGOING.length - created} schon vorhanden oder ohne AK`);
+
+    let notes = 0;
+    for (const groupName of [...new Set(TEST_GROUP_NOTES.map((note) => note.group))]) {
+      const [group] = await db
+        .select({ id: workingGroups.id })
+        .from(workingGroups)
+        .where(and(eq(workingGroups.editionId, current.id), eq(workingGroups.name, groupName)))
+        .limit(1);
+      if (!group) continue;
+      const [{ total }] = await db
+        .select({ total: count() })
+        .from(workingGroupNotes)
+        .where(eq(workingGroupNotes.workingGroupId, group.id));
+      if (total > 0) continue;
+      const entries = TEST_GROUP_NOTES.filter((note) => note.group === groupName);
+      // One after the other, so the order of `created_at` is the order of the list.
+      for (const note of entries) {
+        await db.insert(workingGroupNotes).values({ workingGroupId: group.id, authorId: authorId(note.author), text: note.text });
+      }
+      notes += entries.length;
+    }
+    console.log(`working_group_notes: ${notes} angelegt`);
   }
 
   /**

@@ -389,3 +389,55 @@ describe("recentlyDone", () => {
     expect(tasks).toEqual([]);
   });
 });
+
+describe("Laufende Aufgaben (spec 018)", () => {
+  const ongoing = [
+    { id: "ongoing", departmentName: "Route", workingGroupId: "demo", workingGroupName: "Demo & Route" },
+    { id: "ongoing-fin", departmentName: "Finanzen", workingGroupId: "fin", workingGroupName: "Finanzen" },
+  ];
+
+  it("puts my points under Ohne Datum with their origin, never overdue", () => {
+    const agenda = myAgenda(
+      input({
+        ongoing,
+        todos: [
+          todo({ id: "mine", elementId: "ongoing" }),
+          todo({ id: "other", elementId: "ongoing", ownerId: OTHER }),
+          todo({ id: "closed", elementId: "ongoing", done: true }),
+        ],
+      })
+    );
+    expect(keys(agenda.undated)).toEqual(["plan_todo-mine"]);
+    expect(agenda.overdue).toEqual([]);
+    expect(agenda.undated[0]).toMatchObject({
+      day: null,
+      text: "Laufende Aufgaben · Route",
+      workingGroupName: "AK Demo & Route",
+      ongoing: { workingGroupId: "demo" },
+    });
+  });
+
+  it("lists points without a person of my AKs under noch niemand eingetragen", () => {
+    const agenda = myAgenda(
+      input({
+        ongoing,
+        todos: [
+          todo({ id: "nobody", elementId: "ongoing", ownerId: null }),
+          todo({ id: "nobody-fin", elementId: "ongoing-fin", ownerId: null }),
+        ],
+      })
+    );
+    expect(allKeys(agenda)).toEqual([]);
+    expect(keys(agenda.unassigned)).toEqual(["plan_todo-nobody"]);
+  });
+
+  it("shows my points ticked off lately", () => {
+    const tasks = recentlyDone(
+      input({
+        ongoing,
+        todos: [todo({ id: "done", elementId: "ongoing", done: true, doneAt: new Date("2027-02-16T10:00:00Z") })],
+      })
+    );
+    expect(tasks.map((task) => [task.key, task.text])).toEqual([["plan_todo-done", "erledigt Di 16.02."]]);
+  });
+});

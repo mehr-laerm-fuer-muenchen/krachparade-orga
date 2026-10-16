@@ -21,6 +21,7 @@ import {
   workingGroups,
   type Member,
 } from "@/db/schema";
+import { ONGOING_LOCKED } from "@/lib/ak-workspace";
 import { todayInBerlin } from "@/lib/dday";
 import { dateToDay, dayToDate } from "@/lib/plan-days";
 import {
@@ -171,7 +172,21 @@ async function loadElementContext(elementId: unknown, seenUpdatedAt: unknown): P
 
   const plan = await loadPlan(context.editionId);
   const element = plan.elements.find((candidate) => candidate.id === id.data);
-  if (!element) return fail(ELEMENT_NOT_FOUND);
+  if (!element) {
+    // "Laufende Aufgaben" (spec 018) are not in the plan and cannot be edited there.
+    const [ongoing] = await db
+      .select({ id: planElements.id })
+      .from(planElements)
+      .where(
+        and(
+          eq(planElements.id, id.data),
+          eq(planElements.editionId, context.editionId),
+          eq(planElements.isOngoing, true)
+        )
+      )
+      .limit(1);
+    return fail(ongoing ? ONGOING_LOCKED : ELEMENT_NOT_FOUND);
+  }
 
   const [row] = await db
     .select({ updatedAt: planElements.updatedAt, updatedByName: members.name })
@@ -366,6 +381,8 @@ async function loadLinkContext(
 const createInput = z.object({
   name: nameInput,
   workingGroupId: optionalIdInput,
+  /** Spec 018: optional, must belong to the chosen working group. */
+  departmentId: optionalIdInput.optional(),
   kind: kindInput,
   durationDays: durationInput.optional(),
   /** null = the D-Day. */
@@ -391,6 +408,16 @@ export async function createElement(input: z.input<typeof createInput>): Promise
       .limit(1);
     if (!group) return fail(GROUP_NOT_FOUND);
   }
+  const departmentId = parsed.data.departmentId ?? null;
+  if (departmentId !== null) {
+    const [department] = await db
+      .select({ workingGroupId: departments.workingGroupId })
+      .from(departments)
+      .where(and(eq(departments.id, departmentId), eq(departments.editionId, context.editionId)))
+      .limit(1);
+    if (!department) return fail(DEPARTMENT_NOT_FOUND);
+    if (department.workingGroupId !== workingGroupId) return fail(DEPARTMENT_OTHER_GROUP);
+  }
   const plan = await loadPlan(context.editionId);
   const successor = successorId === null ? null : plan.elements.find((element) => element.id === successorId);
   if (successor === undefined) return fail(ELEMENT_NOT_FOUND);
@@ -407,6 +434,7 @@ export async function createElement(input: z.input<typeof createInput>): Promise
       id,
       editionId: context.editionId,
       workingGroupId,
+      departmentId,
       kind,
       name,
       durationDays,

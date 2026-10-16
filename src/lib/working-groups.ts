@@ -49,7 +49,10 @@ export function canDeleteGroup(departmentCount: number): boolean {
   return departmentCount === 0;
 }
 
-/** A department can only go while no minutes item points to it. */
-export function canDeleteDepartment(referenceCount: number): boolean {
-  return referenceCount === 0;
+/**
+ * A department can only go while no minutes item points to it and its
+ * "Laufende Aufgaben" (spec 018) have neither to-dos nor notes.
+ */
+export function canDeleteDepartment(referenceCount: number, ongoingEntryCount = 0): boolean {
+  return referenceCount === 0 && ongoingEntryCount === 0;
 }

@@ -47,7 +47,7 @@ const DELETE_GROUP_LOCKED = "Erst die Aufgabenbereiche in einen anderen AK versc
 const DELETE_DEPARTMENT_LOCKED = "Wird in Protokollen verwendet – stattdessen umbenennen oder verschieben.";
 
 /** Runs a server action in a transition and keeps its error message. */
-function useAction() {
+export function useAction() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   function run(action: () => Promise<WorkingGroupActionResult>, onSuccess?: () => void) {
@@ -60,7 +60,7 @@ function useAction() {
   return { pending, error, run };
 }
 
-function ErrorMessage({ error }: { error: string | null }) {
+export function ErrorMessage({ error }: { error: string | null }) {
   return error ? (
     <p role="alert" className="font-medium text-status-late">
       {error}
@@ -70,11 +70,22 @@ function ErrorMessage({ error }: { error: string | null }) {
 
 // --- Notice ------------------------------------------------------------------
 
-/** Says that the grouping is only a proposal; admins can switch it. */
-export function FinalNotice({ final, isAdmin }: { final: boolean; isAdmin: boolean }) {
+/**
+ * Says that the grouping is only a proposal; admins can switch it. Without
+ * `showToggle` (the AK overview, spec 018) only the notice, never the button.
+ */
+export function FinalNotice({
+  final,
+  isAdmin,
+  showToggle = true,
+}: {
+  final: boolean;
+  isAdmin: boolean;
+  showToggle?: boolean;
+}) {
   const { pending, error, run } = useAction();
-  if (final && !isAdmin) return null;
-  const toggle = isAdmin ? (
+  if (final && !(isAdmin && showToggle)) return null;
+  const toggle = isAdmin && showToggle ? (
     <button
       type="button"
       disabled={pending}
