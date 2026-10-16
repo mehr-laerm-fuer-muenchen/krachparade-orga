@@ -42,6 +42,12 @@
   --gantt-late: #f3c9d2;
   --gantt-lane: #e9eeea;
 
+  /* To-do progress and the "Als erreicht markieren?" hint (spec 016). */
+  --progress-track: #d3dbd6;
+  --progress-fill: #2e7d4f;
+  --hint-bg: #fff0f5;
+  --hint-border: #ff6fa0;
+
   color-scheme: light;
 }
 
@@ -81,6 +87,11 @@
     --gantt-late: #5a2531;
     --gantt-lane: #1e2622;
 
+    --progress-track: #36423c;
+    --progress-fill: #7cc98f;
+    --hint-bg: #34202a;
+    --hint-border: #e0679a;
+
     color-scheme: dark;
   }
 }
@@ -118,6 +129,10 @@
   --color-gantt-buffer: var(--gantt-buffer);
   --color-gantt-late: var(--gantt-late);
   --color-gantt-lane: var(--gantt-lane);
+  --color-progress-track: var(--progress-track);
+  --color-progress-fill: var(--progress-fill);
+  --color-hint-bg: var(--hint-bg);
+  --color-hint-border: var(--hint-border);
   --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
 }
 

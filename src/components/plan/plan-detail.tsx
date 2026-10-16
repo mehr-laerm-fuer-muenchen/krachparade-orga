@@ -35,7 +35,9 @@ import { dayToDate } from "@/lib/plan-days";
 import { D_DAY_NAME } from "@/lib/plan-edit";
 import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
+import { todoProgress } from "@/lib/todo-progress";
 import { displayGroupName } from "@/lib/working-groups";
+import { ReachHint } from "./reach-hint";
 import { SAVE_ERROR } from "./use-plan-actions";
 
 /** Result of a plan action as the panel sees it. */
@@ -64,7 +66,8 @@ function dateWithD(day: number, dDay: string): string {
   return `${formatWeekdayDate(day, dDay)} · ${formatRelativeDay(dayToDate(day, dDay), dDay)}`;
 }
 
-function dueText(todo: PlanTodoView, dDay: string): string {
+/** "Mi 17.02. · 2 T vor Start" */
+export function dueText(todo: Pick<PlanTodoView, "anchor" | "daysBefore" | "due">, dDay: string): string {
   const anchor = todo.anchor === "start" ? "Start" : "Ende";
   const when = todo.daysBefore === 0 ? `zum ${anchor}` : `${todo.daysBefore} T vor ${anchor}`;
   return `${formatWeekdayShort(dayToDate(todo.due, dDay))} · ${when}`;
@@ -103,12 +106,16 @@ const REMOVE_BUTTON =
 const CHECKBOX = "size-5 shrink-0 accent-[var(--primary)]";
 const EMPTY = <p className="text-muted">Noch keine.</p>;
 
-function Labeled({ label, children }: { label: string; children: ReactNode }) {
+/** A field with its label; `status` (spec 016) sits below it, outside the label, so it is not part of the field's name. */
+function Labeled({ label, children, status }: { label: string; children: ReactNode; status?: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-sm text-muted">{label}</span>
-      {children}
-    </label>
+    <div className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1">
+        <span className="text-sm text-muted">{label}</span>
+        {children}
+      </label>
+      {status}
+    </div>
   );
 }
 
@@ -132,6 +139,11 @@ export type PlanDetailProps = {
   onClose: () => void;
   run: RunAction;
   drag: DragAction;
+  /** "Erreicht" in the "Als erreicht markieren?" hint, with the "Rückgängig" bar (spec 016). */
+  onReach: (element: PlanViewElement) => void;
+  /** "Noch nicht" was chosen for this element during this page visit. */
+  hintHidden: boolean;
+  onHideHint: (id: string) => void;
 };
 
 /**
@@ -142,6 +154,7 @@ export type PlanDetailProps = {
 export function PlanDetail(props: PlanDetailProps) {
   const { element, elements, links, groups, departments, members, today, dDay, onSelect, onClose, run, drag } =
     props;
+  const showHint = !element.done && !props.hintHidden && todoProgress(element.todos).complete;
   const seen = element.updatedAt;
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const { track, status, failed } = useSaveStatus();
@@ -231,6 +244,9 @@ export function PlanDetail(props: PlanDetailProps) {
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          {showHint ? (
+            <ReachHint onReach={() => props.onReach(element)} onDismiss={() => props.onHideHint(element.id)} />
+          ) : null}
           <Section title="Termin">
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 tabular-nums">
               {milestone ? (
@@ -279,7 +295,7 @@ export function PlanDetail(props: PlanDetailProps) {
 
           <Section title="Zuständig">
             <div key={version} className="flex flex-col gap-3">
-              <Labeled label="AK">
+              <Labeled label="AK" status={status("group")}>
                 <select
                   defaultValue={element.workingGroupId ?? ""}
                   onChange={(event) =>
@@ -296,9 +312,8 @@ export function PlanDetail(props: PlanDetailProps) {
                     </option>
                   ))}
                 </select>
-                {status("group")}
               </Labeled>
-              <Labeled label="Aufgabenbereich">
+              <Labeled label="Aufgabenbereich" status={status("department")}>
                 <select
                   defaultValue={element.departmentId ?? ""}
                   onChange={(event) =>
@@ -315,9 +330,8 @@ export function PlanDetail(props: PlanDetailProps) {
                     </option>
                   ))}
                 </select>
-                {status("department")}
               </Labeled>
-              <Labeled label="Verantwortlich">
+              <Labeled label="Verantwortlich" status={status("owner")}>
                 <select
                   defaultValue={element.ownerId ?? ""}
                   onChange={(event) =>
@@ -332,14 +346,13 @@ export function PlanDetail(props: PlanDetailProps) {
                     </option>
                   ))}
                 </select>
-                {status("owner")}
               </Labeled>
             </div>
           </Section>
 
           <Section title="Element">
             <div key={version} className="flex flex-col gap-3">
-              <Labeled label="Name">
+              <Labeled label="Name" status={status("name")}>
                 <input
                   type="text"
                   defaultValue={element.name}
@@ -353,7 +366,6 @@ export function PlanDetail(props: PlanDetailProps) {
                   aria-invalid={failed("name")}
                   className={INPUT}
                 />
-                {status("name")}
               </Labeled>
               <div role="group" aria-label="Art" className="flex overflow-hidden rounded-md border border-line">
                 {(
@@ -377,7 +389,7 @@ export function PlanDetail(props: PlanDetailProps) {
               </div>
               {status("kind")}
               {milestone ? null : (
-                <Labeled label="Dauer in Tagen">
+                <Labeled label="Dauer in Tagen" status={status("duration")}>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -393,7 +405,6 @@ export function PlanDetail(props: PlanDetailProps) {
                     aria-invalid={failed("duration")}
                     className={`${INPUT} w-28`}
                   />
-                  {status("duration")}
                 </Labeled>
               )}
               <label className="flex min-h-11 items-center gap-3">

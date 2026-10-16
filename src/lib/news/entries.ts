@@ -16,6 +16,33 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "016-checklisten-fortschritt",
+    date: "2026-10-16",
+    title: "Abhaken und Fortschritt im Plan",
+    items: [
+      {
+        lead: "Fortschritt auf einen Blick.",
+        text: "Hat ein Element To-dos, zeigen Gantt und Wochenliste, wie viele davon erledigt sind, zum Beispiel „3/10“.",
+      },
+      {
+        lead: "Abhaken in der Wochenliste.",
+        text: "Das Kästchen vor einem Element markiert es als erreicht. Über „3/10“ klappst du die To-dos auf und hakst sie einzeln ab.",
+      },
+      {
+        lead: "Alles erledigt?",
+        text: "Ist das letzte To-do abgehakt, fragt die App, ob das Element erreicht ist.",
+      },
+      {
+        lead: "„Gespeichert ✓“.",
+        text: "Neben jedem Feld siehst du kurz, dass deine Eingabe gespeichert ist.",
+      },
+      {
+        lead: "Beschluss statt Entscheidung.",
+        text: "Im Protokoll heißt es jetzt überall „Beschluss“.",
+      },
+    ],
+  },
+  {
     id: "015-neuigkeiten",
     date: "2026-10-16",
     title: "Neuigkeiten in der App",

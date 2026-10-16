@@ -1,12 +1,17 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { NEWS } from "../src/lib/news/entries";
+import { formatNewsDate, latestNewsId } from "../src/lib/news/news";
 
 // Spec 015: bell with the "Neuigkeiten" panel. Only reads pages and the
 // device's localStorage, creates no data. Needs the dev seed (admin Kim
 // Brenner, example plan).
 
 const SEEN_KEY = "kp-news-seen";
-const LATEST_TITLE = "Neuigkeiten in der App";
-const OLDER_TITLE = "Alles zählt auf die Krachparade";
+// Always the newest and the second newest entry, so new entries do not break the test.
+const [LATEST, OLDER] = NEWS;
+const LATEST_TITLE = LATEST.title;
+const OLDER_TITLE = OLDER.title;
+const OLDEST_TITLE = NEWS[NEWS.length - 1].title;
 
 function isNarrow(page: Page) {
   return (page.viewportSize()?.width ?? 0) <= 900;
@@ -142,17 +147,17 @@ test.describe("Neuigkeiten", () => {
 
     // Newest open, older ones closed and expandable.
     await expect(entryToggle(page, LATEST_TITLE)).toHaveAttribute("aria-expanded", "true");
-    await expect(dialog.getByText("Glocke in der Kopfleiste.")).toBeVisible();
+    await expect(dialog.getByText(LATEST.items[0].lead, { exact: true })).toBeVisible();
     await expect(entryToggle(page, OLDER_TITLE)).toHaveAttribute("aria-expanded", "false");
-    await expect(dialog.getByText("Countdown in Tagen.")).toBeHidden();
-    await expect(dialog.getByText("Start der Orga-App")).toBeVisible();
+    await expect(dialog.getByText(OLDER.items[0].lead, { exact: true })).toBeHidden();
+    await expect(dialog.getByText(OLDEST_TITLE)).toBeVisible();
     await entryToggle(page, OLDER_TITLE).click();
     await expect(entryToggle(page, OLDER_TITLE)).toHaveAttribute("aria-expanded", "true");
-    await expect(dialog.getByText("Countdown in Tagen.")).toBeVisible();
-    await expect(dialog.getByText("16.10.2026").first()).toBeVisible();
+    await expect(dialog.getByText(OLDER.items[0].lead, { exact: true })).toBeVisible();
+    await expect(dialog.getByText(formatNewsDate(OLDER.date)).first()).toBeVisible();
     await expect(dialog).not.toContainText(/D-Day|D[-−]\d/);
     await entryToggle(page, OLDER_TITLE).click();
-    await expect(dialog.getByText("Countdown in Tagen.")).toBeHidden();
+    await expect(dialog.getByText(OLDER.items[0].lead, { exact: true })).toBeHidden();
 
     // Touch targets in the panel.
     for (const target of [dialog.getByRole("button", { name: "Neuigkeiten schließen" }), entryToggle(page, LATEST_TITLE)]) {
@@ -197,7 +202,7 @@ test.describe("Neuigkeiten", () => {
     await expect(dot).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(bell(page)).toHaveAccessibleName("Neuigkeiten");
-    expect(await page.evaluate((key) => window.localStorage.getItem(key), SEEN_KEY)).toBe("015-neuigkeiten");
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), SEEN_KEY)).toBe(latestNewsId(NEWS));
 
     await page.reload();
     await expectPlanReady(page);
