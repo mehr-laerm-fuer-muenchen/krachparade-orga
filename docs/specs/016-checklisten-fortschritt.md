@@ -136,3 +136,11 @@ Keine DB-Änderung: `deploy` merged nach grünen Prüfungen automatisch. Deshalb
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+- **Welche Felder „Gespeichert ✓“ zeigen:** Text-, Zahl- und Datumsfelder, Textbereiche und Auswahllisten, die per Server Action speichern. Im Panel fällt das gemeinsame „Gespeichert“ im Kopf weg; dafür melden sich dort auch Art, Fixtermin und „Wackelt“ am Feld. „Erreicht“, das Abhaken von To-dos, Verbindung lösen und Löschen zeigen nur Fehler. (von Franz freigegeben)
+- **Hinweis unten im Protokoll bleibt** für alles, was kein Textfeld ist (Anwesend, Entwurf/Final, „Kopiert“, „Erledigt“/„Wieder offen“, „Gelöscht“, Verschieben). Kopf-Felder, Notiz/Transkript, Schnell-Eingabe, Punkt bearbeiten und TOP umbenennen melden sich nur noch am Feld. (von Franz freigegeben)
+- **Formulare, die nach dem Speichern zugehen** (Punkt bearbeiten, AK oder Aufgabenbereich umbenennen, TOP umbenennen): „Gespeichert ✓“ steht 2 s an der Zeile bzw. Überschrift, die danach sichtbar ist; bei Fehler bleibt das Formular offen mit „Nicht gespeichert – nochmal“. (von Franz freigegeben)
+- **Gantt-Reihenfolge** rechts neben Balken und Meilenstein: „Daten · 3/10 · Puffer“. (von Franz freigegeben)
+- **Wochenliste:** Abhak-Schaltfläche als Kästchen wie auf `/meine` statt Kreis, `aria-label` wie in der Spec. (von Franz freigegeben)
+- **Wochenliste, To-do-Karten:** Die eigenen To-do-Karten bekommen dasselbe Kästchen zum Abhaken (`toggleTodo`, Rückgängig-Leiste). (von Franz freigegeben)
+- **Klicktest `e2e/protokoll.spec.ts`:** Datentext „E2E Entscheidung …“ wird in Teil B zu „E2E Beschluss …“. (von Franz freigegeben)

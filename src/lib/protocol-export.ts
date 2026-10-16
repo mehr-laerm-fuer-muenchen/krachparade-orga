@@ -67,7 +67,7 @@ export function toTelegramText(meeting: ExportMeeting, items: readonly ExportIte
 
   const decisions = items.filter((item) => item.kind === "entscheidung");
   if (decisions.length > 0) {
-    blocks.push(["Entscheidungen:", ...decisions.map((item) => `– ${item.text}`)].join("\n"));
+    blocks.push(["Beschlüsse:", ...decisions.map((item) => `– ${item.text}`)].join("\n"));
   }
 
   const todos = items.filter((item) => item.kind === "todo");

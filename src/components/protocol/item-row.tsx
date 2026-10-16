@@ -3,6 +3,7 @@
 import { useId, useOptimistic, useState, useTransition, type FormEvent } from "react";
 import { deleteMeetingItem, moveMeetingItem, setTodoDone, updateMeetingItem } from "@/actions/meetings";
 import { ItemKindBadge } from "@/components/item-kind-badge";
+import { useSaveStatus, type FieldStatus, type TrackSave } from "@/components/save-status";
 import { formatGermanDate } from "@/lib/dday";
 import { departmentLabel } from "@/lib/department-groups";
 import { isOverdue, type ItemKind } from "@/lib/protocol-rules";
@@ -40,6 +41,8 @@ export function ItemRow({
   report: Report;
 }) {
   const [editing, setEditing] = useState(false);
+  // Here and not in the editor: "Gespeichert ✓" stays at the row after the editor closes.
+  const { track, status } = useSaveStatus();
   const [pending, startTransition] = useTransition();
   // Ticks at once; the server result follows.
   const [done, setDone] = useOptimistic(item.done);
@@ -57,6 +60,8 @@ export function ItemRow({
           isFirst={isFirst}
           isLast={isLast}
           report={report}
+          track={track}
+          status={status}
           onClose={() => setEditing(false)}
         />
       </li>
@@ -85,32 +90,35 @@ export function ItemRow({
       ) : (
         <span className="size-11 shrink-0" aria-hidden />
       )}
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label={`Bearbeiten: ${item.text}`}
-        className="flex min-h-11 min-w-0 flex-1 flex-col items-start gap-1 rounded-md px-2 py-2 text-left hover:bg-surface-2"
-      >
-        <span className="flex flex-wrap items-center gap-2">
-          <ItemKindBadge kind={item.kind} />
-          <span className={`break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
-            {item.text}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={`Bearbeiten: ${item.text}`}
+          className="flex min-h-11 min-w-0 flex-col items-start gap-1 rounded-md px-2 py-2 text-left hover:bg-surface-2"
+        >
+          <span className="flex flex-wrap items-center gap-2">
+            <ItemKindBadge kind={item.kind} />
+            <span className={`break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
+              {item.text}
+            </span>
           </span>
-        </span>
-        {item.kind === "todo" || department ? (
-          <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
-            {item.kind === "todo" && owner ? <span>Wer: {personLabel(owner)}</span> : null}
-            {item.kind === "todo" && item.ownerName ? <span>Wer: {item.ownerName} (ohne Account)</span> : null}
-            {item.kind === "todo" && item.dueDate ? (
-              <span className={overdue ? "font-semibold text-status-late" : ""}>
-                bis {formatGermanDate(item.dueDate)}
-                {overdue ? " · überfällig" : ""}
-              </span>
-            ) : null}
-            {department ? <span>Aufgabenbereich: {departmentLabel(department)}</span> : null}
-          </span>
-        ) : null}
-      </button>
+          {item.kind === "todo" || department ? (
+            <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
+              {item.kind === "todo" && owner ? <span>Wer: {personLabel(owner)}</span> : null}
+              {item.kind === "todo" && item.ownerName ? <span>Wer: {item.ownerName} (ohne Account)</span> : null}
+              {item.kind === "todo" && item.dueDate ? (
+                <span className={overdue ? "font-semibold text-status-late" : ""}>
+                  bis {formatGermanDate(item.dueDate)}
+                  {overdue ? " · überfällig" : ""}
+                </span>
+              ) : null}
+              {department ? <span>Aufgabenbereich: {departmentLabel(department)}</span> : null}
+            </span>
+          ) : null}
+        </button>
+        <div className="px-2">{status("edit")}</div>
+      </div>
     </li>
   );
 }
@@ -122,6 +130,8 @@ function ItemEditor({
   isFirst,
   isLast,
   report,
+  track,
+  status,
   onClose,
 }: {
   item: ItemData;
@@ -130,6 +140,8 @@ function ItemEditor({
   isFirst: boolean;
   isLast: boolean;
   report: Report;
+  track: TrackSave;
+  status: FieldStatus;
   onClose: () => void;
 }) {
   const id = useId();
@@ -141,22 +153,21 @@ function ItemEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  /** "Gespeichert ✓" at the row; on an error the editor stays open with "nochmal". */
   function save(event: FormEvent) {
     event.preventDefault();
-    startTransition(async () => {
-      const result = await updateMeetingItem(item.id, {
-        kind,
-        text,
-        ...ownerFields(kind === "todo" ? owner : null),
-        dueDate: kind === "todo" && dueDate ? dueDate : null,
-        departmentId: departmentId || null,
-      });
-      if (result.ok) {
-        report(result);
-        onClose();
-      } else {
-        setError(result.message);
-      }
+    const fields = {
+      kind,
+      text,
+      ...ownerFields(kind === "todo" ? owner : null),
+      dueDate: kind === "todo" && dueDate ? dueDate : null,
+      departmentId: departmentId || null,
+    };
+    setError(null);
+    void track("edit", async () => {
+      const result = await updateMeetingItem(item.id, fields);
+      if (result.ok) onClose();
+      return result;
     });
   }
 
@@ -209,6 +220,7 @@ function ItemEditor({
         departmentId={departmentId}
         onDepartmentChange={setDepartmentId}
       />
+      {status("edit")}
       {error ? (
         <p role="alert" className="font-medium text-status-late">
           {error}
