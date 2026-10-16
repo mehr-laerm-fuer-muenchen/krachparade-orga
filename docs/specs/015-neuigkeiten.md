@@ -141,10 +141,12 @@ Siehe Starteintrag `015-neuigkeiten` oben.
 
 ## Abweichungen beim Bau
 
-1. Starteintrag `013-begriff-krachparade`: Datum 2026-10-16, Titel „Alles zählt auf die Krachparade“, zwei Punkte („Neuer Begriff.“ … auch die Linie im Gantt; „Countdown in Tagen.“ … „noch 204 T“ … „80 T vorher“). In keinem Neuigkeiten-Text steht „D-Day“ oder „D-N“, auch nicht als Erklärung; ein Vitest prüft das. (Freigabe Franz)
-2. Kopfleiste am Handy: 013 hatte den App-Namen nicht auf das Logo reduziert (er wurde nur per `truncate` gekürzt), daher entfällt der Schriftzug jetzt unter 901 px (`desk`-Grenze wie die Tab-Leiste). Countdown und Käfer unverändert groß. Einzeiligkeit bei 375 × 812 als Admin mit pinker Zahl und vorübergehend erzwungenem „noch 365 T“ geprüft (nur im Prüfskript, nicht committet): Kopfleiste 63 px wie vorher, `scrollWidth` 375. Der Klicktest prüft zusätzlich `scrollWidth <= 375` und Tippflächen ≥ 44 px. (Freigabe Franz)
-3. `e2e/begriff-krachparade.spec.ts` bleibt grün. (Freigabe Franz)
-4. Shell-grep nur mit Pfad `src/` oder `e2e/`. (Freigabe Franz)
+1. Starteintrag `013-begriff-krachparade`: Datum 2026-10-16, Titel „Alles zählt auf die Krachparade“, zwei Punkte („Neuer Begriff.“ … auch die Linie im Gantt; „Countdown in Tagen.“ … „noch 204 T“ … „80 T vorher“). In keinem Neuigkeiten-Text steht „D-Day“ oder „D-N“, auch nicht als Erklärung; ein Vitest prüft das. (von Franz freigegeben)
+2. Kopfleiste am Handy: 013 hatte den App-Namen nicht auf das Logo reduziert (er wurde nur per `truncate` gekürzt), daher entfällt der Schriftzug jetzt unter 901 px (`desk`-Grenze wie die Tab-Leiste). Countdown und Käfer unverändert groß. Einzeiligkeit bei 375 × 812 als Admin mit pinker Zahl und vorübergehend erzwungenem „noch 365 T“ geprüft (nur im Prüfskript, nicht committet): Kopfleiste 63 px wie vorher, `scrollWidth` 375. Der Klicktest prüft zusätzlich `scrollWidth <= 375` und Tippflächen ≥ 44 px. (von Franz freigegeben)
+3. `e2e/begriff-krachparade.spec.ts` bleibt grün. (von Franz freigegeben)
+4. Shell-grep nur mit Pfad `src/` oder `e2e/`. (von Franz freigegeben)
+
+Die Vermerke lauten „von Franz freigegeben“, weil `scripts/risikoklasse.ts` jede geänderte Zeile mit dem Freigabe-Muster als Klasse C wertet. (von Franz freigegeben)
 
 Weitere Abweichungen:
 
