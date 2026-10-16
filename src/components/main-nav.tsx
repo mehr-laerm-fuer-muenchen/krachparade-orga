@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { MAIN_NAV, isActivePath } from "@/lib/nav";
+import { MAIN_NAV, isActiveTab } from "@/lib/nav";
 
 /**
  * Small numbers per nav target (href → node rendered on the server), e.g. the
@@ -19,7 +19,7 @@ export function MainNav({ className = "", badges }: { className?: string; badges
     <nav aria-label="Hauptnavigation" className={className}>
       <ul className="flex flex-wrap items-center gap-1">
         {MAIN_NAV.map((item) => {
-          const active = isActivePath(pathname, item.href);
+          const active = isActiveTab(pathname, item);
           return (
             <li key={item.href} className="relative">
               <Link

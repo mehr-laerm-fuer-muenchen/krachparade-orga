@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createFeedback } from "@/actions/feedback";
+import { newFeedbackText } from "@/lib/feedback/count";
 import { describeDevice } from "@/lib/feedback/device";
 import { FEEDBACK_KINDS, kindLabel, type FeedbackKind } from "@/lib/feedback/kinds";
 
@@ -47,7 +48,14 @@ function FieldError({ id, message }: { id: string; message?: string }) {
  * and the open plan element are read in the browser when opening and
  * sending. Sending saves without re-rendering the page behind the dialog.
  */
-export function FeedbackButton({ className = "" }: { className?: string }) {
+export function FeedbackButton({
+  className = "",
+  newCount = 0,
+}: {
+  className?: string;
+  /** New reports, only passed for admins (pink number, spec 014 B4). */
+  newCount?: number;
+}) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -127,11 +135,21 @@ export function FeedbackButton({ className = "" }: { className?: string }) {
         ref={buttonRef}
         type="button"
         onClick={open}
-        aria-label="Feedback geben"
+        aria-label={newCount > 0 ? `Feedback geben, ${newFeedbackText(newCount)}` : "Feedback geben"}
         aria-haspopup="dialog"
-        className={`flex size-11 shrink-0 items-center justify-center rounded-md text-header-text hover:bg-white/10 ${className}`}
+        className={`relative flex size-11 shrink-0 items-center justify-center rounded-md text-header-text hover:bg-white/10 ${className}`}
       >
         <BugIcon />
+        {newCount > 0 ? (
+          // Same look as the number at "Meine" (spec 009).
+          <span
+            aria-hidden
+            data-testid="feedback-new-count"
+            className="pointer-events-none absolute top-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-bold text-header-bg tabular-nums"
+          >
+            {newCount}
+          </span>
+        ) : null}
       </button>
 
       <dialog

@@ -8,6 +8,7 @@ import { getCurrentMember } from "@/components/current-member";
 import { MainNav, type NavBadges } from "@/components/main-nav";
 import { formatDLabel, formatGermanDate, todayInBerlin } from "@/lib/dday";
 import { getCurrentEdition } from "@/db/editions";
+import { countNewFeedback } from "@/db/feedback";
 
 /** Forest header with logo, navigation (wide screens), D-Day and member. */
 export function AppHeader({ badges }: { badges?: NavBadges }) {
@@ -44,7 +45,9 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
             <DDayCounter />
           </Suspense>
           {/* Phones: left of the D-Day counter; wide screens: left of the name. */}
-          <FeedbackButton className="-order-1 desk:order-none" />
+          <Suspense fallback={<FeedbackButton className={FEEDBACK_ORDER} />}>
+            <FeedbackButtonWithCount className={FEEDBACK_ORDER} />
+          </Suspense>
           <Suspense fallback={null}>
             <SignedIn />
           </Suspense>
@@ -52,6 +55,27 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
       </div>
     </header>
   );
+}
+
+const FEEDBACK_ORDER = "-order-1 desk:order-none";
+
+/**
+ * Bug button with the pink number of new reports (spec 014), loaded on the
+ * server like the number at "Meine" (spec 009). Only admins see it; for
+ * everyone else the count is not queried. If loading fails, the number is
+ * simply missing.
+ */
+async function FeedbackButtonWithCount({ className }: { className: string }) {
+  const member = await getCurrentMember();
+  let newCount = 0;
+  if (member.isAdmin) {
+    try {
+      newCount = await countNewFeedback();
+    } catch {
+      newCount = 0;
+    }
+  }
+  return <FeedbackButton className={className} newCount={newCount} />;
 }
 
 function DDayBox({ label, date, testId }: { label: string; date: string; testId?: string }) {

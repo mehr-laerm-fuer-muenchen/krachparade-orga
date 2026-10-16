@@ -215,3 +215,16 @@ Teil A (16.10.2026):
 - **Seed:** `SEED_VERSION` 6 → 7. Die zwei Beispiele werden am Text erkannt (keine Doppelten).
 - **Klicktest-Daten:** Die App kann Meldungen nicht löschen; die „E2E Feedback …“-Meldungen aus Teil A bleiben bis zum nächsten `pnpm db:seed` stehen. In Playwright meldet das Handy-Projekt „Mac · Chrome“, weil nur Größe und Touch simuliert werden; die Geräte-Erkennung ist per Vitest geprüft.
 - „Alle Meldungen“ verlinkt schon auf `/feedback`; die Seite kommt erst mit Teil B (bis dahin 404).
+
+Teil B (16.10.2026):
+
+- **Zahl am Käfer:** Weg wie bei „Meine“: ein Server-Baustein in der Kopfleiste (in `<Suspense>`) lädt das Mitglied und ruft `countNewFeedback()` nur bei `is_admin` auf. Er gibt die Zahl als `newCount` an `FeedbackButton` weiter, damit das `aria-label` die Anzahl enthält. Bis der Baustein geladen ist, steht der Käfer ohne Zahl da. Am Teil-A-Code nur das geändert (Eigenschaft `newCount`, pinke Zahl, `aria-label`).
+- **`updateFeedback` unverändert:** `revalidatePath` für `/feedback` und `/feedback/[id]` lädt auch die Kopfleiste der aktuellen Seite neu; die Zahl stimmt auf der Feedback-Seite sofort nach „Speichern“ (geprüft). Kein `refresh()` nötig.
+- **Navigation:** `NavItem` hat jetzt wie `TabItem` `alsoActiveFor`; „Einstellungen“ und „Mehr“ sind auf `/feedback/**` aktiv (mit Vitest).
+- **Datum/Uhrzeit:** neue Funktion `formatGermanDateTime` in `src/lib/date-time.ts` (mit Vitest), es gab nur eine Datumsformatierung ohne Uhrzeit.
+- **Neue Bausteine:** `FeedbackStatusPill`/`FeedbackKindPill` (`src/components/feedback-pills.tsx`), `BackLink` (`src/components/back-link.tsx`), Admin-Formular `src/components/feedback-reply-form.tsx`. Status-Knöpfe am Handy 2 × 2, am Laptop in einer Zeile.
+- **Detailseite:** Nicht-Admins sehen einen Abschnitt „Status und Antwort“ nur lesend (ohne Antwort: „Noch keine Antwort.“). Der Seitenpfad wird nur verlinkt, wenn er in der App bleibt (nicht bei `//…`).
+- **`/einstellungen`:** Der Eintrag „Feedback“ steht ganz oben, bei allen Breiten (am Handy über dem „Mehr“-Block).
+- **404:** Wie auf `/protokolle/[id]` liefert die gestreamte Seite Status 200 mit dem 404-Inhalt; der Klicktest prüft deshalb den Inhalt.
+- **Ablehnung für Nicht-Admins:** als Klicktest. Der Test zeichnet Kims echten Server-Aufruf von „Speichern“ auf und schickt ihn als Alex noch einmal ab, mit „Verworfen“. Die Antwort enthält „Nur Admins können das ändern.“, und die Meldung bleibt „Erledigt“. Vitest-Tests für Actions gibt es im Projekt nicht (Vitest kennt `@/` nicht).
+- **Aufräumen:** Die Teil-B-Meldung setzt der Test auf „Erledigt“. Die Teil-A-Meldungen bleiben „Neu“ bis zum nächsten `pnpm db:seed` (Teil A nicht geändert). Bei der Prüfung von Hand habe ich eine alte E2E-Meldung auf „Verworfen“ gesetzt.
