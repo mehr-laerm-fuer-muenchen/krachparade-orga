@@ -155,52 +155,61 @@ body {
   outline-offset: 2px;
 }
 
-/* News panel (spec 015): slides up from the bottom on phones and in from the
-   right on wide screens; transform and opacity only, none with reduced motion. */
-.news-panel,
-.news-panel::backdrop {
-  transition:
-    transform 200ms ease-out,
-    opacity 200ms ease-out,
-    overlay 200ms allow-discrete,
-    display 200ms allow-discrete;
-}
-.news-panel {
-  transform: translateY(100%);
-}
-.news-panel::backdrop {
-  opacity: 0;
-}
-.news-panel[open] {
-  transform: none;
-}
-.news-panel[open]::backdrop {
-  opacity: 1;
-}
-@starting-style {
-  .news-panel[open] {
-    transform: translateY(100%);
-  }
-  .news-panel[open]::backdrop {
+/* News panel (spec 015, 021). Phones: a sheet fixed to the bottom that only
+   fades in. A keyframe animation always ends in the resting position, so the
+   sheet cannot get stuck offset, as it did with the slide-in on iOS Safari.
+   Wide screens: slides in from the right as before. None with reduced motion. */
+@keyframes news-fade-in {
+  from {
     opacity: 0;
   }
 }
+@media (width < 901px) {
+  .news-panel {
+    max-height: 85vh;
+    max-height: 85dvh;
+  }
+  .news-panel[open],
+  .news-panel[open]::backdrop {
+    animation: news-fade-in 150ms ease-out;
+  }
+}
 @media (width >= 901px) {
+  .news-panel,
+  .news-panel::backdrop {
+    transition:
+      transform 200ms ease-out,
+      opacity 200ms ease-out,
+      overlay 200ms allow-discrete,
+      display 200ms allow-discrete;
+  }
   .news-panel {
     transform: translateX(100%);
   }
+  .news-panel::backdrop {
+    opacity: 0;
+  }
   .news-panel[open] {
     transform: none;
+  }
+  .news-panel[open]::backdrop {
+    opacity: 1;
   }
   @starting-style {
     .news-panel[open] {
       transform: translateX(100%);
     }
+    .news-panel[open]::backdrop {
+      opacity: 0;
+    }
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .news-panel,
-  .news-panel::backdrop {
+  .news-panel::backdrop,
+  .news-panel[open],
+  .news-panel[open]::backdrop {
+    animation: none;
     transition: none;
   }
 }
