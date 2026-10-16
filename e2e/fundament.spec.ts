@@ -19,7 +19,12 @@ test.describe("Fundament", () => {
     await expect(page).toHaveTitle(/Krachparade Orga/);
     // Since spec 006 the start page is the plan preview; the app name sits in the header.
     await expect(page.getByRole("heading", { level: 1, name: "Plan KP27" })).toBeVisible();
-    await expect(page.getByRole("banner").getByText("Krachparade Orga")).toBeVisible();
+    // Phones show only the logo (spec 015); it carries the app name.
+    if ((page.viewportSize()?.width ?? 0) <= 900) {
+      await expect(page.getByRole("banner").getByRole("link", { name: "Krachparade Orga" })).toBeVisible();
+    } else {
+      await expect(page.getByRole("banner").getByText("Krachparade Orga")).toBeVisible();
+    }
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
