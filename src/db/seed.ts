@@ -14,7 +14,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "6";
+export const SEED_VERSION = "7";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -207,6 +207,39 @@ export const TEST_PLAN_NOTES: PlanTemplateNote[] = [
 ];
 
 /**
+ * Made-up feedback (spec 014), never in production. Created once each,
+ * recognised by text; the context is an element of `TEST_PLAN`.
+ */
+export const TEST_FEEDBACK = [
+  {
+    kind: "bug",
+    message: "Nach dem Abhaken springt die Liste kurz nach oben.",
+    pagePath: "/meine",
+    pageTitle: "Meine Aufgaben – Krachparade Orga",
+    context: null,
+    device: "iPhone · Safari",
+    viewport: "390 × 844",
+    status: "new",
+    reply: null,
+    createdBy: "alex.rauch@example.org",
+    updatedBy: null,
+  },
+  {
+    kind: "wish",
+    message: "Bitte im Detail-Panel auch die Nachfolger anklickbar machen.",
+    pagePath: "/",
+    pageTitle: "Plan – Krachparade Orga",
+    context: "Finaler Crosscheck",
+    device: "Mac · Firefox",
+    viewport: "1440 × 900",
+    status: "done",
+    reply: "Ist umgesetzt, danke!",
+    createdBy: "alex.rauch@example.org",
+    updatedBy: "kim.brenner@example.org",
+  },
+] as const;
+
+/**
  * Idempotent: a second run changes nothing. With `prod` only master data is
  * written, never test people (from spec 002 on, always with @example.org).
  */
@@ -325,6 +358,7 @@ export async function seed({ prod }: { prod: boolean }) {
     }
 
     await seedTestPlan();
+    await seedTestFeedback();
   } else {
     await seedKp27Template();
   }
@@ -350,6 +384,37 @@ export async function seed({ prod }: { prod: boolean }) {
         `plan_elements: ${result.elements} angelegt, ${result.links} Verbindungen, ${result.todos} To-dos, ${result.notes} Notizen`
       );
     }
+  }
+
+  /**
+   * Spec 014, never in production: removes feedback left by the click tests
+   * ("E2E …") and creates the example feedback unless its text exists.
+   */
+  async function seedTestFeedback() {
+    const { feedback } = await import("./schema");
+    const { like } = await import("drizzle-orm");
+    const removed = await db
+      .delete(feedback)
+      .where(like(feedback.message, "E2E %"))
+      .returning({ id: feedback.id });
+    let created = 0;
+    for (const entry of TEST_FEEDBACK) {
+      const [existing] = await db
+        .select({ id: feedback.id })
+        .from(feedback)
+        .where(eq(feedback.message, entry.message))
+        .limit(1);
+      if (existing) continue;
+      await db.insert(feedback).values({
+        ...entry,
+        createdBy: memberIds.get(entry.createdBy) ?? null,
+        updatedBy: entry.updatedBy ? (memberIds.get(entry.updatedBy) ?? null) : null,
+      });
+      created += 1;
+    }
+    console.log(
+      `feedback: ${removed.length} E2E-Meldungen entfernt, ${created} angelegt, ${TEST_FEEDBACK.length - created} schon vorhanden`
+    );
   }
 
   /**

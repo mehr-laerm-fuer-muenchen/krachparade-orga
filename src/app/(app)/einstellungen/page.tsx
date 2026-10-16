@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { logout } from "@/actions/auth";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
 import { DDayForm, InviteForm, MemberActionButton } from "@/components/settings/forms";
+import { BugIcon } from "@/components/feedback-button";
 import { getCurrentEdition } from "@/db/editions";
+import { countNewFeedback } from "@/db/feedback";
 import { listMembers } from "@/db/members";
 import type { Edition, Member } from "@/db/schema";
 import { isAdminEmail, parseAdminEmails } from "@/lib/access";
+import { newFeedbackText } from "@/lib/feedback/count";
 
 export const metadata: Metadata = {
   title: "Einstellungen – Krachparade Orga",
@@ -17,6 +21,11 @@ export const metadata: Metadata = {
 export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
+      {/* Spec 014: for everyone, on all screen widths. */}
+      <Suspense fallback={<FeedbackLink text={" "} />}>
+        <FeedbackEntry />
+      </Suspense>
+
       {/* "Mehr" on narrow screens: what the header holds on wide screens. */}
       <section aria-label="Mehr" className="flex flex-col gap-3 desk:hidden">
         <Link
@@ -43,6 +52,38 @@ export default function SettingsPage() {
         <SettingsSections />
       </Suspense>
     </div>
+  );
+}
+
+/** Number of new reports, shown to everyone (the number at the bug only to admins). */
+async function FeedbackEntry() {
+  await connection();
+  let text: string;
+  try {
+    text = newFeedbackText(await countNewFeedback());
+  } catch {
+    text = "Meldungen ansehen";
+  }
+  return <FeedbackLink text={text} />;
+}
+
+function FeedbackLink({ text }: { text: string }) {
+  return (
+    <Link
+      href="/feedback"
+      className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-2 text-base"
+    >
+      <span className="flex items-center gap-3">
+        <BugIcon className="size-5 shrink-0 text-muted" />
+        <span className="flex flex-col leading-tight">
+          <span className="font-medium">Feedback</span>
+          <span className="text-sm text-muted">{text}</span>
+        </span>
+      </span>
+      <span aria-hidden className="text-muted">
+        ›
+      </span>
+    </Link>
   );
 }
 

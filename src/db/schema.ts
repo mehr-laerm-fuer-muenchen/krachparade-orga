@@ -321,3 +321,37 @@ export const meetingItems = pgTable(
 );
 
 export type MeetingItem = typeof meetingItems.$inferSelect;
+
+/**
+ * Spec 014: bug report or wish from the bug button in the header. Page,
+ * device and the open plan element are captured in the browser. Only admins
+ * change `status` and `reply`; entries are never deleted.
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    message: text("message").notNull(),
+    pagePath: text("page_path").notNull(),
+    pageTitle: text("page_title"),
+    /** Title of the plan element open in the detail panel, if any. */
+    context: text("context"),
+    device: text("device"),
+    viewport: text("viewport"),
+    status: text("status").notNull().default("new"),
+    reply: text("reply"),
+    createdBy: uuid("created_by").references(() => members.id, { onDelete: "set null" }),
+    /** Who last changed status or reply. */
+    updatedBy: uuid("updated_by").references(() => members.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("feedback_kind", sql`${table.kind} in ('bug', 'wish')`),
+    check("feedback_status", sql`${table.status} in ('new', 'in_progress', 'done', 'rejected')`),
+    index("feedback_created").on(table.createdAt),
+  ]
+);
+
+export type Feedback = typeof feedback.$inferSelect;

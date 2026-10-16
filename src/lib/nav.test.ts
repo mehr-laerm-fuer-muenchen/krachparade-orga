@@ -23,6 +23,14 @@ describe("isActiveTab", () => {
     expect(isActiveTab("/kollektive/x", more)).toBe(true);
     expect(isActiveTab("/meine", more)).toBe(false);
   });
+
+  it("marks Mehr and Einstellungen on the feedback pages", () => {
+    const settings = MAIN_NAV.find((item) => item.label === "Einstellungen")!;
+    expect(isActiveTab("/feedback", more)).toBe(true);
+    expect(isActiveTab("/feedback/abc", more)).toBe(true);
+    expect(isActiveTab("/feedback", settings)).toBe(true);
+    expect(isActiveTab("/feedback/abc", settings)).toBe(true);
+  });
 });
 
 describe("navigation", () => {
