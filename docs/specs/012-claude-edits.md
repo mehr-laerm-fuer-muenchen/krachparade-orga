@@ -91,4 +91,8 @@ Keine DB. Vor dem `deploy` prüft Franz den Diff von `.claude/settings.json` (un
 
 ## Abweichungen beim Bau
 
-(von Claude Code auszufüllen)
+- **a) Login-/Zugangs-Dateien:** ask-Regeln für `src/proxy.ts`, `src/auth.ts`, `src/app/api/auth/**`, `src/app/login/**`, `src/actions/auth.ts`, `src/lib/dev-login.ts`, `src/lib/dev-login.test.ts`, `src/lib/access.ts`, `src/lib/access.test.ts`, `src/lib/env.ts`, `src/db/index.ts` und `src/components/current-member.ts` (über die Beispiele der Spec hinaus). `requireAdmin` gibt es nicht; `requireMember` liegt in `src/auth.ts`. (von Franz freigegeben)
+- **b) Configs:** ask-Regeln für alle Config-Dateien im Repo-Stamm: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.json`, `.node-version`, `.gitignore`, `next.config.ts`, `drizzle.config.ts`, `drizzle.prod.config.ts`, `vitest.config.ts`, `playwright.config.ts`, `eslint.config.mjs`. `postcss.config.mjs` existiert nicht; `next-env.d.ts` (automatisch erzeugt) bleibt ohne Regel. (von Franz freigegeben)
+- **c) Write-Pfadregeln entfernt:** `Write(./.env)` und `Write(./.env.*)` aus `deny` entfernt, weil `Write(...)`-Pfadregeln nicht ausgewertet werden (Startwarnung). Die Sperren `Edit(./.env)`, `Edit(./.env.*)` und die `Read`-Sperren für `.env*` bleiben. Deshalb auch keine zusätzliche `Edit(/.env*)`-ask-Regel. (von Franz freigegeben)
+- **d) Shell-Sperren:** `Bash(sed -i*)`, `Bash(sed --in-place*)`, `Bash(perl -i*)`, `Bash(perl -pi*)`, `Bash(perl -p -i*)` ohne Doppelpunkt (`:*` würde ein Leerzeichen nach dem Präfix verlangen, `sed -i.bak` o. Ä. fiele durch). Hinweis: Die Regeln greifen nur, wenn `-i` direkt nach `sed`/`perl` steht; z. B. `sed -e … -i` ist **nicht** gesperrt. (von Franz freigegeben)
+- `AGENTS.md` nicht geändert: Abschnitt 9 („Agenten setzen diesen Haken nie selbst.“) und Abschnitt 3 („Den Freigabe-Haken in einer Spec setzen.“) decken Punkt 5 bereits ab.
