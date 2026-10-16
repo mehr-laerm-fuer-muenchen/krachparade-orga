@@ -115,3 +115,12 @@ Danach live, durch Franz in der App: Plan-Element „D-Day“ öffnen → Name �
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(Freigabe Franz)“)
+
+- **Abschnitt 4 entfällt (Freigabe Franz, 16.10.2026):** Es gibt kein Ziel-Element „D-Day“. Die Krachparade ist eine Verbindung ohne Ziel-Element (`to_element_id` leer = Datum der Ausgabe); der angezeigte Name kam aus festen Texten. `TEST_PLAN` und die KP27-Vorlage enthalten keine sichtbaren „D-Day“-/„D-N“-Texte. `src/db/seed.ts` und `src/db/kp27-template.ts` bleiben komplett unverändert (auch Kommentare und Konsolen-Ausgaben), kein `SEED_VERSION`-Sprung, kein `db:reset:dev` nötig. Am Namen wird nirgends etwas erkannt.
+- **`formatDLabel` aufgeteilt (Freigabe Franz):** `formatCountdown(today, dDay)` liefert `label` („noch N T“ / „heute!“ / „vorbei“) und `ariaLabel` für die Kopfleiste; `formatRelativeDay(date, dDay)` liefert „N T vorher“ / „Krachparade“ / „N T danach“ für Plan-Kopf, Gantt, Panel/Blatt und Wochen-Überschrift (Wochenliste und `/meine`). Beide in `src/lib/dday.ts`, Rechnung unverändert.
+- `D_DAY_NAME` in `src/lib/plan-edit.ts` heißt jetzt „Krachparade“ und ersetzt die festen Kopien (Gantt-Schild, Legende, Panel, Nachfolger-Auswahl, Formular „+ Element“).
+- **Countdown für Screenreader:** statt `aria-label` an einem `span` (wird von Screenreadern bei einfachen Elementen ignoriert) steht der ausgeschriebene Text als `sr-only` daneben, die sichtbare Kurzform ist `aria-hidden`.
+- **Kopfleiste 375 px:** keine Änderung am Aufbau nötig. Gemessen als Admin mit Zahl am Käfer, auch mit im Browser erzwungenem „noch 365 T“: Höhe 63 px wie vorher, Logo, Käfer (44 × 44) und Countdown in einer Reihe, `scrollWidth` 375. Der App-Name wird wie bisher abgeschnitten („Krachparade…“).
+- Gantt: die Namensspalte zeigt „17 T vorher“ statt „D-17“; lange Namen werden dadurch etwas früher abgeschnitten (voller Name im `title`).
+- Klicktests wählen den Nachfolger „Krachparade“ über den Wert `dday` statt über den angezeigten Namen.
+- Die Suche im Abgleich lief mit `grep` in der Shell (kein eigenes Such-Werkzeug in der Sitzung verfügbar), nur lesend und nur in `src/` und `e2e/`.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntil, formatDLabel, formatGermanDate, todayInBerlin } from "./dday";
+import { daysUntil, formatCountdown, formatGermanDate, formatRelativeDay, todayInBerlin } from "./dday";
 
 describe("daysUntil", () => {
   it("counts calendar days to the D-Day", () => {
@@ -25,11 +25,42 @@ describe("daysUntil", () => {
   });
 });
 
-describe("formatDLabel", () => {
-  it("shows D-n before, D-Day on and D+n after the day", () => {
-    expect(formatDLabel("2026-10-14", "2027-05-08")).toBe("D-206");
-    expect(formatDLabel("2027-05-08", "2027-05-08")).toBe("D-Day");
-    expect(formatDLabel("2027-05-12", "2027-05-08")).toBe("D+4");
+// Non-breaking space (U+00A0) between number and "T".
+const NBSP = String.fromCharCode(0xa0);
+
+describe("formatCountdown", () => {
+  it("counts down with a non-breaking space before T", () => {
+    expect(formatCountdown("2026-10-16", "2027-05-08")).toEqual({
+      label: `noch 204${NBSP}T`,
+      ariaLabel: "Noch 204 Tage bis zur Krachparade",
+    });
+    expect(formatCountdown("2027-05-07", "2027-05-08")).toEqual({
+      label: `noch 1${NBSP}T`,
+      ariaLabel: "Noch 1 Tag bis zur Krachparade",
+    });
+    expect(formatCountdown("2026-10-16", "2027-05-08").label).not.toMatch(/\d T/);
+  });
+
+  it("shows heute! on the day and vorbei after it", () => {
+    expect(formatCountdown("2027-05-08", "2027-05-08")).toEqual({
+      label: "heute!",
+      ariaLabel: "Heute ist Krachparade",
+    });
+    expect(formatCountdown("2027-05-09", "2027-05-08")).toEqual({
+      label: "vorbei",
+      ariaLabel: "Krachparade ist vorbei",
+    });
+  });
+});
+
+describe("formatRelativeDay", () => {
+  it("shows days before, the day itself and days after", () => {
+    expect(formatRelativeDay("2027-02-17", "2027-05-08")).toBe(`80${NBSP}T vorher`);
+    expect(formatRelativeDay("2027-05-07", "2027-05-08")).toBe(`1${NBSP}T vorher`);
+    expect(formatRelativeDay("2027-05-08", "2027-05-08")).toBe("Krachparade");
+    expect(formatRelativeDay("2027-05-11", "2027-05-08")).toBe(`3${NBSP}T danach`);
+    expect(formatRelativeDay("2027-05-09", "2027-05-08")).toBe(`1${NBSP}T danach`);
+    expect(formatRelativeDay("2027-02-17", "2027-05-08")).not.toMatch(/\d T/);
   });
 });
 

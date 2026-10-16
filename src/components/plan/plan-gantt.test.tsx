@@ -80,7 +80,7 @@ function render(overrides: Partial<PlanGanttProps> = {}): string {
 const count = (html: string, text: string) => html.split(text).length - 1;
 
 describe("PlanGantt", () => {
-  it("draws lanes, elements, today and D-Day", () => {
+  it("draws lanes, elements, today and the Krachparade line", () => {
     const html = render();
     expect(html).toContain('aria-label="Gantt-Plan"');
     expect(html).toContain("AK Demo &amp; Route");
@@ -88,7 +88,9 @@ describe("PlanGantt", () => {
     expect(count(html, 'data-testid="gantt-element"')).toBe(3);
     expect(count(html, 'data-testid="gantt-lane-bar"')).toBe(2);
     expect(html).toContain(">Heute<");
-    expect(html).toContain(">D-Day<");
+    expect(html).toContain(">Krachparade<");
+    expect(html).not.toContain("D-Day");
+    expect(html).not.toMatch(/D[-−+]\d/);
     expect(html).toContain("fill-gantt-late");
     expect(html).toContain("stroke-gantt-buffer");
     expect(html).toContain(">Fix<");
@@ -124,9 +126,9 @@ describe("PlanGantt", () => {
     expect(month).toBeGreaterThan(0);
   });
 
-  it("leaves out calendar week labels under the Heute and D-Day labels", () => {
+  it("leaves out calendar week labels under the Heute and Krachparade labels", () => {
     // Zoom Woche: KW 42 (Mo 12.10.2026) sits under "Heute" (Do 15.10.),
-    // KW 19 (Mo 10.05.2027) under "D-Day" (Sa 08.05.2027).
+    // KW 19 (Mo 10.05.2027) under "Krachparade" (Sa 08.05.2027).
     const html = render({ zoom: "week" });
     expect(html).not.toContain(">KW 42<");
     expect(html).not.toContain(">KW 19<");

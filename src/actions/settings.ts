@@ -55,7 +55,7 @@ export async function updateDDay(_prev: ActionState, formData: FormData): Promis
   if (updated.length === 0) return fail("Keine aktuelle Ausgabe gefunden.");
 
   refresh();
-  return { ok: true, message: "D-Day gespeichert." };
+  return { ok: true, message: "Datum der Krachparade gespeichert." };
 }
 
 const inviteInput = z.object({

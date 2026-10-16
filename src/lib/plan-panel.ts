@@ -1,4 +1,5 @@
 // Texts and choices of the editable detail panel (spec 008). Pure functions.
+import { D_DAY_NAME } from "./plan-edit";
 import { wouldCreateCycle, type PlanLinkInput, type PlanStatusReason } from "./plan-engine";
 
 function days(count: number): string {
@@ -62,7 +63,7 @@ export function successorCandidates(
   const own = links.filter((link) => link.fromId === id);
   const result: { id: string | null; name: string }[] = own.some((link) => link.toId === null)
     ? []
-    : [{ id: null, name: "D-Day" }];
+    : [{ id: null, name: D_DAY_NAME }];
   const others = elements
     .filter(
       (candidate) =>

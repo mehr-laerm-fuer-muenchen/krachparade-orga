@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointer
 import type { Status } from "@/components/status-pill";
 // Relative imports for runtime code (as in src/lib/): Vitest renders this
 // component and does not resolve the "@/" alias.
-import { formatDLabel } from "../../lib/dday";
+import { formatRelativeDay } from "../../lib/dday";
 import {
   buildRows,
   elbowPath,
@@ -24,6 +24,7 @@ import {
 } from "../../lib/gantt-layout";
 import { dayToDate } from "../../lib/plan-days";
 import { dragChanges, dragDays, isDrag, previewPlan, type DragMode } from "../../lib/plan-drag";
+import { D_DAY_NAME } from "../../lib/plan-edit";
 import type { PlanInput } from "../../lib/plan-engine";
 import { formatBuffer } from "../../lib/plan-preview";
 
@@ -213,7 +214,7 @@ export function PlanGantt({
   const months = monthTicks(range, dDay);
   const weeks = weekTicks(range, dDay);
   // Calendar week labels that would sit under the "Heute" or "D-Day" label are left out.
-  const dayLabels = [dayLabelBox(x(today), "Heute", "left"), dayLabelBox(x(0), "D-Day", "right")];
+  const dayLabels = [dayLabelBox(x(today), "Heute", "left"), dayLabelBox(x(0), D_DAY_NAME, "right")];
   const weekLabelFree = (day: number, label: string) => {
     const box = { left: x(day) + 3, right: x(day) + 3 + label.length * CHAR_WIDTH };
     return !dayLabels.some((dayLabel) => overlaps(box, dayLabel));
@@ -341,7 +342,7 @@ export function PlanGantt({
 
           {/* Today and D-Day over the whole height, labels with a background. */}
           <DayLine x={x(today)} height={height} label="Heute" side="left" className="stroke-accent" strokeWidth={2} />
-          <DayLine x={x(0)} height={height} label="D-Day" side="right" className="stroke-primary" dashed />
+          <DayLine x={x(0)} height={height} label={D_DAY_NAME} side="right" className="stroke-primary" dashed />
 
           {/* Dependencies of the selected element. */}
           {selected ? (
@@ -626,7 +627,7 @@ function NameRow({
         </span>
       ) : null}
       <span className="shrink-0 text-xs text-muted tabular-nums">
-        {formatDLabel(dayToDate(element.start, dDay), dDay)}
+        {formatRelativeDay(dayToDate(element.start, dDay), dDay)}
       </span>
     </button>
   );

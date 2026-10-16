@@ -2,7 +2,7 @@
 // Days are whole numbers relative to the D-Day as in the plan engine
 // (0 = D-Day, -80 = 80 days before). Pure functions, no database, no clock.
 import type { Status } from "@/components/status-pill";
-import { formatDLabel } from "./dday";
+import { formatRelativeDay } from "./dday";
 import { dayToDate } from "./plan-days";
 import type { PlanElementKind, PlanStatusReason } from "./plan-engine";
 import { formatWeekdayShort } from "./plan-preview";
@@ -440,7 +440,7 @@ export function weekHeading(monday: number, current: number, dDay: string): Pick
   const index = (monday - current) / 7;
   return {
     title: index === 0 ? "Diese Woche" : index === 1 ? "Nächste Woche" : `KW ${isoWeek(monday, dDay)}`,
-    range: `${formatDayMonth(monday, dDay)}–${formatDayMonth(monday + 6, dDay)} · ${formatDLabel(
+    range: `${formatDayMonth(monday, dDay)}–${formatDayMonth(monday + 6, dDay)} · ${formatRelativeDay(
       dayToDate(monday, dDay),
       dDay
     )}`,

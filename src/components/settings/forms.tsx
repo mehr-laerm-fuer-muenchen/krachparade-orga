@@ -37,7 +37,7 @@ export function DDayForm({ dDay, canEdit }: { dDay: string; canEdit: boolean }) 
   return (
     <form action={action} className="flex flex-col gap-2">
       <label htmlFor="dDay" className="font-medium">
-        D-Day
+        Datum der Krachparade
       </label>
       <div className="flex flex-wrap gap-2">
         <input

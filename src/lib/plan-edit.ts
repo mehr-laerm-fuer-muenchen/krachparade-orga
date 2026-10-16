@@ -5,7 +5,7 @@ import type { PlanElementKind, PlanLinkInput } from "./plan-engine";
 import { formatBuffer, formatWeekdayShort } from "./plan-preview";
 
 /** Name shown for a link to the D-Day. */
-export const D_DAY_NAME = "D-Day";
+export const D_DAY_NAME = "Krachparade";
 
 /** History texts the server actions write directly. */
 export const CREATED_SUMMARY = "Angelegt";
