@@ -196,5 +196,6 @@ DB-Änderung (nur hinzufügend: Spalte, Teil-Index, Tabelle). `deploy` → hält
 16. **Käfer-Kontext:** „AK ‹Name›“ hängt an einem unsichtbaren Element hinter dem Panel, damit ein offenes Plan-Element Kontext bleibt. (von Franz freigegeben)
 17. **Zusätze:** Ein AK ohne Aufgabenbereiche zeigt „Dieser AK hat noch keine Aufgabenbereiche.“ mit Link; bei unbekannter ID ist „Diesen AK gibt es nicht.“ die Seitenüberschrift. (von Franz freigegeben)
 18. **`/einstellungen`:** Nur das Linkziel ist auf `/arbeitskreise/verwalten` geändert, der Text „Auf der Seite AKs pflegen“ blieb. (von Franz freigegeben)
+19. **Kopfzeile der Aufgabenbereiche:** Im Arbeitsbereich hat die Kopfzeile jedes Aufgabenbereichs (auch „Ohne Aufgabenbereich“, auf- und zugeklappt) die getönte Fläche der AK-Zeilen im Gantt (bestehende Variable `--gantt-lane`, hell und dunkel, keine neue Variable); der Abstand zwischen zwei Bereichen ist von 16 auf 24 px vergrößert. (von Franz freigegeben)
 
 Hinweis: Kein Klicktest für deaktivierte Mitglieder; die Prüfung („Kein Zugriff.“ bei `active = false`) steht in jeder Server Action im Code.

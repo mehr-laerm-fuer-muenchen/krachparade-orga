@@ -583,9 +583,10 @@ function DepartmentSection({ group, data, cards, today, meetingTicks, show, open
     group.openMeetingTodos.length;
 
   return (
-    <section aria-labelledby={headingId} className="rounded-md border border-line bg-surface">
+    // The head has the tint of the Gantt's AK lanes, so every department clearly starts anew.
+    <section aria-labelledby={headingId} className="mt-2 overflow-hidden rounded-md border border-line bg-surface">
       <details open={open} onToggle={(event) => onToggle(event.currentTarget.open)}>
-        <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-2 px-4 py-2 hover:bg-surface-2">
+        <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-2 bg-gantt-lane px-4 py-2 hover:bg-surface-2">
           <h2 id={headingId} className="mr-1 min-w-0 text-lg font-semibold break-words [overflow-wrap:anywhere]">
             {name}
           </h2>
