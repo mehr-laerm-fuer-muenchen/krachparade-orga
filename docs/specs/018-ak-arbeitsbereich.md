@@ -188,3 +188,13 @@ DB-Änderung (nur hinzufügend: Spalte, Teil-Index, Tabelle). `deploy` → hält
 8. **Protokoll-Punkte:** Titel des Treffens über eine eigene Abfrage in `src/db/ak-workspace.ts`; Treffen im Entwurf zählen mit. (von Franz freigegeben)
 9. **Seed/Reset:** laufende Elemente und AK-Notizen im Seed nach `seedTestPlan` und nur ohne `--prod`, `SEED_VERSION` 9; `reset-dev.ts` bleibt unverändert, weil es alle Tabellen aus `schema.ts` in einem `TRUNCATE … CASCADE` leert. (von Franz freigegeben)
 10. **`FieldError`:** aus dem Panel nach `src/components/field-error.tsx` verlegt, damit Panel und `NoteHistory` denselben Baustein nutzen, ohne sich gegenseitig zu importieren; Verhalten unverändert. (von Franz freigegeben)
+11. **Bereich löschen in „AKs verwalten“:** Der Knopf „Löschen“ bleibt anklickbar; die Sperre „Hat laufende Aufgaben oder Notizen …“ meldet der Server als Fehlermeldung (bei Protokoll-Punkten ist der Knopf weiterhin vorher ausgegraut). (von Franz freigegeben)
+12. **Exporte aus `board.tsx`:** `useAction` und `ErrorMessage` sind exportiert, damit „Mach ich mit“ in Übersicht und Arbeitsbereich dieselbe Logik nutzt. (von Franz freigegeben)
+13. **Termin auf den Karten:** Meilenstein mit Datum, Vorgang mit „bis ‹Ende›“, jeweils mit „(N T vorher)“. (von Franz freigegeben)
+14. **Übersicht am Laptop:** 2 Spalten (bei 1024 px Seitenbreite wären 3 zu eng). (von Franz freigegeben)
+15. **Auswahl „Wer? (optional)“:** zwei Gruppen „Im AK“ und „Weitere“. (von Franz freigegeben)
+16. **Käfer-Kontext:** „AK ‹Name›“ hängt an einem unsichtbaren Element hinter dem Panel, damit ein offenes Plan-Element Kontext bleibt. (von Franz freigegeben)
+17. **Zusätze:** Ein AK ohne Aufgabenbereiche zeigt „Dieser AK hat noch keine Aufgabenbereiche.“ mit Link; bei unbekannter ID ist „Diesen AK gibt es nicht.“ die Seitenüberschrift. (von Franz freigegeben)
+18. **`/einstellungen`:** Nur das Linkziel ist auf `/arbeitskreise/verwalten` geändert, der Text „Auf der Seite AKs pflegen“ blieb. (von Franz freigegeben)
+
+Hinweis: Kein Klicktest für deaktivierte Mitglieder; die Prüfung („Kein Zugriff.“ bei `active = false`) steht in jeder Server Action im Code.
