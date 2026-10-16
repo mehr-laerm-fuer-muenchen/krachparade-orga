@@ -84,6 +84,31 @@ describe("toTelegramText", () => {
   it("never contains e-mail addresses", () => {
     expect(toTelegramText(meeting, items, names)).not.toMatch(/@/);
   });
+
+  it("puts the summary as its own paragraph after the attendees, without a heading", () => {
+    const text = toTelegramText(
+      { ...meeting, summary: "  Route steht.\nGeld fehlt noch.  " },
+      [item({ kind: "entscheidung", text: "Start am Odeonsplatz" })],
+      names
+    );
+    expect(text).toBe(
+      [
+        "Orga-Treffen – 14.10.2026",
+        "Anwesend: Alex Rauch, Kim Brenner, Gast Beispiel",
+        "",
+        "Route steht.",
+        "Geld fehlt noch.",
+        "",
+        "Beschlüsse:",
+        "– Start am Odeonsplatz",
+      ].join("\n")
+    );
+  });
+
+  it("stays unchanged with an empty summary", () => {
+    expect(toTelegramText({ ...meeting, summary: null }, items, names)).toBe(toTelegramText(meeting, items, names));
+    expect(toTelegramText({ ...meeting, summary: "   " }, items, names)).toBe(toTelegramText(meeting, items, names));
+  });
 });
 
 describe("toMarkdown", () => {
@@ -124,5 +149,34 @@ describe("toMarkdown", () => {
       names
     );
     expect(text).toBe(["# Orga-Treffen", "", "- **Datum:** 14.10.2026"].join("\n"));
+  });
+
+  it("puts the summary under its own label after the head", () => {
+    const text = toMarkdown(
+      { ...meeting, place: "", moderatorId: null, minuteTakerId: null, guests: "", summary: "Route steht.\nGeld fehlt." },
+      [item({ kind: "info", text: "Route steht grob" })],
+      names
+    );
+    expect(text).toBe(
+      [
+        "# Orga-Treffen",
+        "",
+        "- **Datum:** 14.10.2026",
+        "- **Anwesend:** Alex Rauch, Kim Brenner",
+        "",
+        "**Kurzfassung**",
+        "",
+        "Route steht.",
+        "Geld fehlt.",
+        "",
+        "## Route",
+        "",
+        "- **Info:** Route steht grob",
+      ].join("\n")
+    );
+  });
+
+  it("stays unchanged with an empty summary", () => {
+    expect(toMarkdown({ ...meeting, summary: " " }, items, names)).toBe(toMarkdown(meeting, items, names));
   });
 });

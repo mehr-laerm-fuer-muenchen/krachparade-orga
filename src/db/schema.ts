@@ -254,6 +254,8 @@ export const meetings = pgTable(
     guests: text("guests").notNull().default(""),
     /** Pasted note or transcript. */
     rawNotes: text("raw_notes").notNull().default(""),
+    /** A few sentences written by hand, shown on top of the read view (spec 017). */
+    summary: text("summary"),
     status: text("status").notNull().default("entwurf"),
     createdBy: uuid("created_by")
       .notNull()

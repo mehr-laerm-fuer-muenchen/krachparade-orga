@@ -13,6 +13,7 @@ import { findMemberById } from "@/db/members";
 import { departments, meetingAttendees, meetingItems, meetings, members, type Member } from "@/db/schema";
 import { todayInBerlin } from "@/lib/dday";
 import { moveItem } from "@/lib/permissions";
+import { SUMMARY_MAX } from "@/lib/protocol-read";
 import { canDeleteMeeting, groupByTopic, ITEM_KINDS, MEETING_STATUSES } from "@/lib/protocol-rules";
 
 // Spec 004: everyone who is signed in and active may edit everything. Every
@@ -213,6 +214,26 @@ export async function saveMeetingNotes(meetingId: string, rawNotes: string): Pro
   await db
     .update(meetings)
     .set({ rawNotes: parsed.data, updatedAt: new Date() })
+    .where(eq(meetings.id, context.meeting.id));
+  refresh();
+  return OK;
+}
+
+const summaryInput = z
+  .string()
+  .trim()
+  .max(SUMMARY_MAX, "Die Kurzfassung ist zu lang (höchstens 2000 Zeichen).")
+  .transform((value) => value || null);
+
+/** A few sentences on top of the read view (spec 017); empty clears it. */
+export async function saveMeetingSummary(meetingId: string, summary: string): Promise<MeetingActionResult> {
+  const context = await loadMeetingContext(meetingId);
+  if (!("meeting" in context)) return context;
+  const parsed = summaryInput.safeParse(summary);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? GENERIC_ERROR);
+  await db
+    .update(meetings)
+    .set({ summary: parsed.data, updatedAt: new Date() })
     .where(eq(meetings.id, context.meeting.id));
   refresh();
   return OK;

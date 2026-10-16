@@ -15,6 +15,8 @@ export type MeetingData = {
   minuteTakerId: string | null;
   guests: string;
   rawNotes: string;
+  /** Short summary (spec 017), empty if none. */
+  summary: string;
   status: MeetingStatus;
 };
 

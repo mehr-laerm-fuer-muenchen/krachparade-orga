@@ -48,7 +48,7 @@ async function createMeeting(page: Page, title: string): Promise<string> {
 
 /** Deletes the meeting; `required` fails if the button is missing, otherwise a gone meeting is fine. */
 async function deleteMeeting(page: Page, url: string, required = false) {
-  await page.goto(url);
+  await page.goto(`${url}?ansicht=bearbeiten`);
   const head = page.getByRole("region", { name: "Kopf" });
   await expect(head.or(page.getByText("This page could not be found."))).toBeVisible();
   const button = head.getByRole("button", { name: "Treffen löschen" });
@@ -210,6 +210,9 @@ test.describe("Protokoll", () => {
     // --- Final locks nothing ------------------------------------------------------
     await page.goto(url);
     await Promise.all([saved(page), page.getByRole("button", { name: "Final" }).click()]);
+    // Final opens the read view (spec 017); editing is one click away.
+    await expect(page).toHaveURL(/\?ansicht=lesen$/);
+    await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
     await expect(page.getByRole("button", { name: "Final" })).toHaveAttribute("aria-pressed", "true");
     await items.getByRole("button", { name: `Bearbeiten: E2E Info ${run}` }).click();
     const editor = page.getByRole("form", { name: "Punkt bearbeiten" });
@@ -229,6 +232,7 @@ test.describe("Protokoll", () => {
 
     await page.goto(url);
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await page.getByRole("link", { name: "Bearbeiten", exact: true }).click();
     await expect(page.getByRole("region", { name: "Kopf" }).getByRole("button", { name: "Entwurf" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Treffen löschen" })).toHaveCount(0);
 

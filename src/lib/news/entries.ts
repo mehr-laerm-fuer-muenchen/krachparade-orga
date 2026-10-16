@@ -16,6 +16,25 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "017-protokoll-lesen",
+    date: "2026-10-16",
+    title: "Protokolle lesen und bearbeiten",
+    items: [
+      {
+        lead: "Leseansicht.",
+        text: "Fertige Protokolle zeigen oben die Kurzfassung, dann Beschlüsse und To-dos, darunter die Infos je TOP – ohne Eingabefelder.",
+      },
+      {
+        lead: "Ein Knopf zum Wechseln.",
+        text: "Mit „Bearbeiten“ und „Leseansicht“ wechselst du jederzeit. Entwürfe öffnen zum Bearbeiten, finale Protokolle zum Lesen.",
+      },
+      {
+        lead: "Kurzfassung.",
+        text: "Ein paar Sätze zum Treffen, die oben in der Leseansicht und im Telegram-Text stehen.",
+      },
+    ],
+  },
+  {
     id: "016-checklisten-fortschritt",
     date: "2026-10-16",
     title: "Abhaken und Fortschritt im Plan",

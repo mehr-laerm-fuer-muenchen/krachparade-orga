@@ -14,7 +14,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "7";
+export const SEED_VERSION = "8";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -97,6 +97,9 @@ export const TEST_MEETING = {
   minuteTaker: "sascha.moeller@example.org",
   attendees: ["kim.brenner@example.org", "alex.rauch@example.org", "sascha.moeller@example.org"],
   guests: "Gast Beispiel",
+  // Spec 017
+  summary:
+    "Die Route bleibt wie im Vorjahr, Start und Ende sind beschlossen. Offen ist noch, wie wir das Geld für die Wagen zusammenbekommen.",
   createdBy: "kim.brenner@example.org",
   items: [
     { topic: "Route", kind: "info", text: "Die Route vom letzten Jahr ist als Vorlage da." },
@@ -247,7 +250,7 @@ export async function seed({ prod }: { prod: boolean }) {
   const { db } = await import("./index");
   const { asc, eq } = await import("drizzle-orm");
   const { and } = await import("drizzle-orm");
-  const { inArray, isNull } = await import("drizzle-orm");
+  const { inArray, isNull, or } = await import("drizzle-orm");
   const { appMeta, departments, editions, meetingAttendees, meetingItems, meetings, members } =
     await import("./schema");
   const { workingGroupMembers, workingGroups } = await import("./schema");
@@ -309,7 +312,15 @@ export async function seed({ prod }: { prod: boolean }) {
       .where(and(eq(meetings.editionId, edition.id), eq(meetings.title, TEST_MEETING.title)))
       .limit(1);
     if (existing) {
-      console.log(`meetings: ${TEST_MEETING.title} schon vorhanden`);
+      // Spec 017: only fills an empty summary, never overwrites one.
+      const filled = await db
+        .update(meetings)
+        .set({ summary: TEST_MEETING.summary })
+        .where(and(eq(meetings.id, existing.id), or(isNull(meetings.summary), eq(meetings.summary, ""))))
+        .returning({ id: meetings.id });
+      console.log(
+        `meetings: ${TEST_MEETING.title} schon vorhanden${filled.length > 0 ? ", Kurzfassung ergänzt" : ""}`
+      );
     } else {
       const memberId = (email: string) => {
         const id = memberIds.get(email);
@@ -334,6 +345,7 @@ export async function seed({ prod }: { prod: boolean }) {
           moderatorId: memberId(TEST_MEETING.moderator),
           minuteTakerId: memberId(TEST_MEETING.minuteTaker),
           guests: TEST_MEETING.guests,
+          summary: TEST_MEETING.summary,
           createdBy: memberId(TEST_MEETING.createdBy),
         })
         .returning({ id: meetings.id });
