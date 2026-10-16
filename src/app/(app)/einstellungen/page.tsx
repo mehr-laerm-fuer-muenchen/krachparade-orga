@@ -237,7 +237,7 @@ function PeopleSection({
   );
 }
 
-/** Departments are kept on the AK page since spec 005. */
+/** Departments are kept on the AK page since spec 005, on "AKs verwalten" since spec 018. */
 function WorkingGroupsSection() {
   return (
     <section aria-labelledby="arbeitskreise" className={SECTION}>
@@ -245,7 +245,7 @@ function WorkingGroupsSection() {
         AKs und Aufgabenbereiche
       </h2>
       <Link
-        href="/arbeitskreise"
+        href="/arbeitskreise/verwalten"
         className="flex min-h-11 w-fit items-center font-medium text-primary underline underline-offset-4"
       >
         Auf der Seite AKs pflegen

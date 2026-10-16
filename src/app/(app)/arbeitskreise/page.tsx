@@ -1,98 +1,70 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
-import {
-  CreateGroupForm,
-  FinalNotice,
-  GroupCard,
-  UngroupedCard,
-  type BoardDepartment,
-  type BoardGroup,
-} from "@/components/working-groups/board";
-import { listDepartments } from "@/db/departments";
-import { getCurrentEdition } from "@/db/editions";
-import { listMembers } from "@/db/members";
-import { countDepartmentUsage, listWorkingGroupMembers, listWorkingGroups } from "@/db/working-groups";
-import { displayGroupName } from "@/lib/working-groups";
+import { FinalNotice } from "@/components/working-groups/board";
+import { AkOverviewCardView } from "@/components/working-groups/overview";
+import { loadAkOverview } from "@/db/ak-workspace";
+import { todayInBerlin } from "@/lib/dday";
 
 export const metadata: Metadata = {
   title: "AKs – Krachparade Orga",
 };
 
+const NOTICE = "rounded-md border border-line bg-surface px-4 py-3 text-muted";
+const MANAGE_LINK = "flex min-h-11 items-center font-medium text-primary underline underline-offset-4";
+
+/** Overview of all working groups (spec 018); managing them moved to /arbeitskreise/verwalten. */
 export default function WorkingGroupsPage() {
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle>AKs</PageTitle>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <div className="flex min-w-0 flex-col gap-1">
+          <PageTitle>AKs</PageTitle>
+          <p className="text-muted">Lage je Arbeitskreis. Antippen öffnet den Arbeitsbereich.</p>
+        </div>
+        <Link href="/arbeitskreise/verwalten" className={`${MANAGE_LINK} text-sm`}>
+          AKs verwalten
+        </Link>
+      </div>
       <Suspense fallback={<p className="text-muted">Lade AKs …</p>}>
-        <WorkingGroups />
+        <Overview />
       </Suspense>
     </div>
   );
 }
 
-/**
- * Working groups of the current edition with their departments and members
- * (spec 005). Names only, never e-mail addresses. Admin controls are only
- * shown to admins; the server actions check the rights again on every call.
- */
-async function WorkingGroups() {
-  const [viewer, edition] = await Promise.all([getCurrentMember(), getCurrentEdition()]);
-  if (!edition) {
-    return <p className="rounded-md border border-line bg-surface px-4 py-3 text-muted">Noch keine aktuelle Ausgabe angelegt.</p>;
+async function Overview() {
+  const member = await getCurrentMember();
+  const overview = await loadAkOverview(member.id, todayInBerlin(new Date()));
+  if (overview.status === "no_edition") return <p className={NOTICE}>Noch keine aktuelle Ausgabe angelegt.</p>;
+  if (overview.status === "cycle") {
+    return (
+      <p role="alert" className="font-medium text-status-late">
+        Der Plan lässt sich nicht berechnen: Die Verbindungen enthalten einen Kreis. Die Lage der AKs erscheint wieder,
+        sobald der Kreis im Plan aufgelöst ist.
+      </p>
+    );
   }
-
-  const [groups, memberships, departments, usage, people] = await Promise.all([
-    listWorkingGroups(edition.id),
-    listWorkingGroupMembers(edition.id),
-    listDepartments(edition.id),
-    countDepartmentUsage(edition.id),
-    listMembers(),
-  ]);
-
-  const toBoardDepartment = (department: (typeof departments)[number]): BoardDepartment => ({
-    id: department.id,
-    name: department.name,
-    inUse: (usage.get(department.id) ?? 0) > 0,
-  });
-  const boardGroups: BoardGroup[] = groups.map((group) => ({
-    id: group.id,
-    name: group.name,
-    title: displayGroupName(group.name),
-    departments: departments.filter((department) => department.workingGroupId === group.id).map(toBoardDepartment),
-    members: memberships
-      .filter((membership) => membership.workingGroupId === group.id)
-      .map((membership) => ({ id: membership.memberId, name: membership.name, active: membership.active })),
-  }));
-  const ungrouped = departments.filter((department) => department.workingGroupId === null).map(toBoardDepartment);
-  const targets = boardGroups.map((group) => ({ id: group.id, title: group.title }));
-  const activePeople = people
-    .filter((person) => person.active)
-    .map((person) => ({ id: person.id, name: person.name }))
-    .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
   return (
     <>
-      <FinalNotice final={edition.workingGroupsFinal} isAdmin={viewer.isAdmin} />
-      {boardGroups.length === 0 ? (
-        <p className="rounded-md border border-line bg-surface px-4 py-3 text-muted">Noch keine AKs.</p>
-      ) : null}
-      <div className="grid items-start gap-4 desk:grid-cols-2">
-        {boardGroups.map((group, index) => (
-          <GroupCard
-            key={group.id}
-            group={group}
-            targets={targets}
-            viewerId={viewer.id}
-            isAdmin={viewer.isAdmin}
-            activePeople={activePeople}
-            isFirst={index === 0}
-            isLast={index === boardGroups.length - 1}
-          />
-        ))}
-        {ungrouped.length > 0 ? <UngroupedCard departments={ungrouped} targets={targets} /> : null}
-      </div>
-      <CreateGroupForm />
+      <FinalNotice final={overview.final} isAdmin={member.isAdmin} showToggle={false} />
+      {overview.cards.length === 0 ? (
+        <p className={NOTICE}>
+          Noch keine AKs.{" "}
+          <Link href="/arbeitskreise/verwalten" className="font-medium text-primary underline underline-offset-2">
+            AKs verwalten
+          </Link>
+        </p>
+      ) : (
+        <div className="grid items-start gap-4 desk:grid-cols-2">
+          {overview.cards.map((card) => (
+            <AkOverviewCardView key={card.id} card={card} viewerId={member.id} dDay={overview.dDay} />
+          ))}
+        </div>
+      )}
     </>
   );
 }

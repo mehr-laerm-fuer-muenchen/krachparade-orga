@@ -16,6 +16,33 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "018-ak-arbeitsbereich",
+    date: "2026-10-16",
+    title: "Arbeitsbereich für jeden AK",
+    items: [
+      {
+        lead: "AKs auf einen Blick.",
+        text: "Die Seite „AKs“ zeigt für jeden AK, was in Verzug ist, was wackelt, wie viele To-dos offen sind und was als Nächstes ansteht.",
+      },
+      {
+        lead: "Arbeitsbereich je AK.",
+        text: "Tipp eine AK-Karte an: Oben steht, was Aufmerksamkeit braucht, darunter je Aufgabenbereich Plan, To-dos aus Treffen und Beschlüsse. Abhaken geht direkt dort.",
+      },
+      {
+        lead: "Laufende Aufgaben.",
+        text: "Punkte ohne Termin trägst du im Aufgabenbereich ein. Sie stehen nicht im Gantt, aber in „Meine“ unter „Ohne Datum“.",
+      },
+      {
+        lead: "Notizen.",
+        text: "Freie Notizen gibt es jetzt für den ganzen AK und für jeden Aufgabenbereich.",
+      },
+      {
+        lead: "AKs verwalten.",
+        text: "Wer in welchem AK ist und welche Bereiche dazugehören, pflegst du über „AKs verwalten“ oben auf der Seite.",
+      },
+    ],
+  },
+  {
     id: "017-protokoll-lesen",
     date: "2026-10-16",
     title: "Protokolle lesen und bearbeiten",

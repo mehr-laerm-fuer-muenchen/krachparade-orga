@@ -5,30 +5,40 @@ import { createElement } from "@/actions/plan";
 import type { GanttGroup } from "@/lib/gantt-layout";
 import { D_DAY_NAME } from "@/lib/plan-edit";
 import { displayGroupName } from "@/lib/working-groups";
+import type { PlanDepartmentOption } from "./plan-detail";
 
 const INPUT = "min-h-11 rounded-md border border-line-strong bg-surface px-3 text-base";
 
 /**
  * Short form for a new plan element (spec 008): a small window on laptops,
  * a sheet on phones. Every element gets a successor (default: the D-Day).
+ * With `departments` (AK workspace, spec 018) it also asks for the
+ * department, limited to the chosen AK.
  */
 export function PlanNewElement({
   groups,
   elements,
   defaultGroupId,
+  departments,
+  defaultDepartmentId = null,
   onCreated,
   onClose,
 }: {
   groups: readonly GanttGroup[];
   elements: readonly { id: string; name: string }[];
   defaultGroupId: string | null;
+  departments?: readonly PlanDepartmentOption[];
+  defaultDepartmentId?: string | null;
   onCreated: (id: string) => void;
   onClose: () => void;
 }) {
   const [kind, setKind] = useState<"milestone" | "task">("task");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [groupId, setGroupId] = useState(defaultGroupId ?? "");
+  const [departmentId, setDepartmentId] = useState(defaultDepartmentId ?? "");
   const successors = [...elements].sort((a, b) => a.name.localeCompare(b.name, "de"));
+  const groupDepartments = (departments ?? []).filter((department) => department.workingGroupId === (groupId || null));
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -50,6 +60,7 @@ export function PlanNewElement({
       const result = await createElement({
         name: String(data.get("name") ?? ""),
         workingGroupId: String(data.get("group") ?? "") || null,
+        ...(departments ? { departmentId: String(data.get("department") ?? "") || null } : {}),
         kind,
         durationDays: kind === "task" ? number("duration") : undefined,
         successorId: data.get("successor") === "dday" ? null : String(data.get("successor") ?? ""),
@@ -94,7 +105,15 @@ export function PlanNewElement({
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm text-muted">AK</span>
-            <select name="group" defaultValue={defaultGroupId ?? ""} className={INPUT}>
+            <select
+              name="group"
+              value={groupId}
+              onChange={(event) => {
+                setGroupId(event.target.value);
+                setDepartmentId("");
+              }}
+              className={INPUT}
+            >
               <option value="">– ohne AK –</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
@@ -103,6 +122,24 @@ export function PlanNewElement({
               ))}
             </select>
           </label>
+          {departments ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm text-muted">Aufgabenbereich</span>
+              <select
+                name="department"
+                value={departmentId}
+                onChange={(event) => setDepartmentId(event.target.value)}
+                className={INPUT}
+              >
+                <option value="">– ohne Aufgabenbereich –</option>
+                {groupDepartments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <div role="group" aria-label="Art" className="flex overflow-hidden rounded-md border border-line">
             {(
               [
