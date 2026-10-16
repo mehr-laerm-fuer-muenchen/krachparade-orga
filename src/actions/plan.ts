@@ -639,7 +639,7 @@ export async function setFixedDate(
   } else {
     const parsed = dateInput.safeParse(date);
     if (!parsed.success) return fail(firstMessage(parsed.error));
-    if (Math.abs(dateToDay(parsed.data, plan.dDay)) > MAX_DAYS) return fail("Bitte ein Datum näher am D-Day wählen.");
+    if (Math.abs(dateToDay(parsed.data, plan.dDay)) > MAX_DAYS) return fail("Bitte ein Datum näher an der Krachparade wählen.");
     fixedDate = parsed.data;
   }
   return saveElementPatch(context, { fixedDate });

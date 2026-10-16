@@ -129,7 +129,7 @@ test.describe("Plan", () => {
     await expect(page.getByTestId("gantt-element")).toHaveCount(7);
     await expect(ganttName(page, "Budget KP27 beschlossen")).toBeVisible();
     await expect(ganttName(page, "Schildermalen")).toHaveCount(0);
-    await expect(page.getByText(/Kritischer Pfad: 7 Elemente, Start spätestens \S+ \d{2}\.\d{2}\. \(D-150\)/)).toBeVisible();
+    await expect(page.getByText(/Kritischer Pfad: 7 Elemente, Start spätestens \S+ \d{2}\.\d{2}\. \(150\sT vorher\)/)).toBeVisible();
     await page.getByRole("button", { name: "Kritischer Pfad", exact: true }).click();
     await expect(ganttName(page, "Schildermalen")).toBeVisible();
 

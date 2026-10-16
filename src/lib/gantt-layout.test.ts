@@ -19,6 +19,7 @@ import {
   formatWeekdayDate,
   type AgendaElement,
 } from "./gantt-layout";
+import { NBSP } from "./dday";
 import { dateToDay, dayToDate } from "./plan-days";
 
 const D_DAY = "2027-05-08"; // a Saturday
@@ -266,7 +267,7 @@ describe("weekAgenda", () => {
     const result = agenda([]);
     expect(result.overdue).toEqual([]);
     expect(result.weeks).toHaveLength(1);
-    expect(result.weeks[0]).toMatchObject({ title: "Diese Woche", range: "15.02.–21.02. · D-82", entries: [] });
+    expect(result.weeks[0]).toMatchObject({ title: "Diese Woche", range: `15.02.–21.02. · 82${NBSP}T vorher`, entries: [] });
     expect(result.hasMore).toBe(false);
   });
 
@@ -280,7 +281,7 @@ describe("weekAgenda", () => {
       ["sunday", "Meilenstein · So 21.02."],
     ]);
     expect(result.weeks[1].entries.map((entry) => entry.key)).toEqual(["monday"]);
-    expect(result.weeks[1].range).toBe("22.02.–28.02. · D-75");
+    expect(result.weeks[1].range).toBe(`22.02.–28.02. · 75${NBSP}T vorher`);
   });
 
   it("shows starts and ends of tasks, running tasks only in the current week", () => {

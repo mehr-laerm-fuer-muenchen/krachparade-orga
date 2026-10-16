@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // "E2E … ‹run›" and unique per run; elements of the seed are never changed
 // (the click tests of spec 007 need them). Everything created here is
 // deleted at the end, also after a failure. Needs the dev seed (members Kim
-// Brenner and Alex Rauch, D-Day 08.05.2027).
+// Brenner and Alex Rauch, Krachparade 08.05.2027).
 
 const D_DAY = "2027-05-08";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -42,10 +42,13 @@ function details(page: Page) {
   return page.getByRole("complementary", { name: "Details" });
 }
 
-/** Name button of an element in the Gantt: name, maybe "Fix", then its D label. */
+/** Relative date at the end of a name button: "52 T vorher", "Krachparade", "3 T danach". */
+const RELATIVE_DAY = /(\d+\sT (vorher|danach)|Krachparade)$/;
+
+/** Name button of an element in the Gantt: name, maybe "Fix", then its relative date. */
 function ganttName(page: Page, name: string) {
   return page
-    .getByRole("button", { name: new RegExp(`^${escape(name)}\\s*(Fix\\s*)?D[-+]`) })
+    .getByRole("button", { name: new RegExp(`^${escape(name)}\\s*(Fix\\s*)?${RELATIVE_DAY.source}`) })
     .filter({ visible: true });
 }
 
@@ -71,7 +74,14 @@ async function openInGantt(page: Page, name: string) {
   return panel;
 }
 
-type NewElement = { name: string; kind: "Meilenstein" | "Vorgang"; duration?: number; successor: string; lag: number };
+/** `successor` null = the Krachparade (selected by its option value, not its name). */
+type NewElement = {
+  name: string;
+  kind: "Meilenstein" | "Vorgang";
+  duration?: number;
+  successor: string | null;
+  lag: number;
+};
 
 /** "+ Element" → short form → "Anlegen"; the new element is selected afterwards. */
 async function createElement(page: Page, element: NewElement) {
@@ -82,7 +92,9 @@ async function createElement(page: Page, element: NewElement) {
   await dialog.getByLabel("Name", { exact: true }).fill(element.name);
   await dialog.getByRole("group", { name: "Art" }).getByRole("button", { name: element.kind }).click();
   if (element.duration !== undefined) await dialog.getByLabel("Dauer in Tagen").fill(String(element.duration));
-  await dialog.getByLabel("Nachfolger").selectOption({ label: element.successor });
+  await dialog
+    .getByLabel("Nachfolger")
+    .selectOption(element.successor === null ? { value: "dday" } : { label: element.successor });
   await dialog.getByLabel("Abstand (T)").fill(String(element.lag));
   await dialog.getByRole("button", { name: "Anlegen" }).click();
   await expect(dialog).toHaveCount(0);
@@ -114,9 +126,9 @@ async function closeNotice(page: Page) {
   if (await close.isVisible()) await close.click();
 }
 
-/** "D-52" from the name button of an element. */
+/** "52 T vorher" (or "Krachparade", "3 T danach") from the name button of an element. */
 async function dLabel(page: Page, name: string): Promise<string> {
-  return /D[-+]\d+$/.exec((await ganttName(page, name).textContent()) ?? "")?.[0] ?? "";
+  return RELATIVE_DAY.exec((await ganttName(page, name).textContent()) ?? "")?.[0] ?? "";
 }
 
 test.describe("Plan bearbeiten", () => {
@@ -175,8 +187,8 @@ test.describe("Plan bearbeiten", () => {
     const c = `E2E C ${run}`;
     created.push(a, `${a} neu`, b, c);
 
-    // Three elements: A → D-Day (40 T), B → A, C → B (3 T).
-    await createElement(page, { name: a, kind: "Vorgang", duration: 10, successor: "D-Day", lag: 40 });
+    // Three elements: A → Krachparade (40 T), B → A, C → B (3 T).
+    await createElement(page, { name: a, kind: "Vorgang", duration: 10, successor: null, lag: 40 });
     await createElement(page, { name: b, kind: "Meilenstein", successor: a, lag: 0 });
     await createElement(page, { name: c, kind: "Vorgang", duration: 5, successor: b, lag: 3 });
     for (const name of [a, b, c]) await expect(ganttName(page, name)).toBeVisible();
@@ -338,11 +350,11 @@ test.describe("Plan bearbeiten", () => {
 
     // A task starting today, so it shows up in "Diese Woche".
     const daysToDDay = Math.round((Date.parse(`${D_DAY}T00:00:00Z`) - Date.parse(`${todayInBerlin()}T00:00:00Z`)) / DAY_MS);
-    test.skip(daysToDDay < 8 || daysToDDay > 372, "braucht einen D-Day 8 bis 372 Tage in der Zukunft");
+    test.skip(daysToDDay < 8 || daysToDDay > 372, "braucht eine Krachparade 8 bis 372 Tage in der Zukunft");
     const name = `E2E M ${Date.now().toString(36)}`;
     created.push(name);
 
-    await createElement(page, { name, kind: "Vorgang", duration: 7, successor: "D-Day", lag: daysToDDay - 7 });
+    await createElement(page, { name, kind: "Vorgang", duration: 7, successor: null, lag: daysToDDay - 7 });
     await expectNoHorizontalScroll(page);
     await details(page).getByRole("button", { name: "Details schließen" }).click();
 

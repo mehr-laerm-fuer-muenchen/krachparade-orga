@@ -77,7 +77,7 @@ function unassignedList(page: Page) {
   return page.getByRole("list", { name: "Noch niemand eingetragen" });
 }
 
-/** "+ Element" on the plan page: a task of `days` days in Kim's AK, 20 days before the D-Day, nobody responsible. */
+/** "+ Element" on the plan page: a task of `days` days in Kim's AK, 20 days before the Krachparade, nobody responsible. */
 async function createElement(page: Page, name: string, days: number) {
   await page.goto("/");
   await expectPageReady(page, /^Plan /);
@@ -88,7 +88,7 @@ async function createElement(page: Page, name: string, days: number) {
   await dialog.locator('select[name="group"]').selectOption({ label: AK });
   await dialog.getByRole("group", { name: "Art" }).getByRole("button", { name: "Vorgang" }).click();
   await dialog.getByLabel("Dauer in Tagen").fill(String(days));
-  await dialog.getByLabel("Nachfolger").selectOption({ label: "D-Day" });
+  await dialog.getByLabel("Nachfolger").selectOption({ value: "dday" });
   await dialog.getByLabel("Abstand (T)").fill("20");
   await dialog.getByRole("button", { name: "Anlegen" }).click();
   await expect(dialog).toHaveCount(0);

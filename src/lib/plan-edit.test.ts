@@ -159,7 +159,7 @@ describe("changeSummaries", () => {
       "Vorgänger verbunden: Anmeldung offen (0 T)",
     ]);
     expect(summaries({ successors: [] }, { successors: [{ id: null, lagDays: 0 }] })).toEqual([
-      "Nachfolger gelöst: D-Day",
+      "Nachfolger gelöst: Krachparade",
     ]);
     expect(summaries({ successors: [{ id: "e2", lagDays: 10 }] }, { successors: [{ id: "e2", lagDays: 15 }] })).toEqual(
       ["Abstand zu Finaler Crosscheck: 15 → 10 T"]

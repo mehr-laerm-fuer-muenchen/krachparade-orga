@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createElement } from "@/actions/plan";
 import type { GanttGroup } from "@/lib/gantt-layout";
+import { D_DAY_NAME } from "@/lib/plan-edit";
 import { displayGroupName } from "@/lib/working-groups";
 
 const INPUT = "min-h-11 rounded-md border border-line-strong bg-surface px-3 text-base";
@@ -138,7 +139,7 @@ export function PlanNewElement({
             <label className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-sm text-muted">Nachfolger</span>
               <select name="successor" required defaultValue="dday" className={INPUT}>
-                <option value="dday">D-Day</option>
+                <option value="dday">{D_DAY_NAME}</option>
                 {successors.map((element) => (
                   <option key={element.id} value={element.id}>
                     {element.name}

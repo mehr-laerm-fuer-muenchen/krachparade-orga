@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageTitle } from "@/components/placeholder";
-import { formatDLabel } from "@/lib/dday";
+import { formatRelativeDay } from "@/lib/dday";
 import {
   NO_GROUP_KEY,
   type GanttGroup,
@@ -11,6 +11,7 @@ import {
   type Zoom,
 } from "@/lib/gantt-layout";
 import { dayToDate } from "@/lib/plan-days";
+import { D_DAY_NAME } from "@/lib/plan-edit";
 import type { PlanInput } from "@/lib/plan-engine";
 import { defaultGroupId } from "@/lib/plan-panel";
 import { countLate, formatWeekdayShort } from "@/lib/plan-preview";
@@ -165,7 +166,7 @@ function Legend() {
       <LegendItem label="Heute">
         <line x1="9" x2="9" y1="0" y2="12" strokeWidth="2" className="stroke-accent" />
       </LegendItem>
-      <LegendItem label="D-Day">
+      <LegendItem label={D_DAY_NAME}>
         <line x1="9" x2="9" y1="0" y2="12" strokeWidth="1.5" strokeDasharray="3 2" className="stroke-primary" />
       </LegendItem>
     </ul>
@@ -269,9 +270,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
       <div className="flex flex-col gap-1">
         <PageTitle>{data.title}</PageTitle>
         <p className="text-muted">
-          Rückwärts gerechnet vom D-Day · {elements.length} Elemente · {late} in Verzug
+          Rückwärts gerechnet ab der {D_DAY_NAME} · {elements.length} Elemente · {late} in Verzug
           {criticalOnly
-            ? ` · Kritischer Pfad: ${criticalPath.length} Elemente, Start spätestens ${formatWeekdayShort(startDate)} (${formatDLabel(startDate, dDay)})`
+            ? ` · Kritischer Pfad: ${criticalPath.length} Elemente, Start spätestens ${formatWeekdayShort(startDate)} (${formatRelativeDay(startDate, dDay)})`
             : null}
         </p>
       </div>

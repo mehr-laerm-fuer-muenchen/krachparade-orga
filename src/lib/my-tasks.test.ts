@@ -8,6 +8,7 @@ import {
   type MyTask,
   type MyTasksInput,
 } from "./my-tasks";
+import { NBSP } from "./dday";
 import { dateToDay } from "./plan-days";
 
 const D_DAY = "2027-05-08"; // a Saturday
@@ -149,7 +150,7 @@ describe("myAgenda: weeks", () => {
   it("always shows the current week, empty if nothing is due", () => {
     const agenda = myAgenda(input({}));
     expect(agenda.weeks).toHaveLength(1);
-    expect(agenda.weeks[0]).toMatchObject({ title: "Diese Woche", range: "15.02.–21.02. · D-82", entries: [] });
+    expect(agenda.weeks[0]).toMatchObject({ title: "Diese Woche", range: `15.02.–21.02. · 82${NBSP}T vorher`, entries: [] });
   });
 
   it("puts Sunday into the current week and Monday into the next", () => {
@@ -235,7 +236,7 @@ describe("myAgenda: weeks", () => {
       ["KW 13", ["element-week7"]],
       ["KW 15", ["element-week9"]],
     ]);
-    expect(agenda.later[0].range).toBe("29.03.–04.04. · D-40");
+    expect(agenda.later[0].range).toBe(`29.03.–04.04. · 40${NBSP}T vorher`);
   });
 
   it("follows the number of weeks it is given", () => {

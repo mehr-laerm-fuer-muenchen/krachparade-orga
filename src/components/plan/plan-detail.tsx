@@ -21,7 +21,7 @@ import {
   type PlanConflict,
 } from "@/actions/plan";
 import { StatusPill } from "@/components/status-pill";
-import { formatDLabel } from "@/lib/dday";
+import { formatRelativeDay } from "@/lib/dday";
 import {
   formatWeekdayDate,
   type GanttGroup,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/gantt-layout";
 import type { DragMode } from "@/lib/plan-drag";
 import { dayToDate } from "@/lib/plan-days";
+import { D_DAY_NAME } from "@/lib/plan-edit";
 import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
 import { displayGroupName } from "@/lib/working-groups";
@@ -58,7 +59,7 @@ export function bufferLabel(element: Pick<PlanViewElement, "buffer" | "done">): 
 }
 
 function dateWithD(day: number, dDay: string): string {
-  return `${formatWeekdayDate(day, dDay)} · ${formatDLabel(dayToDate(day, dDay), dDay)}`;
+  return `${formatWeekdayDate(day, dDay)} · ${formatRelativeDay(dayToDate(day, dDay), dDay)}`;
 }
 
 function dueText(todo: PlanTodoView, dDay: string): string {
@@ -190,7 +191,7 @@ export function PlanDetail(props: PlanDetailProps) {
   });
   const successors = links.flatMap((link): LinkRow[] => {
     if (link.fromId !== element.id) return [];
-    if (link.toId === null) return [{ link, id: null, name: "D-Day" }];
+    if (link.toId === null) return [{ link, id: null, name: D_DAY_NAME }];
     const to = elements.get(link.toId);
     return to ? [{ link, id: to.id, name: to.name }] : [];
   });

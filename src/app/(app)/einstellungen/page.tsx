@@ -138,7 +138,7 @@ function EditionSection({ edition, canEdit }: { edition: Edition | undefined; ca
             <span className="font-medium">{edition.name}</span>
           </p>
           <DDayForm dDay={edition.dDay} canEdit={canEdit} />
-          <p className="text-muted">Ab R1 rechnen sich alle Meilensteine rückwärts vom D-Day neu.</p>
+          <p className="text-muted">Ab R1 rechnen sich alle Meilensteine rückwärts ab der Krachparade neu.</p>
         </>
       ) : (
         <p className="text-muted">Noch keine aktuelle Ausgabe angelegt.</p>

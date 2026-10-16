@@ -1,5 +1,6 @@
 // Calendar days only ("YYYY-MM-DD"), no time of day. "Today" is always passed
 // in and determined on the server via todayInBerlin().
+import { D_DAY_NAME } from "./plan-edit";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -18,16 +19,37 @@ export function daysUntil(dDay: string, today: string): number {
   return toUtcDays(dDay) - toUtcDays(today);
 }
 
-/** "D-206" before, "D-Day" on the day, "D+4" after. */
-export function formatDLabel(today: string, dDay: string): string {
+// Non-breaking space between number and "T", so the label never wraps.
+export const NBSP = String.fromCharCode(0xa0);
+
+/**
+ * Header countdown: "noch 206 T" before, "heute!" on the day, "vorbei" after;
+ * `ariaLabel` spells it out for screen readers.
+ */
+export function formatCountdown(today: string, dDay: string): { label: string; ariaLabel: string } {
   const days = daysUntil(dDay, today);
   if (days > 0) {
-    return `D-${days}`;
+    return {
+      label: `noch ${days}${NBSP}T`,
+      ariaLabel: `Noch ${days} ${days === 1 ? "Tag" : "Tage"} bis zur ${D_DAY_NAME}`,
+    };
   }
   if (days === 0) {
-    return "D-Day";
+    return { label: "heute!", ariaLabel: `Heute ist ${D_DAY_NAME}` };
   }
-  return `D+${-days}`;
+  return { label: "vorbei", ariaLabel: `${D_DAY_NAME} ist vorbei` };
+}
+
+/** A date relative to the D-Day: "80 T vorher", "Krachparade" on the day, "3 T danach". */
+export function formatRelativeDay(date: string, dDay: string): string {
+  const days = daysUntil(dDay, date);
+  if (days > 0) {
+    return `${days}${NBSP}T vorher`;
+  }
+  if (days === 0) {
+    return D_DAY_NAME;
+  }
+  return `${-days}${NBSP}T danach`;
 }
 
 const berlinDate = new Intl.DateTimeFormat("en-CA", {

@@ -6,7 +6,7 @@ import { logout } from "@/actions/auth";
 import { FeedbackButton } from "@/components/feedback-button";
 import { getCurrentMember } from "@/components/current-member";
 import { MainNav, type NavBadges } from "@/components/main-nav";
-import { formatDLabel, formatGermanDate, todayInBerlin } from "@/lib/dday";
+import { formatCountdown, formatGermanDate, todayInBerlin } from "@/lib/dday";
 import { getCurrentEdition } from "@/db/editions";
 import { countNewFeedback } from "@/db/feedback";
 
@@ -78,10 +78,27 @@ async function FeedbackButtonWithCount({ className }: { className: string }) {
   return <FeedbackButton className={className} newCount={newCount} />;
 }
 
-function DDayBox({ label, date, testId }: { label: string; date: string; testId?: string }) {
+function DDayBox({
+  label,
+  ariaLabel,
+  date,
+  testId,
+}: {
+  label: string;
+  /** Spelled-out countdown for screen readers. */
+  ariaLabel?: string;
+  date: string;
+  testId?: string;
+}) {
   return (
     <div className="flex flex-col items-end leading-tight">
-      <span className="text-lg font-bold tabular-nums" data-testid={testId}>
+      {/* Screen readers get the spelled-out text instead of "noch 204 T". */}
+      {ariaLabel && <span className="sr-only">{ariaLabel}</span>}
+      <span
+        className="text-lg font-bold whitespace-nowrap tabular-nums"
+        data-testid={testId}
+        aria-hidden={ariaLabel ? true : undefined}
+      >
         {label}
       </span>
       <span className="text-xs whitespace-nowrap text-header-muted">{date}</span>
@@ -103,10 +120,11 @@ async function DDayCounter() {
   if (!edition) {
     return null;
   }
-  const today = todayInBerlin(new Date());
+  const { label, ariaLabel } = formatCountdown(todayInBerlin(new Date()), edition.dDay);
   return (
     <DDayBox
-      label={formatDLabel(today, edition.dDay)}
+      label={label}
+      ariaLabel={ariaLabel}
       date={`Krachparade ${formatGermanDate(edition.dDay)}`}
       testId="dday-label"
     />

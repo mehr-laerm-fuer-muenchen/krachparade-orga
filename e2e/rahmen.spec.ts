@@ -48,19 +48,25 @@ async function expectNoHorizontalScroll(page: Page) {
   expect(overflow, "Seite scrollt horizontal").toBeLessThanOrEqual(0);
 }
 
-/** "D-206" → -206, "D-Day" → 0, "D+4" → 4. */
-async function dDayOffset(page: Page): Promise<number> {
+/** "noch 206 T" → 206, "heute!" → 0, "vorbei" → null. */
+async function daysToGo(page: Page): Promise<number | null> {
   const label = (await page.getByTestId("dday-label").textContent())?.trim() ?? "";
-  if (label === "D-Day") return 0;
-  const match = /^D([+-]\d+)$/.exec(label);
-  expect(match, `D-Day-Zähler unerwartet: "${label}"`).not.toBeNull();
+  if (label === "heute!") return 0;
+  if (label === "vorbei") return null;
+  const match = /^noch (\d+)\sT$/.exec(label);
+  expect(match, `Countdown unerwartet: "${label}"`).not.toBeNull();
   return Number(match![1]);
 }
 
+/** The header countdown for `days` days to go (inverse of daysToGo). */
+function countdownText(days: number): RegExp | string {
+  return days > 0 ? new RegExp(`^noch ${days}\\sT$`) : days === 0 ? "heute!" : "vorbei";
+}
+
 async function setDDay(page: Page, value: string) {
-  await page.getByLabel("D-Day", { exact: true }).fill(value);
+  await page.getByLabel("Datum der Krachparade", { exact: true }).fill(value);
   await page.getByRole("button", { name: "Speichern" }).click();
-  await expect(page.getByText("D-Day gespeichert.")).toBeVisible();
+  await expect(page.getByText("Datum der Krachparade gespeichert.")).toBeVisible();
 }
 
 function personRow(page: Page, name: string) {
@@ -122,18 +128,19 @@ test.describe("App-Rahmen", () => {
     expect(errors, errors.join("\n")).toEqual([]);
   });
 
-  test("D-Day ändern zeigt den neuen Abstand in der Kopfleiste", async ({ page }) => {
+  test("Datum der Krachparade ändern zeigt den neuen Abstand in der Kopfleiste", async ({ page }) => {
     await devLogin(page, "Kim Brenner");
     await page.goto("/einstellungen");
-    await expect(page.getByLabel("D-Day", { exact: true })).toHaveValue("2027-05-08");
-    const before = await dDayOffset(page);
+    await expect(page.getByLabel("Datum der Krachparade", { exact: true })).toHaveValue("2027-05-08");
+    const before = await daysToGo(page);
+    test.skip(before === null, "braucht eine Krachparade, die noch nicht vorbei ist");
 
     await setDDay(page, "2027-05-15");
-    await expect(page.getByTestId("dday-label")).toHaveText(`D${before - 7}`);
+    await expect(page.getByTestId("dday-label")).toHaveText(countdownText(before! + 7));
     await expect(page.getByRole("banner").getByText("Krachparade 15.05.2027")).toBeVisible();
 
     await setDDay(page, "2027-05-08");
-    await expect(page.getByTestId("dday-label")).toHaveText(`D${before}`);
+    await expect(page.getByTestId("dday-label")).toHaveText(countdownText(before!));
   });
 
   test("Person einladen und deaktivieren, eigene Zeile gesperrt", async ({ page }) => {
@@ -169,11 +176,11 @@ test.describe("App-Rahmen", () => {
     await expectNoHorizontalScroll(page);
   });
 
-  test("Nicht-Admin kann D-Day und Einladungen nicht ändern", async ({ page }) => {
+  test("Nicht-Admin kann Datum der Krachparade und Einladungen nicht ändern", async ({ page }) => {
     await devLogin(page, "Alex Rauch");
     await page.goto("/einstellungen");
 
-    await expect(page.getByLabel("D-Day", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Datum der Krachparade", { exact: true })).toBeDisabled();
     await expect(page.getByRole("form", { name: "Person einladen" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Einladen" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Deaktivieren" })).toHaveCount(0);
