@@ -203,3 +203,15 @@ DB-Änderung, nur hinzufügend (neue Tabelle `feedback`). Durch Franz vor dem Me
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(Freigabe Franz)“)
+
+Teil A (16.10.2026):
+
+- **Kopfleiste am Handy einzeilig:** Mit Käfer passte die Kopfleiste bei 375 px nicht mehr in eine Zeile (Logo-Block 187 px + Käfer 44 px + D-Day-Zähler 128 px plus Abstände > 343 px) und brach um. Unter 901 px bricht sie jetzt nicht mehr um (`flex-nowrap`), die Abstände sind kleiner (zwischen Käfer und Zähler keiner, die 44-px-Tippfläche bringt 12 px Luft mit), und der App-Name wird bei 375 px mit „…“ gekürzt („Krachparade…“). Ab 901 px unverändert.
+- **Kopfleiste `z-35` statt `z-20`:** Die Abdunklung hinter dem Plan-Blatt am Handy (`z-30`) lag über der Kopfleiste, der Käfer war bei offenem Blatt nicht antippbar. Jetzt liegt die Kopfleiste über der Abdunklung und unter dem Blatt (`z-40`); bei offenem Blatt ist die Kopfleiste am Handy dadurch nicht mehr abgedunkelt. Panel und Blatt selbst sind unverändert (nur `data-feedback-context`).
+- **Escape im Dialog:** Das Plan-Panel schließt bei Escape über einen `keydown`-Listener am `document`. Der Dialog hält Tastendrücke bei sich (`stopPropagation` am `<dialog>`), und nach dem Absenden bekommt „Schließen“ den Fokus, damit Escape nur den Dialog schließt.
+- **Prüfregeln in der Tabelle:** Zusätzlich zu Zod `check`-Constraints für `kind` und `status` (wie bei `meeting_items`) und ein Index auf `created_at`. Kein Postgres-Enum.
+- **Pfad zu lang:** `page_path` wird bei über 300 Zeichen gekürzt statt abgelehnt (wird automatisch erfasst, die Person kann es nicht korrigieren).
+- **`db:reset:dev`:** keine Code-Änderung nötig, es leert alle Tabellen aus `schema.ts` und damit auch `feedback`.
+- **Seed:** `SEED_VERSION` 6 → 7. Die zwei Beispiele werden am Text erkannt (keine Doppelten).
+- **Klicktest-Daten:** Die App kann Meldungen nicht löschen; die „E2E Feedback …“-Meldungen aus Teil A bleiben bis zum nächsten `pnpm db:seed` stehen. In Playwright meldet das Handy-Projekt „Mac · Chrome“, weil nur Größe und Touch simuliert werden; die Geräte-Erkennung ist per Vitest geprüft.
+- „Alle Meldungen“ verlinkt schon auf `/feedback`; die Seite kommt erst mit Teil B (bis dahin 404).

@@ -206,6 +206,7 @@ export function PlanDetail(props: PlanDetailProps) {
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 bg-black/50 desk:hidden" />
       <aside
         aria-label="Details"
+        data-feedback-context={element.name}
         className="fixed inset-x-0 bottom-0 z-40 flex max-h-[88dvh] flex-col rounded-t-xl border-t border-line bg-surface shadow-[0_-8px_24px_rgb(0_0_0/0.2)] desk:sticky desk:top-4 desk:z-auto desk:max-h-[calc(100dvh-2rem)] desk:w-[380px] desk:shrink-0 desk:self-start desk:rounded-md desk:border desk:shadow-none"
       >
         <div className="flex items-start gap-2 border-b border-line py-2 pr-1 pl-4">

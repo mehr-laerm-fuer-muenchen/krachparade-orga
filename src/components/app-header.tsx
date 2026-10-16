@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { logout } from "@/actions/auth";
+import { FeedbackButton } from "@/components/feedback-button";
 import { getCurrentMember } from "@/components/current-member";
 import { MainNav, type NavBadges } from "@/components/main-nav";
 import { formatDLabel, formatGermanDate, todayInBerlin } from "@/lib/dday";
@@ -11,8 +12,11 @@ import { getCurrentEdition } from "@/db/editions";
 /** Forest header with logo, navigation (wide screens), D-Day and member. */
 export function AppHeader({ badges }: { badges?: NavBadges }) {
   return (
-    <header className="sticky top-0 z-20 border-b-[3px] border-accent bg-header-bg pt-[env(safe-area-inset-top)] text-header-text">
-      <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-x-4 gap-y-1 px-[max(1rem,env(safe-area-inset-left))] py-2 desk:px-6">
+    // z-35: above the dimming behind the plan sheet on phones (z-30), so the
+    // bug button stays reachable with an element open; below the sheet (z-40).
+    <header className="sticky top-0 z-35 border-b-[3px] border-accent bg-header-bg pt-[env(safe-area-inset-top)] text-header-text">
+      {/* Phones: one row, the app name shortens (navigation is in the tab bar). */}
+      <div className="mx-auto flex max-w-screen-2xl items-center gap-x-2 gap-y-1 px-[max(1rem,env(safe-area-inset-left))] py-2 desk:flex-wrap desk:gap-x-4 desk:px-6">
         <Link href="/" className="flex min-w-0 items-center gap-3 rounded-md">
           <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white">
             <Image
@@ -35,10 +39,12 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
           className="order-last hidden w-full desk:block xl:order-none xl:w-auto xl:flex-1"
         />
 
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex shrink-0 items-center desk:gap-4">
           <Suspense fallback={<DDayFallback />}>
             <DDayCounter />
           </Suspense>
+          {/* Phones: left of the D-Day counter; wide screens: left of the name. */}
+          <FeedbackButton className="-order-1 desk:order-none" />
           <Suspense fallback={null}>
             <SignedIn />
           </Suspense>
