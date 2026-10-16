@@ -20,6 +20,7 @@ import {
   updateNote,
   type PlanConflict,
 } from "@/actions/plan";
+import { useSaveStatus, type FieldStatus, type SaveOutcome } from "@/components/save-status";
 import { StatusPill } from "@/components/status-pill";
 import { formatRelativeDay } from "@/lib/dday";
 import {
@@ -34,7 +35,10 @@ import { dayToDate } from "@/lib/plan-days";
 import { D_DAY_NAME } from "@/lib/plan-edit";
 import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
+import { todoProgress } from "@/lib/todo-progress";
 import { displayGroupName } from "@/lib/working-groups";
+import { ReachHint } from "./reach-hint";
+import { SAVE_ERROR } from "./use-plan-actions";
 
 /** Result of a plan action as the panel sees it. */
 export type PlanResult = { ok: true; conflict?: PlanConflict | null } | { ok: false; message: string };
@@ -62,7 +66,8 @@ function dateWithD(day: number, dDay: string): string {
   return `${formatWeekdayDate(day, dDay)} · ${formatRelativeDay(dayToDate(day, dDay), dDay)}`;
 }
 
-function dueText(todo: PlanTodoView, dDay: string): string {
+/** "Mi 17.02. · 2 T vor Start" */
+export function dueText(todo: Pick<PlanTodoView, "anchor" | "daysBefore" | "due">, dDay: string): string {
   const anchor = todo.anchor === "start" ? "Start" : "Ende";
   const when = todo.daysBefore === 0 ? `zum ${anchor}` : `${todo.daysBefore} T vor ${anchor}`;
   return `${formatWeekdayShort(dayToDate(todo.due, dDay))} · ${when}`;
@@ -101,12 +106,16 @@ const REMOVE_BUTTON =
 const CHECKBOX = "size-5 shrink-0 accent-[var(--primary)]";
 const EMPTY = <p className="text-muted">Noch keine.</p>;
 
-function Labeled({ label, children }: { label: string; children: ReactNode }) {
+/** A field with its label; `status` (spec 016) sits below it, outside the label, so it is not part of the field's name. */
+function Labeled({ label, children, status }: { label: string; children: ReactNode; status?: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-sm text-muted">{label}</span>
-      {children}
-    </label>
+    <div className="flex flex-col gap-1">
+      <label className="flex flex-col gap-1">
+        <span className="text-sm text-muted">{label}</span>
+        {children}
+      </label>
+      {status}
+    </div>
   );
 }
 
@@ -130,6 +139,11 @@ export type PlanDetailProps = {
   onClose: () => void;
   run: RunAction;
   drag: DragAction;
+  /** "Erreicht" in the "Als erreicht markieren?" hint, with the "Rückgängig" bar (spec 016). */
+  onReach: (element: PlanViewElement) => void;
+  /** "Noch nicht" was chosen for this element during this page visit. */
+  hintHidden: boolean;
+  onHideHint: (id: string) => void;
 };
 
 /**
@@ -140,9 +154,10 @@ export type PlanDetailProps = {
 export function PlanDetail(props: PlanDetailProps) {
   const { element, elements, links, groups, departments, members, today, dDay, onSelect, onClose, run, drag } =
     props;
+  const showHint = !element.done && !props.hintHidden && todoProgress(element.todos).complete;
   const seen = element.updatedAt;
   const [errors, setErrors] = useState<Record<string, string | null>>({});
-  const [savedAt, setSavedAt] = useState(0);
+  const { track, status, failed } = useSaveStatus();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -153,18 +168,13 @@ export function PlanDetail(props: PlanDetailProps) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  // "Gespeichert" disappears after two seconds.
-  useEffect(() => {
-    if (savedAt === 0) return;
-    const timer = window.setTimeout(() => setSavedAt(0), 2000);
-    return () => window.clearTimeout(timer);
-  }, [savedAt]);
+  /** Saves a field with "Gespeichert ✓" or "Nicht gespeichert – nochmal" at it (spec 016). */
+  const save: Save = (field, call) => track(field, async () => toOutcome(await run(call)));
 
-  /** Runs an action for a field; the message appears at that field. */
-  const save = async (field: string, call: () => Promise<PlanResult>): Promise<boolean> => {
+  /** Ticking off, buttons and deleting: only an error appears at the control. */
+  const act: Save = async (field, call) => {
     const message = await run(call);
     setErrors((previous) => ({ ...previous, [field]: message }));
-    if (message === null) setSavedAt(Date.now());
     return message === null;
   };
 
@@ -219,9 +229,6 @@ export function PlanDetail(props: PlanDetailProps) {
               >
                 {bufferLabel(element)}
               </span>
-              <span role="status" className="text-sm font-medium text-primary">
-                {savedAt !== 0 ? "Gespeichert" : null}
-              </span>
             </div>
             <h2 className="text-lg leading-snug font-semibold break-words">{element.name}</h2>
             <p className="text-sm text-muted">{meta.join(" · ")}</p>
@@ -237,6 +244,9 @@ export function PlanDetail(props: PlanDetailProps) {
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          {showHint ? (
+            <ReachHint onReach={() => props.onReach(element)} onDismiss={() => props.onHideHint(element.id)} />
+          ) : null}
           <Section title="Termin">
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 tabular-nums">
               {milestone ? (
@@ -261,7 +271,7 @@ export function PlanDetail(props: PlanDetailProps) {
                 <p className="min-w-0 flex-1">{shift}</p>
                 <button
                   type="button"
-                  onClick={() => save("shift", () => resetShift(element.id, seen))}
+                  onClick={() => act("shift", () => resetShift(element.id, seen))}
                   className={SMALL_BUTTON}
                 >
                   Auf spätesten Termin
@@ -285,7 +295,7 @@ export function PlanDetail(props: PlanDetailProps) {
 
           <Section title="Zuständig">
             <div key={version} className="flex flex-col gap-3">
-              <Labeled label="AK">
+              <Labeled label="AK" status={status("group")}>
                 <select
                   defaultValue={element.workingGroupId ?? ""}
                   onChange={(event) =>
@@ -302,9 +312,8 @@ export function PlanDetail(props: PlanDetailProps) {
                     </option>
                   ))}
                 </select>
-                <FieldError message={errors.group} />
               </Labeled>
-              <Labeled label="Aufgabenbereich">
+              <Labeled label="Aufgabenbereich" status={status("department")}>
                 <select
                   defaultValue={element.departmentId ?? ""}
                   onChange={(event) =>
@@ -321,9 +330,8 @@ export function PlanDetail(props: PlanDetailProps) {
                     </option>
                   ))}
                 </select>
-                <FieldError message={errors.department} />
               </Labeled>
-              <Labeled label="Verantwortlich">
+              <Labeled label="Verantwortlich" status={status("owner")}>
                 <select
                   defaultValue={element.ownerId ?? ""}
                   onChange={(event) =>
@@ -338,14 +346,13 @@ export function PlanDetail(props: PlanDetailProps) {
                     </option>
                   ))}
                 </select>
-                <FieldError message={errors.owner} />
               </Labeled>
             </div>
           </Section>
 
           <Section title="Element">
             <div key={version} className="flex flex-col gap-3">
-              <Labeled label="Name">
+              <Labeled label="Name" status={status("name")}>
                 <input
                   type="text"
                   defaultValue={element.name}
@@ -356,10 +363,9 @@ export function PlanDetail(props: PlanDetailProps) {
                       void save("name", () => updateElement(element.id, { name: value }, seen));
                     }
                   }}
-                  aria-invalid={Boolean(errors.name)}
+                  aria-invalid={failed("name")}
                   className={INPUT}
                 />
-                <FieldError message={errors.name} />
               </Labeled>
               <div role="group" aria-label="Art" className="flex overflow-hidden rounded-md border border-line">
                 {(
@@ -381,9 +387,9 @@ export function PlanDetail(props: PlanDetailProps) {
                   </button>
                 ))}
               </div>
-              <FieldError message={errors.kind} />
+              {status("kind")}
               {milestone ? null : (
-                <Labeled label="Dauer in Tagen">
+                <Labeled label="Dauer in Tagen" status={status("duration")}>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -396,10 +402,9 @@ export function PlanDetail(props: PlanDetailProps) {
                         void save("duration", () => updateElement(element.id, { durationDays: value }, seen));
                       }
                     }}
-                    aria-invalid={Boolean(errors.duration)}
+                    aria-invalid={failed("duration")}
                     className={`${INPUT} w-28`}
                   />
-                  <FieldError message={errors.duration} />
                 </Labeled>
               )}
               <label className="flex min-h-11 items-center gap-3">
@@ -428,7 +433,7 @@ export function PlanDetail(props: PlanDetailProps) {
                   />
                 </Labeled>
               ) : null}
-              <FieldError message={errors.fixed} />
+              {status("fixed")}
             </div>
           </Section>
 
@@ -438,7 +443,7 @@ export function PlanDetail(props: PlanDetailProps) {
                 <input
                   type="checkbox"
                   defaultChecked={element.done}
-                  onChange={(event) => save("status", () => setDone(element.id, event.target.checked, seen))}
+                  onChange={(event) => act("status", () => setDone(element.id, event.target.checked, seen))}
                   className={CHECKBOX}
                 />
                 <span>Erreicht</span>
@@ -448,19 +453,29 @@ export function PlanDetail(props: PlanDetailProps) {
                   type="checkbox"
                   defaultChecked={element.wobbly}
                   disabled={element.done}
-                  onChange={(event) => save("status", () => setWobbly(element.id, event.target.checked, seen))}
+                  onChange={(event) => save("wobbly", () => setWobbly(element.id, event.target.checked, seen))}
                   className={CHECKBOX}
                 />
                 <span>Wackelt (Einschätzung)</span>
               </label>
+              {status("wobbly")}
               <p className="text-sm text-muted">{reasonText(element)}</p>
               <FieldError message={errors.status} />
             </div>
           </Section>
 
-          <TodoSection element={element} members={members} today={today} dDay={dDay} save={save} errors={errors} />
+          <TodoSection
+            element={element}
+            members={members}
+            today={today}
+            dDay={dDay}
+            save={save}
+            act={act}
+            status={status}
+            errors={errors}
+          />
 
-          <NoteSection element={element} save={save} errors={errors} />
+          <NoteSection element={element} save={save} act={act} status={status} errors={errors} />
 
           <Section title="Vorgänger">
             <LinkList
@@ -471,8 +486,9 @@ export function PlanDetail(props: PlanDetailProps) {
                 save(`link-${row.link.id}`, () => updateLinkLag(row.link.id, lag, { id: element.id, updatedAt: seen }))
               }
               onRemove={(row) =>
-                save(`link-${row.link.id}`, () => removeLink(row.link.id, { id: element.id, updatedAt: seen }))
+                act(`unlink-${row.link.id}`, () => removeLink(row.link.id, { id: element.id, updatedAt: seen }))
               }
+              status={status}
               errors={errors}
               version={version}
             />
@@ -482,7 +498,7 @@ export function PlanDetail(props: PlanDetailProps) {
               onAdd={(id) =>
                 save("add-predecessor", () => addLink(id!, element.id, 0, { id: element.id, updatedAt: seen }))
               }
-              error={errors["add-predecessor"]}
+              status={status("add-predecessor")}
             />
           </Section>
 
@@ -495,8 +511,9 @@ export function PlanDetail(props: PlanDetailProps) {
                 save(`link-${row.link.id}`, () => updateLinkLag(row.link.id, lag, { id: element.id, updatedAt: seen }))
               }
               onRemove={(row) =>
-                save(`link-${row.link.id}`, () => removeLink(row.link.id, { id: element.id, updatedAt: seen }))
+                act(`unlink-${row.link.id}`, () => removeLink(row.link.id, { id: element.id, updatedAt: seen }))
               }
+              status={status}
               errors={errors}
               version={version}
             />
@@ -504,7 +521,7 @@ export function PlanDetail(props: PlanDetailProps) {
               label="Nachfolger wählen"
               options={successorOptions}
               onAdd={(id) => save("add-successor", () => addLink(element.id, id, 0, { id: element.id, updatedAt: seen }))}
-              error={errors["add-successor"]}
+              status={status("add-successor")}
             />
             <p className="text-sm text-muted">Nur Ende → Start. Kreise sind ausgeschlossen.</p>
           </Section>
@@ -523,7 +540,7 @@ export function PlanDetail(props: PlanDetailProps) {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (await save("delete", () => deleteElement(element.id, seen))) onClose();
+                      if (await act("delete", () => deleteElement(element.id, seen))) onClose();
                     }}
                     className="min-h-11 rounded-md bg-status-late px-4 font-semibold text-on-status-late hover:opacity-90"
                   >
@@ -553,12 +570,19 @@ export function PlanDetail(props: PlanDetailProps) {
 
 type Save = (field: string, call: () => Promise<PlanResult>) => Promise<boolean>;
 
+/** An error message of the panel actions as a save outcome; the generic one adds nothing. */
+function toOutcome(message: string | null): SaveOutcome {
+  if (message === null) return { ok: true };
+  return { ok: false, message: message === SAVE_ERROR ? undefined : message };
+}
+
 function LinkList({
   rows,
   direction,
   onSelect,
   onLag,
   onRemove,
+  status,
   errors,
   version,
 }: {
@@ -567,6 +591,7 @@ function LinkList({
   onSelect: (id: string) => void;
   onLag: (row: LinkRow, lag: number) => void;
   onRemove: (row: LinkRow) => void;
+  status: FieldStatus;
   errors: Record<string, string | null>;
   version: string;
 }) {
@@ -613,7 +638,8 @@ function LinkList({
               ×
             </button>
           </div>
-          <FieldError message={errors[`link-${row.link.id}`]} />
+          {status(`link-${row.link.id}`)}
+          <FieldError message={errors[`unlink-${row.link.id}`]} />
         </li>
       ))}
     </ul>
@@ -624,12 +650,12 @@ function AddLink({
   label,
   options,
   onAdd,
-  error,
+  status,
 }: {
   label: string;
   options: { id: string | null; name: string }[];
   onAdd: (id: string | null) => Promise<boolean>;
-  error?: string | null;
+  status: ReactNode;
 }) {
   const [value, setValue] = useState("");
   const valueOf = (id: string | null) => id ?? "dday";
@@ -661,7 +687,7 @@ function AddLink({
           Verbinden
         </button>
       </div>
-      <FieldError message={error} />
+      {status}
     </div>
   );
 }
@@ -672,6 +698,8 @@ function TodoSection({
   today,
   dDay,
   save,
+  act,
+  status,
   errors,
 }: {
   element: PlanViewElement;
@@ -679,6 +707,8 @@ function TodoSection({
   today: number;
   dDay: string;
   save: Save;
+  act: Save;
+  status: FieldStatus;
   errors: Record<string, string | null>;
 }) {
   const hintId = useId();
@@ -686,15 +716,17 @@ function TodoSection({
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    const ok = await save("add-todo", () =>
-      addTodo(element.id, {
+    // Emptied inside the save, so that "nochmal" empties it too.
+    await save("add-todo", async () => {
+      const result = await addTodo(element.id, {
         text: String(data.get("text") ?? ""),
         ownerId: String(data.get("owner") ?? "") || null,
         anchor: data.get("anchor") === "end" ? "end" : "start",
         daysBefore: toInt(String(data.get("days") ?? "")),
-      })
-    );
-    if (ok) form.reset();
+      });
+      if (result.ok) form.reset();
+      return result;
+    });
   };
 
   return (
@@ -714,7 +746,7 @@ function TodoSection({
                       type="checkbox"
                       defaultChecked={todo.done}
                       aria-label={`Erledigt: ${todo.text}`}
-                      onChange={(event) => save(`todo-${todo.id}`, () => toggleTodo(todo.id, event.target.checked))}
+                      onChange={(event) => act(`todo-${todo.id}`, () => toggleTodo(todo.id, event.target.checked))}
                       className={`${CHECKBOX} mt-0.5`}
                     />
                     <span className="min-w-0 flex-1">
@@ -729,7 +761,7 @@ function TodoSection({
                   <button
                     type="button"
                     aria-label={`To-do löschen: ${todo.text}`}
-                    onClick={() => save(`todo-${todo.id}`, () => deleteTodo(todo.id))}
+                    onClick={() => act(`todo-${todo.id}`, () => deleteTodo(todo.id))}
                     className={REMOVE_BUTTON}
                   >
                     ×
@@ -782,7 +814,7 @@ function TodoSection({
         <p id={hintId} className="text-sm text-muted">
           {PRIVACY_HINT}
         </p>
-        <FieldError message={errors["add-todo"]} />
+        {status("add-todo")}
       </form>
     </Section>
   );
@@ -791,10 +823,14 @@ function TodoSection({
 function NoteSection({
   element,
   save,
+  act,
+  status,
   errors,
 }: {
   element: PlanViewElement;
   save: Save;
+  act: Save;
+  status: FieldStatus;
   errors: Record<string, string | null>;
 }) {
   const hintId = useId();
@@ -803,7 +839,11 @@ function NoteSection({
     event.preventDefault();
     const form = event.currentTarget;
     const text = String(new FormData(form).get("text") ?? "");
-    if (await save("add-note", () => addNote(element.id, text))) form.reset();
+    await save("add-note", async () => {
+      const result = await addNote(element.id, text);
+      if (result.ok) form.reset();
+      return result;
+    });
   };
 
   return (
@@ -824,7 +864,7 @@ function NoteSection({
         <p id={hintId} className="text-sm text-muted">
           {PRIVACY_HINT}
         </p>
-        <FieldError message={errors["add-note"]} />
+        {status("add-note")}
       </form>
       {element.notes.length === 0 ? (
         EMPTY
@@ -842,7 +882,11 @@ function NoteSection({
                   onSubmit={async (event) => {
                     event.preventDefault();
                     const text = String(new FormData(event.currentTarget).get("text") ?? "");
-                    if (await save(`note-${note.id}`, () => updateNote(note.id, text))) setEditing(null);
+                    await save(`note-${note.id}`, async () => {
+                      const result = await updateNote(note.id, text);
+                      if (result.ok) setEditing(null);
+                      return result;
+                    });
                   }}
                 >
                   <textarea
@@ -873,14 +917,15 @@ function NoteSection({
                   </button>
                   <button
                     type="button"
-                    onClick={() => save(`note-${note.id}`, () => deleteNote(note.id))}
+                    onClick={() => act(`note-delete-${note.id}`, () => deleteNote(note.id))}
                     className={SMALL_BUTTON}
                   >
                     Löschen
                   </button>
                 </div>
               ) : null}
-              <FieldError message={errors[`note-${note.id}`]} />
+              {status(`note-${note.id}`)}
+              <FieldError message={errors[`note-delete-${note.id}`]} />
             </li>
           ))}
         </ul>

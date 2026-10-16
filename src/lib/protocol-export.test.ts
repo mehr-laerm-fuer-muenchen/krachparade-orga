@@ -46,7 +46,7 @@ describe("toTelegramText", () => {
         "Orga-Treffen – 14.10.2026",
         "Anwesend: Alex Rauch, Kim Brenner, Gast Beispiel",
         "",
-        "Entscheidungen:",
+        "Beschlüsse:",
         "– Start am Odeonsplatz",
         "",
         "To-dos:",
@@ -71,7 +71,7 @@ describe("toTelegramText", () => {
     );
     expect(text).toBe(["Orga-Treffen – 14.10.2026", "", "To-dos:", "– Nur ein To-do"].join("\n"));
     expect(text).not.toContain("Anwesend");
-    expect(text).not.toContain("Entscheidungen");
+    expect(text).not.toContain("Beschlüsse");
     expect(text).not.toContain("Route:");
   });
 
@@ -102,7 +102,7 @@ describe("toMarkdown", () => {
         "## Route",
         "",
         "- **Info:** Route steht grob",
-        "- **Entscheidung:** Start am Odeonsplatz",
+        "- **Beschluss:** Start am Odeonsplatz",
         "",
         "## Finanzen",
         "",

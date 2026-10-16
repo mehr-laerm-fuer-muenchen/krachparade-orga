@@ -27,12 +27,16 @@ import { dragChanges, dragDays, isDrag, previewPlan, type DragMode } from "../..
 import { D_DAY_NAME } from "../../lib/plan-edit";
 import type { PlanInput } from "../../lib/plan-engine";
 import { formatBuffer } from "../../lib/plan-preview";
+import { formatProgress, type TodoProgress } from "../../lib/todo-progress";
 
 const NAME_WIDTH = 240;
 const BAR_HEIGHT = 14;
 const DIAMOND = 7;
 const LANE_BAR_HEIGHT = 8;
 const LATE_BAND_HEIGHT = 18;
+/** To-do progress under a bar (spec 016), inside the 30 px row. */
+const PROGRESS_HEIGHT = 3;
+const PROGRESS_GAP = 3;
 /** "Heute" sits about this far from the left edge after opening. */
 const TODAY_OFFSET = 160;
 /** Rough width of one character at 11 px, for label backgrounds. */
@@ -91,7 +95,11 @@ export type PlanGanttProps = {
   onToggleLane: (laneKey: string) => void;
   /** Without it the Gantt is read only (as in spec 007). */
   edit?: GanttEdit;
+  /** To-do progress per element id (spec 016); missing = no to-dos. */
+  progress?: ReadonlyMap<string, TodoProgress>;
 };
+
+const NO_TODOS: TodoProgress = { done: 0, total: 0, complete: false };
 
 /**
  * Read-only Gantt of the plan (spec 007): a name column with buttons on the
@@ -114,6 +122,7 @@ export function PlanGantt({
   onSelect,
   onToggleLane,
   edit,
+  progress,
 }: PlanGanttProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -336,6 +345,7 @@ export function PlanGantt({
                 onSelect={toggle}
                 onDragStart={edit ? startDrag : undefined}
                 dragging={drag !== null}
+                progress={progress?.get(row.element.id) ?? NO_TODOS}
               />
             );
           })}
@@ -440,8 +450,11 @@ function ElementMark({
   onSelect,
   onDragStart,
   dragging,
+  progress,
 }: {
   element: GanttElement;
+  /** To-dos done and in total; total 0 = nothing shown (spec 016). */
+  progress: TodoProgress;
   center: number;
   x: (day: number) => number;
   dDay: string;
@@ -511,6 +524,28 @@ function ElementMark({
           className={`${FILL[element.status]} ${outline}`}
         />
       )}
+      {!milestone && progress.total > 0 ? (
+        <g data-testid="gantt-progress" data-done={progress.done} data-total={progress.total}>
+          <rect
+            x={left}
+            y={center + BAR_HEIGHT / 2 + PROGRESS_GAP}
+            width={barWidth}
+            height={PROGRESS_HEIGHT}
+            rx={PROGRESS_HEIGHT / 2}
+            className="fill-progress-track"
+          />
+          {progress.done > 0 ? (
+            <rect
+              x={left}
+              y={center + BAR_HEIGHT / 2 + PROGRESS_GAP}
+              width={(barWidth * progress.done) / progress.total}
+              height={PROGRESS_HEIGHT}
+              rx={PROGRESS_HEIGHT / 2}
+              className="fill-progress-fill"
+            />
+          ) : null}
+        </g>
+      ) : null}
       {selected ? (
         milestone ? (
           <polygon points={diamond(DIAMOND + 4)} fill="none" strokeWidth={2} className="stroke-accent" />
@@ -547,6 +582,17 @@ function ElementMark({
         : null}
       <text x={labelX} y={center + 4} className="fill-text">
         {dates}
+        {progress.total > 0 ? (
+          <>
+            {" · "}
+            <tspan
+              data-testid="gantt-progress-text"
+              className={`tabular-nums ${progress.complete ? "fill-progress-fill font-semibold" : ""}`}
+            >
+              {formatProgress(progress)}
+            </tspan>
+          </>
+        ) : null}
         {open && element.buffer !== 0 ? (
           <>
             {" · "}

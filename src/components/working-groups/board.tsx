@@ -16,6 +16,7 @@ import {
   setWorkingGroupsFinal,
   type WorkingGroupActionResult,
 } from "@/actions/working-groups";
+import { useSaveStatus, type FieldStatus, type TrackSave } from "@/components/save-status";
 
 // Board of /arbeitskreise (spec 005). Every control calls a server action that
 // checks the rights again; hiding admin controls is only for clarity.
@@ -122,6 +123,8 @@ export function GroupCard({
   const headingId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   const { pending, error, run } = useAction();
+  // Here and not in the menu: "Gespeichert ✓" stays after the menu closes.
+  const { track, status } = useSaveStatus();
   const joined = group.members.some((person) => person.id === viewerId);
   const candidates = activePeople.filter((person) => !group.members.some((member) => member.id === person.id));
 
@@ -143,8 +146,17 @@ export function GroupCard({
       </div>
 
       {menuOpen ? (
-        <GroupMenu group={group} isFirst={isFirst} isLast={isLast} onDone={() => setMenuOpen(false)} />
-      ) : null}
+        <GroupMenu
+          group={group}
+          isFirst={isFirst}
+          isLast={isLast}
+          track={track}
+          status={status}
+          onDone={() => setMenuOpen(false)}
+        />
+      ) : (
+        status("rename")
+      )}
 
       <div className="flex flex-col gap-2">
         <h3 className="font-semibold">Aufgabenbereiche</h3>
@@ -201,11 +213,15 @@ function GroupMenu({
   group,
   isFirst,
   isLast,
+  track,
+  status,
   onDone,
 }: {
   group: BoardGroup;
   isFirst: boolean;
   isLast: boolean;
+  track: TrackSave;
+  status: FieldStatus;
   onDone: () => void;
 }) {
   const inputId = useId();
@@ -215,7 +231,12 @@ function GroupMenu({
 
   function rename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    run(() => renameWorkingGroup(group.id, draft), onDone);
+    const name = draft;
+    void track("rename", async () => {
+      const result = await renameWorkingGroup(group.id, name);
+      if (result.ok) onDone();
+      return result;
+    });
   }
 
   return (
@@ -235,6 +256,7 @@ function GroupMenu({
             Umbenennen
           </button>
         </div>
+        {status("rename")}
       </form>
       <div className="flex flex-wrap gap-2">
         <button
@@ -282,12 +304,17 @@ function AddPersonForm({
 }) {
   const selectId = useId();
   const [memberId, setMemberId] = useState("");
-  const { pending, error, run } = useAction();
+  const { track, status } = useSaveStatus();
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!memberId) return;
-    run(() => joinWorkingGroup(groupId, memberId), () => setMemberId(""));
+    const id = memberId;
+    void track("add", async () => {
+      const result = await joinWorkingGroup(groupId, id);
+      if (result.ok) setMemberId("");
+      return result;
+    });
   }
 
   return (
@@ -307,11 +334,11 @@ function AddPersonForm({
             </option>
           ))}
         </select>
-        <button type="submit" disabled={pending || !memberId} className={SECONDARY_BUTTON}>
+        <button type="submit" disabled={!memberId} className={SECONDARY_BUTTON}>
           Eintragen
         </button>
       </div>
-      <ErrorMessage error={error} />
+      {status("add")}
     </form>
   );
 }
@@ -319,11 +346,16 @@ function AddPersonForm({
 export function CreateGroupForm() {
   const inputId = useId();
   const [name, setName] = useState("");
-  const { pending, error, run } = useAction();
+  const { track, status } = useSaveStatus();
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    run(() => createWorkingGroup(name), () => setName(""));
+    const value = name;
+    void track("create", async () => {
+      const result = await createWorkingGroup(value);
+      if (result.ok) setName("");
+      return result;
+    });
   }
 
   return (
@@ -341,11 +373,11 @@ export function CreateGroupForm() {
           onChange={(event) => setName(event.target.value)}
           className={INPUT}
         />
-        <button type="submit" disabled={pending} className={PRIMARY_BUTTON}>
+        <button type="submit" className={PRIMARY_BUTTON}>
           Anlegen
         </button>
       </div>
-      <ErrorMessage error={error} />
+      {status("create")}
     </form>
   );
 }
@@ -414,6 +446,8 @@ function DepartmentRow({
   isLast: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Here and not in the menu: "Gespeichert ✓" stays after the menu closes.
+  const { track, status } = useSaveStatus();
   return (
     <li aria-label={department.name} className="flex flex-col gap-2 border-b border-line px-3 py-1 last:border-b-0">
       <div className="flex items-center justify-between gap-2">
@@ -435,9 +469,13 @@ function DepartmentRow({
           currentGroupId={currentGroupId}
           isFirst={isFirst}
           isLast={isLast}
+          track={track}
+          status={status}
           onDone={() => setOpen(false)}
         />
-      ) : null}
+      ) : (
+        status("rename")
+      )}
     </li>
   );
 }
@@ -448,6 +486,8 @@ function DepartmentMenu({
   currentGroupId,
   isFirst,
   isLast,
+  track,
+  status,
   onDone,
 }: {
   department: BoardDepartment;
@@ -455,6 +495,8 @@ function DepartmentMenu({
   currentGroupId: string;
   isFirst: boolean;
   isLast: boolean;
+  track: TrackSave;
+  status: FieldStatus;
   onDone: () => void;
 }) {
   const id = useId();
@@ -463,7 +505,12 @@ function DepartmentMenu({
 
   function rename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    run(() => renameDepartment(department.id, draft), onDone);
+    const name = draft;
+    void track("rename", async () => {
+      const result = await renameDepartment(department.id, name);
+      if (result.ok) onDone();
+      return result;
+    });
   }
 
   return (
@@ -483,6 +530,7 @@ function DepartmentMenu({
             Umbenennen
           </button>
         </div>
+        {status("rename")}
       </form>
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-group`}>In anderen AK verschieben</label>
@@ -492,7 +540,7 @@ function DepartmentMenu({
           disabled={pending}
           onChange={(event) => {
             const target = event.target.value;
-            run(() => assignDepartment(department.id, target || null));
+            void track("group", () => assignDepartment(department.id, target || null));
           }}
           className={INPUT}
         >
@@ -503,6 +551,7 @@ function DepartmentMenu({
           ))}
           <option value="">Ohne AK</option>
         </select>
+        {status("group")}
       </div>
       <div className="flex flex-wrap gap-2">
         <button
@@ -544,11 +593,16 @@ function DepartmentMenu({
 function CreateDepartmentForm({ groupId, groupTitle }: { groupId: string; groupTitle: string }) {
   const inputId = useId();
   const [name, setName] = useState("");
-  const { pending, error, run } = useAction();
+  const { track, status } = useSaveStatus();
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    run(() => createDepartment(name, groupId), () => setName(""));
+    const value = name;
+    void track("create", async () => {
+      const result = await createDepartment(value, groupId);
+      if (result.ok) setName("");
+      return result;
+    });
   }
 
   return (
@@ -563,11 +617,11 @@ function CreateDepartmentForm({ groupId, groupTitle }: { groupId: string; groupT
           onChange={(event) => setName(event.target.value)}
           className={INPUT}
         />
-        <button type="submit" disabled={pending} className={SECONDARY_BUTTON}>
+        <button type="submit" className={SECONDARY_BUTTON}>
           Hinzufügen
         </button>
       </div>
-      <ErrorMessage error={error} />
+      {status("create")}
     </form>
   );
 }

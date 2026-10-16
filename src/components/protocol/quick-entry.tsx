@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createMeetingItem } from "@/actions/meetings";
+import { useSaveStatus } from "@/components/save-status";
 import type { ItemKind } from "@/lib/protocol-rules";
 import { ItemExtraFields, KindPicker, kindFromShortcut } from "./item-fields";
 import { ownerFields } from "./owner-picker";
@@ -31,8 +32,7 @@ export function QuickEntry({
   const [owner, setOwner] = useState<Owner>(null);
   const [dueDate, setDueDate] = useState("");
   const [departmentId, setDepartmentId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const { track, status } = useSaveStatus();
 
   useEffect(() => {
     if (autoFocus) textRef.current?.focus();
@@ -53,13 +53,16 @@ export function QuickEntry({
     setText("");
     setOwner(null);
     setDueDate("");
-    setError(null);
     textRef.current?.focus();
-    startTransition(async () => {
-      const result = await createMeetingItem(meetingId, topic, fields);
-      if (!result.ok) {
-        setError(result.message);
-        setText((current) => current || value);
+    // On an error the text comes back into the field; "nochmal" empties it again.
+    void track("item", async () => {
+      let ok = false;
+      try {
+        const result = await createMeetingItem(meetingId, topic, fields);
+        ok = result.ok;
+        return result;
+      } finally {
+        setText((current) => (ok ? (current === value ? "" : current) : current || value));
       }
     });
   }
@@ -108,11 +111,7 @@ export function QuickEntry({
         departmentId={departmentId}
         onDepartmentChange={setDepartmentId}
       />
-      {error ? (
-        <p role="alert" className="font-medium text-status-late">
-          {error}
-        </p>
-      ) : null}
+      {status("item")}
     </form>
   );
 }

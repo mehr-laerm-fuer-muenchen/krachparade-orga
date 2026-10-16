@@ -88,7 +88,7 @@ test.describe("Protokoll", () => {
 
     const run = `${testInfo.project.name} ${Date.now()}`;
     const title = `E2E Treffen ${run}`;
-    const decision = `E2E Entscheidung ${run}`;
+    const decision = `E2E Beschluss ${run}`;
     const todoAlex = `E2E To-do Alex ${run}`;
     const todoGuest = `E2E To-do Gast ${run}`;
 

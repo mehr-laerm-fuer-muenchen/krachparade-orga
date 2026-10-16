@@ -15,12 +15,14 @@ import { D_DAY_NAME } from "@/lib/plan-edit";
 import type { PlanInput } from "@/lib/plan-engine";
 import { defaultGroupId } from "@/lib/plan-panel";
 import { countLate, formatWeekdayShort } from "@/lib/plan-preview";
+import { todoProgress } from "@/lib/todo-progress";
 import { useUndoBar } from "./plan-bar";
 import { PlanDetail, type PlanDepartmentOption, type PlanOption } from "./plan-detail";
 import { PlanGantt, type GanttEdit } from "./plan-gantt";
 import { PlanNewElement } from "./plan-new-element";
 import { PlanWeekList } from "./plan-week-list";
 import { usePlanActions } from "./use-plan-actions";
+import { usePlanTicks } from "./use-plan-ticks";
 
 /** Everything the plan page needs, computed on the server. */
 export type PlanViewData = {
@@ -235,6 +237,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
   const close = useCallback(() => setSelectedId(null), []);
   const closeForm = useCallback(() => setCreating(false), []);
   const { run, drag } = usePlanActions(byId, show);
+  const ticks = usePlanTicks(byId, show);
+  /** Elements whose "Als erreicht markieren?" hint was put off in the panel during this visit (spec 016). */
+  const [hintHidden, setHintHidden] = useState<ReadonlySet<string>>(() => new Set());
 
   const enginePlan = useMemo<PlanInput>(
     () => ({
@@ -253,6 +258,10 @@ export function PlanView({ data }: { data: PlanViewData }) {
     [elements, links]
   );
   const ganttEdit = useMemo<GanttEdit>(() => ({ plan: enginePlan, onDrag: drag }), [enginePlan, drag]);
+  const progress = useMemo(
+    () => new Map(elements.map((element) => [element.id, todoProgress(element.todos)])),
+    [elements]
+  );
 
   // The filters apply to the week list as well.
   const critical = new Set(criticalPath);
@@ -335,6 +344,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 onSelect={setSelectedId}
                 onToggleLane={toggleLane}
                 edit={ganttEdit}
+                progress={progress}
               />
               <p className="text-sm text-muted">
                 Antippen zeigt Abhängigkeiten und Details. Ziehen verschiebt (mit Vorgängern), die Ränder ändern die
@@ -350,6 +360,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
               myGroupIds={data.myGroupIds}
               onSelect={setSelectedId}
               onCreate={() => setCreating(true)}
+              ticks={ticks}
             />
           </div>
         </div>
@@ -368,6 +379,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
             onClose={close}
             run={run}
             drag={drag}
+            onReach={(element) => void ticks.reach(element, true)}
+            hintHidden={hintHidden.has(selected.id)}
+            onHideHint={(id) => setHintHidden(new Set(hintHidden).add(id))}
           />
         ) : null}
       </div>

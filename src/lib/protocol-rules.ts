@@ -8,7 +8,7 @@ export type ItemKind = (typeof ITEM_KINDS)[number];
 export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
   info: "Info",
   diskussion: "Diskussion",
-  entscheidung: "Entscheidung",
+  entscheidung: "Beschluss",
   todo: "To-do",
 };
 

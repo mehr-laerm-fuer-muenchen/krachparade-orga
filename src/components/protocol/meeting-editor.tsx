@@ -11,6 +11,7 @@ import {
   updateMeetingHead,
   type MeetingHeadInput,
 } from "@/actions/meetings";
+import { useSaveStatus, type FieldStatus, type TrackSave } from "@/components/save-status";
 import { groupByTopic, type MeetingStatus } from "@/lib/protocol-rules";
 import { ExportButtons } from "./export-buttons";
 import { ItemRow } from "./item-row";
@@ -81,7 +82,7 @@ export function MeetingEditor({
         report={report}
       />
       <div className="flex flex-col gap-6 desk:grid desk:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] desk:items-start">
-        <NotesPanel meetingId={meeting.id} initialNotes={meeting.rawNotes} report={report} />
+        <NotesPanel meetingId={meeting.id} initialNotes={meeting.rawNotes} />
         <Topics
           meetingId={meeting.id}
           items={items}
@@ -127,17 +128,24 @@ function MeetingHead({
 }) {
   const id = useId();
   const [, startTransition] = useTransition();
+  const { track, status } = useSaveStatus();
   // Last saved values, so leaving an unchanged field does not save.
   const saved = useRef<Record<string, string>>({});
 
+  /** Saves a head field with "Gespeichert ✓" at it (spec 016). */
   function saveField(field: keyof MeetingHeadInput, value: string, initial: string) {
     const last = saved.current[field] ?? initial;
     if (value === last) return;
-    saved.current[field] = value;
-    startTransition(async () => {
-      const result = await updateMeetingHead(meeting.id, { [field]: value });
-      if (!result.ok) saved.current[field] = last;
-      report(result);
+    void track(field, async () => {
+      saved.current[field] = value;
+      let ok = false;
+      try {
+        const result = await updateMeetingHead(meeting.id, { [field]: value });
+        ok = result.ok;
+        return result;
+      } finally {
+        if (!ok) saved.current[field] = last;
+      }
     });
   }
 
@@ -160,6 +168,7 @@ function MeetingHead({
             }}
             className={INPUT}
           />
+          {status("date")}
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-title`}>Titel</label>
@@ -172,6 +181,7 @@ function MeetingHead({
             onBlur={(event) => saveField("title", event.target.value.trim(), meeting.title)}
             className={`${INPUT} font-semibold`}
           />
+          {status("title")}
         </div>
       </div>
 
@@ -186,6 +196,7 @@ function MeetingHead({
             onBlur={(event) => saveField("place", event.target.value.trim(), meeting.place)}
             className={INPUT}
           />
+          {status("place")}
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-moderator`}>Moderation</label>
@@ -202,6 +213,7 @@ function MeetingHead({
               </option>
             ))}
           </select>
+          {status("moderatorId")}
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`${id}-minutes`}>Protokoll</label>
@@ -220,6 +232,7 @@ function MeetingHead({
               </option>
             ))}
           </select>
+          {status("minuteTakerId")}
         </div>
       </div>
 
@@ -258,6 +271,7 @@ function MeetingHead({
           onBlur={(event) => saveField("guests", event.target.value.trim(), meeting.guests)}
           className={INPUT}
         />
+        {status("guests")}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -353,6 +367,8 @@ function Topics({
   const [focusTopic, setFocusTopic] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newTopic, setNewTopic] = useState("");
+  // Here and not per TOP: after renaming, the TOP comes back under its new name.
+  const { track, status } = useSaveStatus();
 
   const saved = groupByTopic(items);
   const savedNames = new Set(saved.map((entry) => entry.topic));
@@ -394,6 +410,8 @@ function Topics({
           today={today}
           autoFocus={focusTopic === entry.topic}
           report={report}
+          track={track}
+          status={status}
           onRenameDraft={(name) => {
             setDrafts((current) => current.map((draft) => (draft === entry.topic ? name : draft)));
             setFocusTopic(name);
@@ -454,6 +472,8 @@ function TopicSection({
   today,
   autoFocus,
   report,
+  track,
+  status,
   onRenameDraft,
 }: {
   meetingId: string;
@@ -468,22 +488,35 @@ function TopicSection({
   today: string;
   autoFocus: boolean;
   report: Report;
+  track: TrackSave;
+  status: FieldStatus;
   onRenameDraft: (name: string) => void;
 }) {
   const id = useId();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(topic);
+  /** New name while renaming; its save state shows here until the TOP comes back under it. */
+  const [target, setTarget] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function rename() {
     const next = name.trim();
-    setRenaming(false);
-    if (!next || next === topic) return;
+    if (!next || next === topic) {
+      setRenaming(false);
+      return;
+    }
     if (isDraft) {
+      setRenaming(false);
       onRenameDraft(next);
       return;
     }
-    startTransition(async () => report(await renameTopic(meetingId, topic, next)));
+    // The form stays open on an error, with "nochmal".
+    setTarget(next);
+    void track(`rename:${next}`, async () => {
+      const result = await renameTopic(meetingId, topic, next);
+      if (result.ok) setRenaming(false);
+      return result;
+    });
   }
 
   return (
@@ -559,6 +592,7 @@ function TopicSection({
           </div>
         )}
       </div>
+      {status(`rename:${target ?? topic}`)}
 
       {items.length > 0 ? (
         <ul aria-label={`Punkte zu ${topic}`} className="flex flex-col">
@@ -593,21 +627,13 @@ function TopicSection({
 const NOTES_MAX = 200_000;
 const NOTE_FILES = /\.(txt|md|vtt)$/i;
 
-function NotesPanel({
-  meetingId,
-  initialNotes,
-  report,
-}: {
-  meetingId: string;
-  initialNotes: string;
-  report: Report;
-}) {
+function NotesPanel({ meetingId, initialNotes }: { meetingId: string; initialNotes: string }) {
   const id = useId();
   const [open, setOpen] = useState(true);
   const [notes, setNotes] = useState(initialNotes);
   const [error, setError] = useState<string | null>(null);
   const saved = useRef(initialNotes);
-  const [, startTransition] = useTransition();
+  const { track, status } = useSaveStatus();
 
   function save(value: string) {
     if (value === saved.current) return;
@@ -616,12 +642,17 @@ function NotesPanel({
       return;
     }
     const last = saved.current;
-    saved.current = value;
     setError(null);
-    startTransition(async () => {
-      const result = await saveMeetingNotes(meetingId, value);
-      if (!result.ok) saved.current = last;
-      report(result);
+    void track("notes", async () => {
+      saved.current = value;
+      let ok = false;
+      try {
+        const result = await saveMeetingNotes(meetingId, value);
+        ok = result.ok;
+        return result;
+      } finally {
+        if (!ok) saved.current = last;
+      }
     });
   }
 
@@ -659,6 +690,7 @@ function NotesPanel({
           placeholder="Notiz oder Transkript hier einfügen"
           className="h-48 w-full resize-y rounded-md border border-line-strong bg-surface p-3 text-base text-text desk:h-[calc(100dvh-24rem)] desk:min-h-48"
         />
+        {status("notes")}
         <div className="flex flex-wrap items-center gap-2">
           <label className={`${SECONDARY_BUTTON} inline-flex cursor-pointer items-center has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent`}>
             Datei laden

@@ -55,7 +55,7 @@ async function MeetingList() {
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
               <MeetingStatusMark status={meeting.status} />
               <span>
-                {meeting.decisions} {meeting.decisions === 1 ? "Entscheidung" : "Entscheidungen"}
+                {meeting.decisions} {meeting.decisions === 1 ? "Beschluss" : "Beschlüsse"}
               </span>
               <span>
                 {meeting.openTodos} {meeting.openTodos === 1 ? "offenes To-do" : "offene To-dos"}

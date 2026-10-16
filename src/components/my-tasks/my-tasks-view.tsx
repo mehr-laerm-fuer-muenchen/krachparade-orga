@@ -10,7 +10,9 @@ import { useUndoBar } from "@/components/plan/plan-bar";
 import { PlanDetail } from "@/components/plan/plan-detail";
 import type { PlanViewData } from "@/components/plan/plan-view";
 import { SAVE_ERROR, usePlanActions } from "@/components/plan/use-plan-actions";
+import { usePlanTicks } from "@/components/plan/use-plan-ticks";
 import { StatusPill, type Status } from "@/components/status-pill";
+import { TickBox } from "@/components/tick-box";
 import type { MyAgenda, MyTask, MyWeek } from "@/lib/my-tasks";
 import { formatBuffer } from "@/lib/plan-preview";
 
@@ -72,14 +74,6 @@ function metaOf(task: MyTask): string {
 }
 
 type CardMode = "open" | "done" | "unassigned";
-
-function CheckIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function TaskCard({
   task,
@@ -148,22 +142,7 @@ function TaskCard({
       {mode === "unassigned" ? (
         <span aria-hidden className="w-3 shrink-0" />
       ) : (
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={checked}
-          aria-label={`${task.title} erledigt`}
-          onClick={() => onToggle(task, !checked)}
-          className="flex w-11 shrink-0 items-center justify-center hover:bg-surface-2"
-        >
-          <span
-            className={`flex size-5 items-center justify-center rounded border-2 ${
-              checked ? "border-primary bg-primary text-on-primary" : "border-line-strong bg-surface"
-            }`}
-          >
-            {checked ? <CheckIcon /> : null}
-          </span>
-        </button>
+        <TickBox checked={checked} label={`${task.title} erledigt`} onToggle={() => onToggle(task, !checked)} />
       )}
       {task.kind === "meeting_todo" ? (
         <Link href={`/protokolle/${task.meetingId}`} className={MAIN}>
@@ -338,6 +317,9 @@ export function MyTasksView({ data }: { data: MyTasksViewData }) {
   }, [byId]);
 
   const { run, drag } = usePlanActions(byId, show);
+  const { reach } = usePlanTicks(byId, show);
+  /** Elements whose "Als erreicht markieren?" hint was put off in this visit (spec 016). */
+  const [hintHidden, setHintHidden] = useState<ReadonlySet<string>>(() => new Set());
   const close = useCallback(() => setSelectedId(null), []);
 
   const toggleFold = (fold: Fold) => {
@@ -499,6 +481,9 @@ export function MyTasksView({ data }: { data: MyTasksViewData }) {
             onClose={close}
             run={run}
             drag={drag}
+            onReach={(element) => void reach(element, true)}
+            hintHidden={hintHidden.has(selected.id)}
+            onHideHint={(id) => setHintHidden(new Set(hintHidden).add(id))}
           />
         ) : null}
       </div>

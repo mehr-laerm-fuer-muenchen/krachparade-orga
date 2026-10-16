@@ -156,4 +156,19 @@ describe("PlanGantt", () => {
     expect(html).toContain("+5 T");
     expect(html).toContain("−2 T");
   });
+
+  it("shows the to-do progress: bar under tasks, number between dates and buffer", () => {
+    expect(render()).not.toContain("gantt-progress");
+    const html = render({
+      progress: new Map([
+        ["check", { done: 1, total: 4, complete: false }],
+        ["talk", { done: 2, total: 2, complete: true }],
+      ]),
+    });
+    // Only the task has a bar; its fill is a quarter of the track.
+    expect(count(html, 'data-testid="gantt-progress"')).toBe(1);
+    expect(count(html, "fill-progress-fill")).toBe(2);
+    expect(html).toMatch(/· <tspan[^>]*>1\/4<\/tspan> · <tspan[^>]*>\+5 T/);
+    expect(html).toMatch(/fill-progress-fill font-semibold[^>]*>2\/2 ✓</);
+  });
 });
