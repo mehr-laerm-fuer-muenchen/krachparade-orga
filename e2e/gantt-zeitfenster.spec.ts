@@ -225,6 +225,9 @@ test.describe("Gantt mit Zeitfenstern", () => {
       .filter({ has: page.getByText(MEETING, { exact: true }) });
     await expect(meeting.getByText(/· kritisch$/)).toBeVisible();
     await expect(meeting).toHaveAttribute("data-frame", "critical");
+    // Right side of the card: "fest" instead of the buffer (spec 026, Franz).
+    await expect(meeting.getByText("fest", { exact: true })).toBeVisible();
+    await expect(meeting.getByText(/^[+−]?\d+\sT$/)).toHaveCount(0);
     await expectNoHorizontalScroll(page);
 
     // Clean up in the Gantt.

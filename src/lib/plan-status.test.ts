@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { NBSP } from "./dday";
-import { barLabel, causeText, reasonText, situationCounts, statusLabel, windowText } from "./plan-status";
+import {
+  barLabel,
+  causeText,
+  reasonText,
+  situationCounts,
+  slackShort,
+  statusLabel,
+  windowText,
+} from "./plan-status";
 
 const D_DAY = "2027-05-08";
 const NAMES = new Map([["e1", "T-Shirt-Bestellung"]]);
@@ -119,6 +127,15 @@ describe("windowText and barLabel", () => {
     expect(barLabel({ ...zahlungsfrist, status: "done", plannedEnd: -80 }, milestone, D_DAY, "5/5 ✓")).toBe(
       "17.02. · erreicht · 5/5 ✓"
     );
+  });
+
+  it("gives the short slack for element cards", () => {
+    expect(slackShort(zahlungsfrist, open)).toBe(`Luft 50${NBSP}T`);
+    expect(slackShort({ ...zahlungsfrist, slack: 0 }, open)).toBe("keine Luft");
+    expect(slackShort({ ...zahlungsfrist, slack: -10 }, open)).toBe("keine Luft");
+    expect(slackShort(fixed, { ...milestone, placement: "fixed", fixedOffsetDays: 60 })).toBe("fest");
+    expect(slackShort(fixed, { ...milestone, placement: "fixed", fixedDay: -60 })).toBe("fest");
+    expect(slackShort({ ...zahlungsfrist, status: "done" }, open)).toBeNull();
   });
 
   it("never says D-Day", () => {

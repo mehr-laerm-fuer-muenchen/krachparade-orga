@@ -4,7 +4,7 @@ import { useId, type ReactNode } from "react";
 import { StatusPill, type Status } from "@/components/status-pill";
 import { TickBox } from "@/components/tick-box";
 import type { AgendaElement, PlanTodoView, PlanViewElement } from "@/lib/gantt-layout";
-import { formatBuffer } from "@/lib/plan-preview";
+import { slackShort } from "@/lib/plan-status";
 import { formatProgress, todoProgress, type TodoProgress } from "@/lib/todo-progress";
 import { dueText } from "./plan-detail";
 import { ReachHint } from "./reach-hint";
@@ -127,7 +127,7 @@ export function CardShell({
 }
 
 /**
- * A plan element as a card (spec 016): box = "Erreicht", status, buffer,
+ * A plan element as a card (spec 016): box = "Erreicht", status, slack (spec 026),
  * counter that opens the to-dos (each can be ticked off) and the hint "Als
  * erreicht markieren?" once all are done. `full` carries the to-dos.
  */
@@ -187,14 +187,12 @@ export function ElementCard({
       className="relative z-10"
     />
   ) : null;
+  // Spec 026 (Franz, 17.10.2026): slack instead of the buffer, also in the AK workspace.
+  const slack = full && !element.done ? slackShort(full, full) : null;
   const side = (
     <>
       <StatusPill status={element.status} reason={element.reason} assessment={element.reason === "wobbly"} />
-      {element.done ? null : (
-        <span className={`text-sm tabular-nums ${element.buffer < 0 ? "font-semibold text-status-late" : "text-muted"}`}>
-          {formatBuffer(element.buffer)}
-        </span>
-      )}
+      {slack ? <span className="text-sm whitespace-nowrap text-muted tabular-nums">{slack}</span> : null}
       {progress.total > 0 ? (
         <ProgressToggle progress={progress} open={open} controls={listId} onClick={() => onToggleExpand(element.id)} />
       ) : null}

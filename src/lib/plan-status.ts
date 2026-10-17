@@ -130,6 +130,15 @@ function fixedText(element: WindowElement): string | null {
 }
 
 /**
+ * Short slack on element cards (week list and AK workspace): "Luft 50 T",
+ * "keine Luft", "fest" for fixed dates, null for reached elements.
+ */
+export function slackShort(result: Pick<ComputedElement, "status" | "slack">, element: WindowElement): string | null {
+  if (result.status === "done") return null;
+  return fixedText(element) ? "fest" : slackText(result.slack);
+}
+
+/**
  * Window line of the week list (spec 026): "Fenster 17.02.–08.05. · Luft 50 T"
  * (earliest start to latest finish), "kein Fenster mehr", "fest · 60 T
  * vorher", "festes Datum" or "Erreicht am Mi 17.02.". `dDay` = "YYYY-MM-DD".

@@ -161,6 +161,6 @@ Teil B:
 - Gantt: Die rote Fläche „zu spät“ (Ende nach dem spätesten Ende) und der dunkle Rand fester, nicht kritischer Termine bleiben. Die Legende nennt nur die Punkte aus der Spec.
 - Die Zieh-Vorschau (`previewPlan`) liefert zusätzlich Fenster, Luft, kritisch/knapp und Lage, damit Band und Label beim Ziehen mitgehen.
 - Die Legende steht unter der Werkzeugleiste in beiden Ansichten und am Handy (bricht um).
-- Die Wochen-Karte zeigt rechts weiter den bisherigen Puffer („−2 T“, „0 T“). Dieselbe Karte nutzt auch der AK-Arbeitsbereich, der ruhig bleiben soll. Offen für Franz.
+- **Element-Karte (von Franz freigegeben):** Rechts steht statt des Puffers („−2 T“, „0 T“) die Luft: „Luft N T“ oder „keine Luft“, bei festen Terminen „fest“, bei erreichten nichts (neuer Helfer `slackShort` in `src/lib/plan-status.ts`). Das gilt in der Wochenliste und im AK-Arbeitsbereich. Der AK-Arbeitsbereich bekommt keine Fenster-Zeile und keine Rahmen.
 - Tests: `news.test.ts` erwartet jetzt den Eintrag 026 als neuesten. In `plan-bearbeiten.spec.ts` prüft der Ziehen-Schritt statt „+5 T“, dass sich das Label ändert und nach „Rückgängig“ wieder stimmt. Die Testdaten in `plan-gantt.test.tsx` haben die Fenster-Felder bekommen.
 - `--gantt-buffer` ist ungenutzt, aber stehen geblieben.
