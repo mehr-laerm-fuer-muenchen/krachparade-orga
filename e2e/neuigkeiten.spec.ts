@@ -233,9 +233,10 @@ test.describe("Neuigkeiten", () => {
       await bell(page).click();
       await expect(dialog).toBeVisible();
 
-      // Sheet at the bottom, at most 85 % of the screen, head fully visible.
+      // Sheet from at most 20 % of the screen down to the bottom edge, head fully visible.
       const sheet = await box(dialog);
-      expect(sheet.height).toBeLessThanOrEqual(height * 0.85 + 1);
+      expect(sheet.y).toBeGreaterThanOrEqual(0);
+      expect(sheet.y).toBeLessThanOrEqual(height * 0.2);
       expect(Math.abs(sheet.y + sheet.height - height)).toBeLessThanOrEqual(1);
       for (const target of [heading, closeButton]) {
         const targetBox = await box(target);

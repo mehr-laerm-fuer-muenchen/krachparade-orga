@@ -179,7 +179,7 @@ export function NewsButton({ className = "" }: { className?: string }) {
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pt-2 [-webkit-overflow-scrolling:touch] pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pt-2 [-webkit-overflow-scrolling:touch] pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] desk:pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <ul className="flex flex-col divide-y divide-line">
             {NEWS.map((entry) => {
               const isExpanded = expanded.has(entry.id);
