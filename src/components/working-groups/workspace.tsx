@@ -20,7 +20,7 @@ import { usePlanTicks, type PlanTicks } from "@/components/plan/use-plan-ticks";
 import { useSaveStatus } from "@/components/save-status";
 import { TickBox } from "@/components/tick-box";
 import type { AkAttentionItem, AkGroup, AkMeetingTodo, AkOngoingTodo, LoadedAkWorkspace } from "@/db/ak-workspace";
-import { termDay } from "@/lib/ak-workspace";
+import { areaProgress, termDay } from "@/lib/ak-workspace";
 import { formatRelativeDay } from "@/lib/dday";
 import type { PlanViewElement } from "@/lib/gantt-layout";
 import { dateToDay, dayToDate } from "@/lib/plan-days";
@@ -28,7 +28,7 @@ import { formatWeekdayShort } from "@/lib/plan-preview";
 import { isOverdue } from "@/lib/protocol-rules";
 import { formatTodoDue } from "@/lib/todo-due";
 import { ErrorMessage, useAction } from "./board";
-import { SituationPills } from "./overview";
+import { ProgressBar, SituationPills } from "./overview";
 
 // The AK workspace (spec 018, test layout v2): what needs attention, notes of
 // the working group, then per department its plan, "Laufende Aufgaben", to-dos
@@ -46,7 +46,7 @@ const SECONDARY_BUTTON =
   "min-h-11 shrink-0 rounded-md border border-line-strong bg-surface px-3 font-medium text-text hover:bg-surface-2 disabled:opacity-50";
 const REMOVE_BUTTON =
   "flex size-11 shrink-0 items-center justify-center rounded-md text-xl leading-none text-muted hover:bg-surface-2";
-const CHIP = "inline-flex items-center whitespace-nowrap rounded-full border border-line-strong px-2.5 py-0.5 text-xs font-semibold text-muted";
+const CHIP_BASE = "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold";
 const SUMMARY = "flex min-h-11 cursor-pointer items-center font-medium text-muted hover:text-text";
 const LINK = "font-medium text-primary underline underline-offset-2";
 
@@ -572,28 +572,51 @@ function DepartmentSection({ group, data, cards, today, meetingTicks, show, open
   onToggle: (open: boolean) => void;
   onCreate: (departmentId: string) => void;
 }) {
-  const headingId = useId();
+  const nameId = useId();
+  const contentId = useId();
   const { department } = group;
   const name = department?.name ?? "Ohne Aufgabenbereich";
   const all = [...group.openElements, ...group.reachedElements];
   const late = all.filter((element) => element.status === "late").length;
   const warn = all.filter((element) => element.status === "warn").length;
-  const openCount =
-    group.openElements.reduce((sum, element) => sum + element.todos.filter((todo) => !todo.done).length, 0) +
-    (group.ongoing?.openTodos.length ?? 0) +
-    group.openMeetingTodos.length;
+  const progress = areaProgress(group);
 
   return (
     // The head has the tint of the Gantt's AK lanes, so every department clearly starts anew.
-    <section aria-labelledby={headingId} className="mt-2 overflow-hidden rounded-md border border-line bg-surface">
-      <details open={open} onToggle={(event) => onToggle(event.currentTarget.open)}>
-        <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-2 bg-gantt-lane px-4 py-2 hover:bg-surface-2">
-          <h2 id={headingId} className="mr-1 min-w-0 text-lg font-semibold break-words [overflow-wrap:anywhere]">
+    <section aria-labelledby={nameId} className="mt-2 overflow-hidden rounded-md border border-line bg-surface">
+      <h2>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={contentId}
+          onClick={() => onToggle(!open)}
+          className="flex min-h-11 w-full flex-wrap items-center gap-2 bg-gantt-lane px-4 py-2 text-left hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:-outline-offset-2!"
+        >
+          <span id={nameId} className="mr-1 min-w-0 text-lg font-semibold break-words [overflow-wrap:anywhere]">
             {name}
-          </h2>
+          </span>
           <SituationPills late={late} warn={warn} calm={null} />
-          <span className={CHIP}>{openCount} offen</span>
-        </summary>
+          {progress.allDone ? (
+            <span className={`${CHIP_BASE} bg-status-done text-on-status-done`}>Alles erledigt ✓</span>
+          ) : progress.todosTotal > 0 ? (
+            <span className="flex items-center gap-1.5 text-sm text-muted tabular-nums">
+              <ProgressBar done={progress.todosDone} total={progress.todosTotal} className="h-1 w-12" />
+              {`${progress.todosDone}/${progress.todosTotal} To-dos`}
+            </span>
+          ) : null}
+          <svg
+            aria-hidden
+            viewBox="0 0 16 16"
+            className={`ml-auto size-5 shrink-0 text-muted motion-safe:transition-transform ${open ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </h2>
+      <div id={contentId} hidden={!open}>
         <div className="flex flex-col gap-5 border-t border-line px-4 py-3">
           <Subsection
             title="Plan"
@@ -656,7 +679,7 @@ function DepartmentSection({ group, data, cards, today, meetingTicks, show, open
             </>
           ) : null}
         </div>
-      </details>
+      </div>
     </section>
   );
 }

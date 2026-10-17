@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId } from "react";
 import { joinWorkingGroup, leaveWorkingGroup } from "@/actions/working-groups";
 import type { AkOverviewCard } from "@/db/ak-workspace";
-import type { AkNext, AkSummary } from "@/lib/ak-workspace";
+import type { AkNext, AkProgress } from "@/lib/ak-workspace";
 import { dayToDate } from "@/lib/plan-days";
 import { formatWeekdayShort } from "@/lib/plan-preview";
 import { ErrorMessage, useAction } from "./board";
@@ -38,8 +38,34 @@ export function nextText(next: AkNext, dDay: string): string {
   return `${next.name} · ${verb}${date}`;
 }
 
-function openTodosText(summary: AkSummary): string {
-  return summary.openTodos === 1 ? "1 offenes To-do" : `${summary.openTodos} offene To-dos`;
+/** Bar in the colours of the Gantt's progress line; the width and height come from `className`. */
+export function ProgressBar({ done, total, className }: { done: number; total: number; className: string }) {
+  return (
+    <span aria-hidden className={`block overflow-hidden rounded-full bg-progress-track ${className}`}>
+      <span
+        className="block h-full rounded-full bg-progress-fill"
+        style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}
+      />
+    </span>
+  );
+}
+
+/** "3/10 To-dos erledigt" with a bar and "1/4 Plan-Elemente erreicht" (spec 024). */
+function CardProgress({ progress }: { progress: AkProgress }) {
+  if (progress.todosTotal + progress.elementsTotal === 0) {
+    return <span className="text-sm text-muted">Noch nichts geplant</span>;
+  }
+  return (
+    <span className="flex flex-col gap-1">
+      <span className={`text-sm tabular-nums ${progress.allDone ? "font-semibold text-progress-fill" : ""}`}>
+        {`${progress.todosDone}/${progress.todosTotal} To-dos erledigt`}
+      </span>
+      <ProgressBar done={progress.todosDone} total={progress.todosTotal} className="h-1 w-full" />
+      <span className="text-xs text-muted tabular-nums">
+        {`${progress.elementsDone}/${progress.elementsTotal} Plan-Elemente erreicht`}
+      </span>
+    </span>
+  );
 }
 
 export function AkOverviewCardView({ card, viewerId, dDay }: { card: AkOverviewCard; viewerId: string; dDay: string }) {
@@ -59,8 +85,8 @@ export function AkOverviewCardView({ card, viewerId, dDay }: { card: AkOverviewC
         </h2>
         <span className="flex flex-wrap gap-2">
           <SituationPills late={summary.late} warn={summary.warn} />
-          <span className={`${PILL} border border-line-strong text-muted`}>{openTodosText(summary)}</span>
         </span>
+        <CardProgress progress={card.progress} />
         <span className="text-sm break-words">
           <span className="text-muted">Nächster Termin: </span>
           {summary.next ? nextText(summary.next, dDay) : "–"}

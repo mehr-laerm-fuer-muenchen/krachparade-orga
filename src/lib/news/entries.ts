@@ -16,6 +16,25 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "024-fortschritt-aks",
+    date: "2026-10-17",
+    title: "Fortschritt in den AKs",
+    items: [
+      {
+        lead: "AK-Karten",
+        text: "zeigen jetzt, wie viele To-dos schon erledigt sind – mit Fortschrittsleiste.",
+      },
+      {
+        lead: "Aufgabenbereiche",
+        text: "erkennst du am Pfeil als aufklappbar; im Kopf steht ihr Fortschritt.",
+      },
+      {
+        lead: "Alles erledigt ✓",
+        text: "erscheint, sobald in einem Bereich nichts mehr offen ist.",
+      },
+    ],
+  },
+  {
     id: "023-klarer-machen",
     date: "2026-10-17",
     title: "Fälligkeiten mit Datum, Fortschritt im Panel",

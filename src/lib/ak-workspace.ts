@@ -193,6 +193,65 @@ export function groupByDepartment<
   return groups;
 }
 
+/** Done and all to-dos and reached and all plan elements (spec 024). */
+export type AkProgress = {
+  todosDone: number;
+  todosTotal: number;
+  elementsDone: number;
+  elementsTotal: number;
+  /** At least one entry, every to-do done and every element reached. */
+  allDone: boolean;
+};
+
+type Ticked = { done: boolean };
+type ElementWithTodos = { done: boolean; todos: readonly Ticked[] };
+
+function progressOf(elements: readonly ElementWithTodos[], otherTodos: readonly Ticked[]): AkProgress {
+  const todos = [...elements.flatMap((element) => element.todos), ...otherTodos];
+  const todosDone = todos.filter((todo) => todo.done).length;
+  const elementsDone = elements.filter((element) => element.done).length;
+  return {
+    todosDone,
+    todosTotal: todos.length,
+    elementsDone,
+    elementsTotal: elements.length,
+    allDone:
+      todos.length + elements.length > 0 && todosDone === todos.length && elementsDone === elements.length,
+  };
+}
+
+/**
+ * Progress of a department group: to-dos of its plan elements (reached ones
+ * included), of its "Laufende Aufgaben" and its protocol to-dos; elements are
+ * its plan elements ("Laufende Aufgaben" are never among them).
+ */
+export function areaProgress(area: {
+  openElements: readonly ElementWithTodos[];
+  reachedElements: readonly ElementWithTodos[];
+  ongoing: { openTodos: readonly Ticked[]; doneTodos: readonly Ticked[] } | null;
+  openMeetingTodos: readonly Ticked[];
+  doneMeetingTodos: readonly Ticked[];
+}): AkProgress {
+  return progressOf(
+    [...area.openElements, ...area.reachedElements],
+    [
+      ...(area.ongoing?.openTodos ?? []),
+      ...(area.ongoing?.doneTodos ?? []),
+      ...area.openMeetingTodos,
+      ...area.doneMeetingTodos,
+    ]
+  );
+}
+
+/** Progress of a working group: all its plan elements, to-dos of its "Laufende Aufgaben" and protocol to-dos. */
+export function akProgress(ak: {
+  elements: readonly ElementWithTodos[];
+  ongoingTodos: readonly Ticked[];
+  meetingTodos: readonly Ticked[];
+}): AkProgress {
+  return progressOf(ak.elements, [...ak.ongoingTodos, ...ak.meetingTodos]);
+}
+
 export type AkNext = { elementId: string; name: string; day: number; type: "milestone" | "starts" | "ends" };
 
 export type AkSummary = { late: number; warn: number; openTodos: number; next: AkNext | null };

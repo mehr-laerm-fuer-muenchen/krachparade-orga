@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  akProgress,
   akSummary,
+  areaProgress,
   attentionItems,
   groupByDepartment,
   ongoingDisplayName,
@@ -304,5 +306,94 @@ describe("akSummary", () => {
         element({ id: "task", kind: "task", start: T - 9, end: T - 2, status: "late" }),
       ]).next
     ).toBeNull();
+  });
+});
+
+describe("areaProgress", () => {
+  const todo = (done: boolean) => ({ done });
+  const area = (overrides: Partial<Parameters<typeof areaProgress>[0]> = {}) =>
+    areaProgress({
+      openElements: [],
+      reachedElements: [],
+      ongoing: null,
+      openMeetingTodos: [],
+      doneMeetingTodos: [],
+      ...overrides,
+    });
+
+  it("is empty and not all done without entries", () => {
+    expect(area()).toEqual({ todosDone: 0, todosTotal: 0, elementsDone: 0, elementsTotal: 0, allDone: false });
+    expect(area({ ongoing: { openTodos: [], doneTodos: [] } }).allDone).toBe(false);
+  });
+
+  it("counts to-dos of open and reached elements and the reached elements", () => {
+    expect(
+      area({
+        openElements: [{ done: false, todos: [todo(true), todo(false)] }],
+        reachedElements: [{ done: true, todos: [todo(true)] }],
+      })
+    ).toEqual({ todosDone: 2, todosTotal: 3, elementsDone: 1, elementsTotal: 2, allDone: false });
+  });
+
+  it("counts the to-dos of the Laufende Aufgaben", () => {
+    expect(area({ ongoing: { openTodos: [todo(false)], doneTodos: [todo(true), todo(true)] } })).toMatchObject({
+      todosDone: 2,
+      todosTotal: 3,
+      elementsTotal: 0,
+      allDone: false,
+    });
+    expect(area({ ongoing: { openTodos: [], doneTodos: [todo(true)] } }).allDone).toBe(true);
+  });
+
+  it("counts protocol to-dos of the department", () => {
+    expect(area({ openMeetingTodos: [todo(false)], doneMeetingTodos: [todo(true)] })).toMatchObject({
+      todosDone: 1,
+      todosTotal: 2,
+      allDone: false,
+    });
+    expect(area({ doneMeetingTodos: [todo(true)] }).allDone).toBe(true);
+  });
+
+  it("is all done only when every to-do is done and every element reached", () => {
+    const reached = { done: true, todos: [todo(true)] };
+    expect(area({ reachedElements: [reached], doneMeetingTodos: [todo(true)] }).allDone).toBe(true);
+    expect(area({ reachedElements: [reached], openElements: [{ done: false, todos: [] }] }).allDone).toBe(false);
+    expect(area({ reachedElements: [reached], openMeetingTodos: [todo(false)] }).allDone).toBe(false);
+    expect(area({ reachedElements: [{ done: true, todos: [] }] }).allDone).toBe(true);
+  });
+});
+
+describe("akProgress", () => {
+  const todo = (done: boolean) => ({ done });
+
+  it("is empty and not all done without entries", () => {
+    expect(akProgress({ elements: [], ongoingTodos: [], meetingTodos: [] })).toEqual({
+      todosDone: 0,
+      todosTotal: 0,
+      elementsDone: 0,
+      elementsTotal: 0,
+      allDone: false,
+    });
+  });
+
+  it("adds plan, Laufende Aufgaben and protocol to-dos", () => {
+    expect(
+      akProgress({
+        elements: [
+          { done: true, todos: [todo(true)] },
+          { done: false, todos: [todo(false), todo(true)] },
+        ],
+        ongoingTodos: [todo(true), todo(false)],
+        meetingTodos: [todo(true)],
+      })
+    ).toEqual({ todosDone: 4, todosTotal: 6, elementsDone: 1, elementsTotal: 2, allDone: false });
+  });
+
+  it("is all done when everything is done", () => {
+    expect(
+      akProgress({ elements: [{ done: true, todos: [todo(true)] }], ongoingTodos: [todo(true)], meetingTodos: [] })
+        .allDone
+    ).toBe(true);
+    expect(akProgress({ elements: [], ongoingTodos: [todo(true)], meetingTodos: [] }).allDone).toBe(true);
   });
 });
