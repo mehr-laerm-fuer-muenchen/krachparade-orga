@@ -253,6 +253,7 @@ describe("weekAgenda", () => {
       done: false,
       fixed: false,
       reason: "ok",
+      reasonDetail: {},
       workingGroupName: "AK Demo & Route",
       ownerName: null,
       todos: [],
@@ -311,6 +312,7 @@ describe("weekAgenda", () => {
       buffer: -2,
       status: "late",
       reason: "fixed_too_late",
+      reasonDetail: { day: day("2027-04-06") },
       fixed: true,
     });
     const check = item({
@@ -325,13 +327,13 @@ describe("weekAgenda", () => {
         { id: "t3", text: "PR geprüft", ownerName: null, anchor: "start", daysBefore: 10, due: day("2027-02-10"), done: true },
       ],
     });
-    const overdueTask = item({ id: "overdue", kind: "task", start: day("2027-01-01"), end: day("2027-02-01"), status: "late", reason: "overdue" });
+    const overdueTask = item({ id: "overdue", kind: "task", start: day("2027-01-01"), end: day("2027-02-01"), status: "late", reason: "overdue", reasonDetail: { day: day("2027-02-01") } });
     const result = agenda([late, check, overdueTask]);
 
     expect(result.overdue.map((entry) => [entry.key, entry.text])).toEqual([
-      ["overdue", "Termin vorbei, nicht abgehakt"],
+      ["overdue", "Überfällig seit Mo 01.02."],
       ["todo-t1", "für Finaler Crosscheck · war fällig 16.02. (4 Tage vor Start)"],
-      ["late", "Fixtermin liegt 2 Tage zu spät"],
+      ["late", "Nachfolger brauchen es spätestens Di 06.04. – der feste Termin ist zu spät"],
     ]);
     expect(result.weeks[0].entries.map((entry) => [entry.key, entry.text])).toEqual([
       ["todo-t2", "für Finaler Crosscheck · fällig 18.02. (2 Tage vor Start) · Sascha Möller"],
@@ -342,8 +344,10 @@ describe("weekAgenda", () => {
   });
 
   it("says why an element is late", () => {
-    const result = agenda([item({ id: "negative", buffer: -3, status: "late", reason: "too_late" })]);
-    expect(result.overdue[0].text).toBe("3 Tage zu spät geplant");
+    const result = agenda([
+      item({ id: "negative", buffer: -3, status: "late", reason: "too_late", reasonDetail: { days: 3 } }),
+    ]);
+    expect(result.overdue[0].text).toBe("Zu spät geplant: 3 Tage nach dem spätesten Start");
   });
 
   it("filters by my working groups, elements without AK only without filter", () => {

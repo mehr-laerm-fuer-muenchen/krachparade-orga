@@ -25,6 +25,7 @@ import { formatRelativeDay } from "@/lib/dday";
 import type { PlanViewElement } from "@/lib/gantt-layout";
 import { dateToDay, dayToDate } from "@/lib/plan-days";
 import { formatWeekdayShort } from "@/lib/plan-preview";
+import { situationCounts } from "@/lib/plan-status";
 import { isOverdue } from "@/lib/protocol-rules";
 import { formatTodoDue } from "@/lib/todo-due";
 import { ErrorMessage, useAction } from "./board";
@@ -577,8 +578,7 @@ function DepartmentSection({ group, data, cards, today, meetingTicks, show, open
   const { department } = group;
   const name = department?.name ?? "Ohne Aufgabenbereich";
   const all = [...group.openElements, ...group.reachedElements];
-  const late = all.filter((element) => element.status === "late").length;
-  const warn = all.filter((element) => element.status === "warn").length;
+  const situation = situationCounts(all);
   const progress = areaProgress(group);
 
   return (
@@ -595,7 +595,7 @@ function DepartmentSection({ group, data, cards, today, meetingTicks, show, open
           <span id={nameId} className="mr-1 min-w-0 text-lg font-semibold break-words [overflow-wrap:anywhere]">
             {name}
           </span>
-          <SituationPills late={late} warn={warn} calm={null} />
+          <SituationPills {...situation} calm={null} />
           {progress.allDone ? (
             <span className={`${CHIP_BASE} bg-status-done text-on-status-done`}>Alles erledigt ✓</span>
           ) : progress.todosTotal > 0 ? (

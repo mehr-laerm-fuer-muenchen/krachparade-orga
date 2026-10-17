@@ -7,6 +7,7 @@ import type { AkOverviewCard } from "@/db/ak-workspace";
 import type { AkNext, AkProgress } from "@/lib/ak-workspace";
 import { dayToDate } from "@/lib/plan-days";
 import { formatWeekdayShort } from "@/lib/plan-preview";
+import type { SituationCounts } from "@/lib/plan-status";
 import { ErrorMessage, useAction } from "./board";
 
 // Overview of /arbeitskreise (spec 018): one card per working group with its
@@ -18,15 +19,21 @@ const SECONDARY_BUTTON =
   "min-h-11 shrink-0 rounded-md border border-line-strong bg-surface px-3 font-medium text-text hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface";
 const PILL = "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold";
 
-/** "n Verzug", "n wackelt", or "Alles im Plan" (spec 018). */
-export function SituationPills({ late, warn, calm = "Alles im Plan" }: { late: number; warn: number; calm?: string | null }) {
-  if (late === 0 && warn === 0) {
+/** "n Verzug", "n wackelt", "n zu früh" (spec 025), or "Alles im Plan" (spec 018). */
+export function SituationPills({
+  late,
+  wobbly,
+  early,
+  calm = "Alles im Plan",
+}: SituationCounts & { calm?: string | null }) {
+  if (late === 0 && wobbly === 0 && early === 0) {
     return calm ? <span className={`${PILL} bg-status-ok text-on-status-ok`}>{calm}</span> : null;
   }
   return (
     <>
       {late > 0 ? <span className={`${PILL} bg-status-late text-on-status-late`}>{late} Verzug</span> : null}
-      {warn > 0 ? <span className={`${PILL} bg-status-warn text-on-status-warn`}>{warn} wackelt</span> : null}
+      {wobbly > 0 ? <span className={`${PILL} bg-status-warn text-on-status-warn`}>{wobbly} wackelt</span> : null}
+      {early > 0 ? <span className={`${PILL} bg-status-warn text-on-status-warn`}>{early} zu früh</span> : null}
     </>
   );
 }
@@ -84,7 +91,7 @@ export function AkOverviewCardView({ card, viewerId, dDay }: { card: AkOverviewC
           </span>
         </h2>
         <span className="flex flex-wrap gap-2">
-          <SituationPills late={summary.late} warn={summary.warn} />
+          <SituationPills late={summary.late} wobbly={summary.wobbly} early={summary.early} />
         </span>
         <CardProgress progress={card.progress} />
         <span className="text-sm break-words">

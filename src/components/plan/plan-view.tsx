@@ -265,8 +265,8 @@ export function PlanView({ data }: { data: PlanViewData }) {
     [elements]
   );
 
-  // The filters apply to the week list as well. Until spec 025 part B the
-  // filter keeps its name "Kritischer Pfad" and shows critical or tight elements.
+  // The filters apply to the week list as well. "Kritisch & knapp" (spec 025)
+  // shows critical or tight elements.
   const criticalIds = useMemo(
     () => elements.filter((element) => element.critical || element.tight).map((element) => element.id),
     [elements]
@@ -286,7 +286,11 @@ export function PlanView({ data }: { data: PlanViewData }) {
         <PageTitle>{data.title}</PageTitle>
         <p className="text-muted">
           Rückwärts gerechnet ab der {D_DAY_NAME} · {elements.length} Elemente · {late} in Verzug
-          {criticalOnly ? ` · ${counts.critical} kritisch · ${counts.tight} knapp` : null}
+          {criticalOnly
+            ? counts.critical === 0 && counts.tight === 0
+              ? " · nichts kritisch"
+              : ` · ${counts.critical} kritisch · ${counts.tight} knapp`
+            : null}
         </p>
       </div>
 
@@ -302,7 +306,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
           className="hidden desk:flex"
         />
         <FilterButton pressed={criticalOnly} onClick={() => setCriticalOnly(!criticalOnly)}>
-          Kritischer Pfad
+          Kritisch &amp; knapp
         </FilterButton>
         <FilterButton pressed={openOnly} onClick={() => setOpenOnly(!openOnly)}>
           Nur offene

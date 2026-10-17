@@ -81,7 +81,7 @@ export type PlanGanttProps = {
   elements: readonly GanttElement[];
   groups: readonly GanttGroup[];
   links: readonly GanttLink[];
-  /** Elements the filter "Kritischer Pfad" shows (spec 025: critical or tight). */
+  /** Elements the filter "Kritisch & knapp" shows (spec 025: critical or tight). */
   criticalIds: readonly string[];
   /** Today and the D-Day come from the server, never from the browser clock. */
   today: number;

@@ -1,39 +1,7 @@
-// Texts and choices of the editable detail panel (spec 008). Pure functions.
+// Choices of the editable detail panel (spec 008); the status texts live in
+// plan-status.ts (spec 025). Pure functions.
 import { D_DAY_NAME } from "./plan-edit";
-import { wouldCreateCycle, type PlanLinkInput, type PlanStatusReason } from "./plan-engine";
-
-function days(count: number): string {
-  return count === 1 ? "1 Tag" : `${count} Tage`;
-}
-
-/**
- * The automatic reason behind the status, shown small under "Status"
- * (stand-in texts for the reasons of spec 025 until its part B).
- */
-export function reasonText(element: { reason: PlanStatusReason; buffer: number }): string {
-  switch (element.reason) {
-    case "done":
-      return "Als erreicht abgehakt.";
-    case "fixed_too_late":
-      return `Fixtermin liegt ${days(-element.buffer)} zu spät für die Nachfolger.`;
-    case "fixed_unreachable":
-      return "Die Vorgänger werden zu spät fertig für den Fixtermin.";
-    case "no_window":
-      return "Kein Fenster mehr: Vorgänger und Nachfolger lassen keinen Platz.";
-    case "too_late":
-      return `Zu spät geplant: ${days(-element.buffer)} nach dem spätesten Termin.`;
-    case "too_early":
-      return "Zu früh geplant: liegt vor dem frühesten Termin.";
-    case "before_predecessor":
-      return "Liegt vor dem Ende eines Vorgängers.";
-    case "overdue":
-      return "Termin vorbei, nicht abgehakt.";
-    case "wobbly":
-      return "Als wackelig eingeschätzt.";
-    default:
-      return "Im Plan.";
-  }
-}
+import { wouldCreateCycle, type PlanLinkInput } from "./plan-engine";
 
 type Named = { id: string; name: string };
 

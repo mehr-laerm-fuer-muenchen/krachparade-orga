@@ -16,6 +16,33 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "025-zeitfenster-rechnung",
+    date: "2026-10-17",
+    title: "Zeitfenster statt fester Abstände",
+    items: [
+      {
+        lead: "Zeitfenster und Lage",
+        text: "Jedes Plan-Element hat jetzt ein Zeitfenster von frühestens bis spätestens und eine Lage: fest, so früh wie möglich, so spät wie möglich oder frei im Fenster. Du findest beides im Element.",
+      },
+      {
+        lead: "Abstände sind Mindestabstände",
+        text: "(„mind. 7 T danach“). 0 heißt: nur die Reihenfolge zählt.",
+      },
+      {
+        lead: "Luft",
+        text: "zeigt, wie weit etwas noch rutschen kann. Der Filter heißt jetzt „Kritisch & knapp“: kritisch = keine Luft, knapp = höchstens 7 Tage.",
+      },
+      {
+        lead: "Neuer Status „Zu früh“",
+        text: "(gelb), wenn etwas vor seinem Vorgänger liegt. Erreichte Elemente bleiben an dem Tag, an dem sie abgehakt wurden.",
+      },
+      {
+        lead: "Ziehen legt den Termin selbst fest",
+        text: "(Lage „Frei im Fenster“). Deine bisherigen Termine sind gleich geblieben; die Fenster im Gantt kommen mit dem nächsten Update.",
+      },
+    ],
+  },
+  {
     id: "024-fortschritt-aks",
     date: "2026-10-17",
     title: "Fortschritt in den AKs",

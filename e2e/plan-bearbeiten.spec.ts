@@ -243,22 +243,25 @@ test.describe("Plan bearbeiten", () => {
 
     // Fixed date for B, 3 days later → late; remove it again.
     panel = await openInGantt(page, b);
-    await panel.getByLabel("Fixtermin (extern festgelegt)").check();
-    const fixed = panel.getByLabel("Fixtermin", { exact: true });
+    // Spec 025: "Fest · Festes Datum"; the date saves as soon as it is complete.
+    const placement = panel.getByRole("group", { name: "Lage" });
+    await placement.getByRole("button", { name: "Fest" }).click();
+    await panel.getByRole("group", { name: "Fest" }).getByRole("button", { name: "Festes Datum" }).click();
+    const fixed = panel.getByLabel("Festes Datum", { exact: true });
     await expect(fixed).toBeVisible();
     const fixedDate = await fixed.inputValue();
     await fixed.fill(addDays(fixedDate, 3));
-    // Tab only moves between the parts of the date field; leave it explicitly (spec 025).
-    await fixed.blur();
-    await expect(panel.getByText("−3 T Verzug", { exact: true })).toBeVisible();
-    await panel.getByLabel("Fixtermin (extern festgelegt)").uncheck();
-    await expect(panel.getByLabel("Fixtermin", { exact: true })).toHaveCount(0);
-    await expect(panel.getByText("0 T Puffer", { exact: true })).toBeVisible();
+    await expect(panel.getByTestId("detail-reason")).toHaveText(/der feste Termin ist zu spät$/);
+    await expect(panel.getByTestId("detail-window-pill")).toHaveText("festes Datum");
+    await placement.getByRole("button", { name: "So spät wie möglich" }).click();
+    await expect(placement.getByRole("button", { name: "So spät wie möglich" })).toHaveAttribute("aria-pressed", "true");
+    await expect(panel.getByLabel("Festes Datum", { exact: true })).toHaveCount(0);
+    await expect(panel.getByTestId("detail-reason")).toHaveCount(0);
 
     // C reached.
     panel = await openInGantt(page, c);
     await panel.getByLabel("Erreicht", { exact: true }).check();
-    await expect(panel.getByText("erledigt", { exact: true })).toBeVisible();
+    await expect(panel.getByTestId("detail-window-pill")).toHaveText("erreicht");
     await expect(panel.getByText(/^Erreicht$/).first()).toBeVisible();
 
     // To-do at A: add, tick off, delete.

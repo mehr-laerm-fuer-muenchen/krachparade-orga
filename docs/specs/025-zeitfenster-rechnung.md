@@ -286,4 +286,11 @@ Teil A:
 
 Für Teil B:
 
-1. **Datumsfeld „Festes Datum“ speichert, sobald ein vollständiges gültiges Datum eingetragen ist (change)**, nicht erst beim Verlassen; der Klicktest prüft das ohne `blur` (von Franz freigegeben).
+1. **Datumsfeld „Festes Datum“ speichert, sobald ein vollständiges gültiges Datum eingetragen ist (change)**, nicht erst beim Verlassen; der Klicktest prüft das ohne `blur` (von Franz freigegeben). Umgesetzt.
+2. Die Übergangs-Oberfläche aus Teil A ist vollständig ersetzt: Fixtermin-Kästchen, „Von Hand gelegt“/„Auf spätesten Termin“, die Ersatztexte `reasonText` in `src/lib/plan-panel.ts` (entfernt) und `lateText` in `src/lib/gantt-layout.ts` (entfernt; Wochenliste und `/meine` nutzen `reasonText` aus `plan-status.ts`).
+3. Auslegung: `StatusPill` bekommt die Variante `reason` (Text über `statusLabel`, Farben unverändert); ohne `reason` heißt `warn` weiter „Wackelt“. `situationCounts` in `plan-status.ts` zählt „Verzug“, „wackelt“ (nur `wobbly`) und „zu früh“ für AK-Karten und Aufgabenbereiche (`AkSummary` hat jetzt `wobbly`/`early` statt `warn`).
+4. Auslegung: Die zugänglichen Namen der Abstand-Felder bleiben („Abstand zu ‹Name› in Tagen“); sichtbar steht „mind. [N] T danach/davor“. Im Kurzformular heißt das Feld „Mindestabstand (T)“, sichtbar „mind. [0] T“. Das Abstand-Feld für neue Verbindungen heißt „‹Vorgänger/Nachfolger› wählen: Mindestabstand in Tagen“.
+5. Auslegung: Die Datumszeile bei „Fest · N Tage“ heißt bei Vorgängen „Start ‹Datum›“, bei Meilensteinen „Am ‹Datum›“. Der Hinweis „Bezieht sich auf den Start.“ steht nur bei Vorgängen. Die Legende des Gantt bleibt bis 026 unverändert.
+6. `PlanViewElement` liefert zusätzlich `earliestStart`, `slack`, `running` und `reasonDetail` (für Zeitfenster-Kasten und Grund).
+7. Klicktest `e2e/zeitfenster.spec.ts`: läuft im Projekt „desktop“ bei 1280 × 800 und schaltet für den Handy-Teil selbst auf 375 × 812. Damit A in der Wochenliste sicher sichtbar ist, legt er vorher das feste Datum von A auf heute (prüft dabei gleich das Speichern ohne `blur`). Das Ziehen von B nutzt den Zoom „Quartal“.
+8. Angepasste Klicktests: `plan.spec.ts` (Panel-Kopf „festes Datum“, Grund, Lage „Fest“; Filter „Kritisch & knapp“; Blatt am Handy), `plan-bearbeiten.spec.ts` (Fixtermin-Schritte über „Fest · Festes Datum“, zurück über „So spät wie möglich“; „erreicht“ im Kopf).
