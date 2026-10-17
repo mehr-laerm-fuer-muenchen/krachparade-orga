@@ -137,14 +137,21 @@ export type PlanTemplateElement = {
   /** Successor by name with lag in days; `null` = the D-Day. */
   next: { to: string | null; lag: number }[];
   fixedDate?: string;
+  /** Spec 026: "fixed", N days before the D-Day. */
+  fixedOffsetDays?: number;
   /** Spec 006; not read since spec 025, kept so the old model gives the same dates. */
   shiftDays?: number;
-  /** Spec 025; without it "fixed" with `fixedDate`, otherwise "alap". */
+  /** Spec 025; without it "fixed" with `fixedDate` or `fixedOffsetDays`, otherwise "alap". */
   placement?: Placement;
   /** Start of a "free" element. */
   freeStartDay?: number;
   wobbly?: boolean;
 };
+
+/** Placement of a template element without `placement`: "fixed" with a fixed date or offset, otherwise "alap". */
+export function templatePlacement(element: Pick<PlanTemplateElement, "fixedDate" | "fixedOffsetDays">): Placement {
+  return element.fixedDate !== undefined || element.fixedOffsetDays !== undefined ? "fixed" : "alap";
+}
 
 /**
  * Made-up example plan (spec 006, test layout v4), never in production. Only
@@ -639,7 +646,8 @@ export async function seed({ prod }: { prod: boolean }) {
           name: element.name,
           durationDays: element.durationDays ?? 0,
           shiftDays: element.shiftDays ?? 0,
-          placement: element.placement ?? (element.fixedDate ? "fixed" : "alap"),
+          placement: element.placement ?? templatePlacement(element),
+          fixedOffsetDays: element.fixedOffsetDays ?? null,
           fixedDate: element.fixedDate ?? null,
           freeStartDay: element.freeStartDay ?? null,
           wobbly: element.wobbly ?? false,

@@ -144,3 +144,12 @@ Keine DB-Änderung. Vorher lokal durchklicken (Chrome, Laptop und Geräteansicht
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen)
+
+Teil A:
+
+- **E1 (von Franz freigegeben):** `src/db/seed.ts` – Vorlagen-Typ `PlanTemplateElement` hat neu `fixedOffsetDays?: number`; `seedPlan` schreibt `fixed_offset_days` mit, ohne `placement` gilt „fest“ bei `fixedDate` oder `fixedOffsetDays` (Helfer `templatePlacement`). Kein anderer Seed-Inhalt, `TEST_PLAN` unverändert.
+- **E2 (von Franz freigegeben):** `windowText` zeigt das echte Fenster von `earliestStart` bis `latestFinish` (wie die Bänder), ohne Fenster „kein Fenster mehr“. Das Beispiel oben ist damit korrigiert: Zahlungsfrist „Fenster 17.02.–08.05. · Luft 50 T“.
+- **E3 (von Franz freigegeben):** `windowText(result, element, dDay)` und `barLabel(result, element, dDay, progress)` bekommen zusätzlich Element und Datum der Krachparade; festes Datum im Label „09.03. · fest“, in `windowText` „festes Datum“.
+- **E4 (von Franz freigegeben):** `findCause` steht in `src/lib/plan-cause.ts`, als Breitensuche nach Abstand über beide Seiten gleichzeitig (Vorgänger, die den frühesten Start bestimmen; Nachfolger, die den spätesten Termin bestimmen; jeweils in derselben Richtung weiter), bei gleichem Abstand die frühe Seite zuerst. Bei `too_late` und `before_predecessor` zählen auf der frühen Seite die geplanten Enden der Vorgänger. „Spät erreicht“ = mindestens 1 Tag nach dem spätesten Ende, das die Nachfolger brauchen.
+- KP27-Vorlage: To-do „Wagenreihung“ bei „Programm fertig“ entfällt (33 → 32 To-dos); „Wagenreihung steht“ ohne Aufgabenbereich, weil „Programm fertig“ keinen hat. 24 Elemente, 27 Verbindungen, 15 Notizen (Notiz-Texte von Franz vorgegeben). Der alte Vorlagen-Test (Stand Spec 010/025) ist durch die Erwartungen aus 026 ersetzt.
+- Zusätzlicher `findCause`-Testfall „spät erreicht“ (Voranmeldung am −130 erreicht, heute −125).
