@@ -168,6 +168,9 @@ function Legend() {
       <LegendItem label="Verzug">
         <rect x="1" y="2" width="16" height="8" rx="2" className="fill-status-late" />
       </LegendItem>
+      <LegendItem label="zu spät">
+        <rect x="1" y="0" width="16" height="12" className="fill-gantt-late" />
+      </LegendItem>
       <LegendItem label="fest">
         <path d={PIN_PATH} transform="translate(4 0)" fill="currentColor" fillRule="evenodd" className="text-text" />
       </LegendItem>

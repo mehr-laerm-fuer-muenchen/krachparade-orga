@@ -150,7 +150,7 @@ test.describe("Gantt mit Zeitfenstern", () => {
 
     // Legend for the new model.
     const legend = page.getByRole("list", { name: "Legende" });
-    for (const item of ["Zeitfenster", "fest", "kritisch", "knapp"]) {
+    for (const item of ["Zeitfenster", "zu spät", "fest", "kritisch", "knapp"]) {
       await expect(legend.getByText(item, { exact: true })).toBeVisible();
     }
 

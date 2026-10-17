@@ -491,13 +491,12 @@ function ElementMark({
   const pinned = open && element.fixed;
   const frame = open && element.critical ? "critical" : open && element.tight ? "tight" : null;
   const labelX = markEnd + 6;
+  // Fixed dates have the pin instead of a dark outline (spec 026).
   const outline = frame
     ? `stroke-accent stroke-2 ${frame === "tight" ? "[stroke-dasharray:3_2]" : ""}`
-    : element.fixed
-      ? "stroke-text stroke-2"
-      : element.status === "ok"
-        ? "stroke-on-status-ok stroke-1"
-        : "";
+    : element.status === "ok"
+      ? "stroke-on-status-ok stroke-1"
+      : "";
   const label = barLabel(
     {
       status: element.status,

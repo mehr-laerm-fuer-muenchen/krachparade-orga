@@ -158,7 +158,7 @@ Teil B:
 
 - Die Ursache rechnet der Server (`loadPlanView` → Feld `cause` am Element), das Panel zeigt sie nur an.
 - Gantt: Das SVG ist für Screenreader ein Bild („Gantt-Plan“), `sr-only` wirkt darin nicht. „fest“, „kritisch“ und „knapp“ stehen deshalb im `<title>` des Elements (zugleich Tooltip). In der Wochenliste sind es echte Texte.
-- Gantt: Die rote Fläche „zu spät“ (Ende nach dem spätesten Ende) und der dunkle Rand fester, nicht kritischer Termine bleiben. Die Legende nennt nur die Punkte aus der Spec.
+- **Gantt (von Franz freigegeben):** Der dunkle Rand fester Termine entfällt, der Pin ersetzt ihn. Die rote Fläche „zu spät“ (Ende nach dem spätesten Ende) bleibt und steht als „zu spät“ in der Legende.
 - Die Zieh-Vorschau (`previewPlan`) liefert zusätzlich Fenster, Luft, kritisch/knapp und Lage, damit Band und Label beim Ziehen mitgehen.
 - Die Legende steht unter der Werkzeugleiste in beiden Ansichten und am Handy (bricht um).
 - **Element-Karte (von Franz freigegeben):** Rechts steht statt des Puffers („−2 T“, „0 T“) die Luft: „Luft N T“ oder „keine Luft“, bei festen Terminen „fest“, bei erreichten nichts (neuer Helfer `slackShort` in `src/lib/plan-status.ts`). Das gilt in der Wochenliste und im AK-Arbeitsbereich. Der AK-Arbeitsbereich bekommt keine Fenster-Zeile und keine Rahmen.

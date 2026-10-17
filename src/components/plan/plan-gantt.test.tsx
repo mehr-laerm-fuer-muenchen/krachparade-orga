@@ -144,6 +144,13 @@ describe("PlanGantt", () => {
     expect(tightHtml).toContain('data-frame="tight"');
     expect(tightHtml).toContain("<title>Finaler Crosscheck · knapp</title>");
     expect(tightHtml).toContain("[stroke-dasharray:3_2]");
+    // A fixed date that is not critical: the pin, no dark outline.
+    const calm = ELEMENTS.map((element) =>
+      element.id === "talk" ? { ...element, status: "ok" as const, buffer: 0, critical: false } : element
+    );
+    const calmHtml = render({ elements: calm });
+    expect(count(calmHtml, 'data-testid="gantt-pin"')).toBe(1);
+    expect(calmHtml).not.toContain("stroke-text");
   });
 
   it("shows arrows only for a selected element", () => {
