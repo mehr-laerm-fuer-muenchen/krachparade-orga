@@ -3,11 +3,13 @@ import { cache } from "react";
 import { z } from "zod";
 import type { PlanViewData } from "@/components/plan/plan-view";
 import {
+  akProgress,
   akSummary,
   attentionItems,
   groupByDepartment,
   ongoingDisplayName,
   type AkDepartmentGroup,
+  type AkProgress,
   type AkSummary,
   type AttentionItem,
 } from "@/lib/ak-workspace";
@@ -189,6 +191,7 @@ export type AkOverviewCard = {
   departments: string[];
   members: AkPerson[];
   summary: AkSummary;
+  progress: AkProgress;
 };
 
 export type LoadedAkOverview =
@@ -218,6 +221,8 @@ export const loadAkOverview = cache(async (memberId: string, today: string): Pro
     const groupElements = elements.filter((element) => element.workingGroupId === group.id);
     const ongoingIds = ongoing.filter((element) => element.workingGroupId === group.id).map((element) => element.id);
     const ongoingSet = new Set(ongoingIds);
+    const ongoingTodos = details.todos.filter((todo) => ongoingSet.has(todo.elementId));
+    const meetingTodos = items.todos.filter((todo) => todo.departmentId !== null && departmentIds.has(todo.departmentId));
     return {
       id: group.id,
       title: displayGroupName(group.name),
@@ -230,14 +235,12 @@ export const loadAkOverview = cache(async (memberId: string, today: string): Pro
           dDay: edition.dDay,
           elements: groupElements,
           ongoingIds,
-          planTodos: [
-            ...planTodosOf(groupElements),
-            ...details.todos.filter((todo) => ongoingSet.has(todo.elementId)),
-          ],
-          meetingTodos: items.todos.filter((todo) => todo.departmentId !== null && departmentIds.has(todo.departmentId)),
+          planTodos: [...planTodosOf(groupElements), ...ongoingTodos],
+          meetingTodos,
         },
         today
       ),
+      progress: akProgress({ elements: groupElements, ongoingTodos, meetingTodos }),
     };
   });
   return { status: "ok", final: edition.workingGroupsFinal, dDay: edition.dDay, cards };

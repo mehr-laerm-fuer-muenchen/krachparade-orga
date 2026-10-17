@@ -79,3 +79,14 @@ Keine DB-Änderung. Build-Agent → PR → Auto-Merge bei grünen Prüfungen. Da
 ## Abweichungen beim Bau
 
 (vom Build-Agenten zu ergänzen; nie den Freigabe-Haken hier eintragen)
+
+Gebaut lokal mit Claude Code; der Abgleich mit dem Code wurde im Chat berichtet statt im PR-Text. Die Abfragen liefern bereits erledigte To-dos und erreichte Elemente – keine Schema-Änderung, keine neue Abfrage.
+
+- Der Fortschritt zählt alle To-dos an allen Plan-Elementen (auch an erreichten), die To-dos der „Laufenden Aufgaben“ und die Protokoll-To-dos des Bereichs bzw. AKs (von Franz freigegeben).
+- „Ohne Aufgabenbereich“ bekommt denselben Fortschritt im Kopf (von Franz freigegeben).
+- Der Chip „N offen“ im Bereichs-Kopf ist durch „x/y To-dos“ mit Leiste ersetzt; die Lage-Pills bleiben (von Franz freigegeben).
+- Der Bereichs-Kopf ist ein `<button aria-expanded>` mit `aria-controls` auf den Inhalt statt `<details>`; Bedienung per Enter/Leertaste, Merken in `kp-ak-open` mit denselben Schlüsseln wie bisher, ohne Eintrag offen (von Franz freigegeben).
+- Bereiche ohne To-dos, die nicht „alles erledigt“ sind (leer oder nur Plan-Elemente ohne To-dos), zeigen im Kopf keine Leiste und keine Zahl.
+- Der Fokus-Ring des Kopfs liegt innen (`-outline-offset-2!`), weil der Bereich `overflow-hidden` hat und der Ring sonst abgeschnitten würde.
+- `src/lib/news/news.test.ts` erwartet jetzt `024-fortschritt-aks` als neuesten Eintrag (bisher 023).
+- `akSummary.openTodos` bleibt berechnet, wird auf der Karte aber nicht mehr angezeigt.

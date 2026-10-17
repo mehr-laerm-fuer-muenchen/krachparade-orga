@@ -199,7 +199,7 @@ test.describe("AK-Arbeitsbereich", () => {
     const demo = region(page, "AK Demo & Route");
     await expect(demo).toBeVisible();
     await expect(demo.getByText(/^(\d+ Verzug|\d+ wackelt|Alles im Plan)$/).first()).toBeVisible();
-    await expect(demo.getByText(/offene? To-dos?$/)).toBeVisible();
+    await expect(demo.getByText(/^(\d+\/\d+ To-dos erledigt|Noch nichts geplant)$/)).toBeVisible();
     await expect(demo.getByText(/^Nächster Termin:/)).toBeVisible();
     await expect(page.getByText("@example.org")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Als beschlossen markieren" })).toHaveCount(0);
@@ -226,7 +226,7 @@ test.describe("AK-Arbeitsbereich", () => {
     await expectPageReady(page, "AKs");
     const own = region(page, title);
     await expect(own.getByText("Alles im Plan")).toBeVisible();
-    await expect(own.getByText("0 offene To-dos")).toBeVisible();
+    await expect(own.getByText("Noch nichts geplant")).toBeVisible();
     await expect(own.getByRole("button", { name: "Austreten" })).toBeVisible();
     await own.getByRole("link").first().click();
     await expect(page).toHaveURL(/\/arbeitskreise\/[0-9a-f-]{36}$/);
