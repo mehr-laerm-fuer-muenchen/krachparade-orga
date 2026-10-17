@@ -1,4 +1,6 @@
-export type Status = "done" | "ok" | "warn" | "late";
+import type { Status } from "@/lib/plan-engine";
+
+export type { Status };
 
 const STATUS: Record<Status, { label: string; className: string }> = {
   done: { label: "Erreicht", className: "bg-status-done text-on-status-done" },

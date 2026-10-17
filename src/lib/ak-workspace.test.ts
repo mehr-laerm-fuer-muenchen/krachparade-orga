@@ -60,11 +60,15 @@ describe("ongoingDisplayName", () => {
 describe("withoutOngoing", () => {
   const base = (id: string, overrides: Partial<PlanElementInput> = {}) => ({
     id,
+    name: id,
     kind: "task" as const,
     durationDays: 10,
-    shiftDays: 0,
+    placement: "alap" as const,
     fixedDay: null,
+    fixedOffsetDays: null,
+    freeStartDay: null,
     done: false,
+    doneDay: null,
     wobbly: false,
     sortOrder: 1,
     isOngoing: false,
@@ -86,13 +90,13 @@ describe("withoutOngoing", () => {
     expect(result.links).toEqual(plan.links);
   });
 
-  it("gives the same critical path, buffers and status as without the ongoing element", () => {
+  it("gives the same counts, buffers and status as without the ongoing element", () => {
     const ongoing = { ...base("x", { kind: "milestone", durationDays: 0, sortOrder: 0 }), isOngoing: true };
     const filtered = withoutOngoing([ongoing, ...plan.elements], plan.links);
     const today = day(TODAY);
     const withOngoing = computePlan(filtered.elements, filtered.links, today);
     const without = computePlan(plan.elements, plan.links, today);
-    expect(withOngoing.criticalPath).toEqual(without.criticalPath);
+    expect(withOngoing.counts).toEqual(without.counts);
     expect([...withOngoing.elements.entries()]).toEqual([...without.elements.entries()]);
     expect(withOngoing.elements.has("x")).toBe(false);
   });

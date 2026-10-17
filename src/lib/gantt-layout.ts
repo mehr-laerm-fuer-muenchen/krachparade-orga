@@ -4,7 +4,7 @@
 import type { Status } from "@/components/status-pill";
 import { formatRelativeDay } from "./dday";
 import { dayToDate } from "./plan-days";
-import type { PlanElementKind, PlanStatusReason } from "./plan-engine";
+import type { PlanElementKind, PlanStatusReason, Placement } from "./plan-engine";
 import { formatWeekdayShort } from "./plan-preview";
 import { formatTodoDue } from "./todo-due";
 import { displayGroupName } from "./working-groups";
@@ -145,9 +145,10 @@ export type GanttRow = LaneRow | ElementRow;
 export type RowOptions = {
   /** Lane keys (working group ids, `NO_GROUP_KEY`) that are collapsed. */
   collapsed: ReadonlySet<string>;
+  /** Filter "Kritischer Pfad": only the elements in `criticalIds` (spec 025: critical or tight). */
   criticalOnly: boolean;
   openOnly: boolean;
-  criticalPath: readonly string[];
+  criticalIds: readonly string[];
 };
 
 function byStartEndName(a: GanttElement, b: GanttElement): number {
@@ -165,7 +166,7 @@ export function buildRows(
   groups: readonly GanttGroup[],
   options: RowOptions
 ): GanttRow[] {
-  const critical = new Set(options.criticalPath);
+  const critical = new Set(options.criticalIds);
   const visible = (element: GanttElement) =>
     (!options.criticalOnly || critical.has(element.id)) && (!options.openOnly || !element.done);
 
@@ -270,6 +271,9 @@ export type PlanViewLink = GanttLink & { id: string };
 export type PlanViewElement = GanttElement & {
   latestStart: number;
   reason: PlanStatusReason;
+  /** Spec 025: no slack left (or late) / at most 7 days of slack. */
+  critical: boolean;
+  tight: boolean;
   wobbly: boolean;
   /** Display name "AK ‹Name›". */
   workingGroupName: string | null;
@@ -282,9 +286,13 @@ export type PlanViewElement = GanttElement & {
   /** ISO time of the last change, sent back for the conflict notice. */
   updatedAt: string;
   durationDays: number;
-  shiftDays: number;
+  placement: Placement;
   fixedDay: number | null;
+  fixedOffsetDays: number | null;
   fixedDate: string | null;
+  freeStartDay: number | null;
+  /** Day it was ticked off, relative to the D-Day (spec 025). */
+  doneDay: number | null;
   sortOrder: number;
   departmentId: string | null;
   ownerId: string | null;
@@ -327,11 +335,13 @@ export function weekday(day: number, dDay: string): string {
   return formatWeekdayShort(dayToDate(day, dDay));
 }
 
-/** Why a late element is late, as the week list says it. */
+/** Why a late element is late, as the week list says it (stand-in texts until spec 025, part B). */
 export function lateText(element: Pick<AgendaElement, "reason" | "buffer">): string {
   if (element.reason === "fixed_too_late") return `Fixtermin liegt ${-element.buffer} Tage zu spät`;
+  if (element.reason === "fixed_unreachable") return "Fixtermin für die Vorgänger nicht erreichbar";
   if (element.reason === "overdue") return "Termin vorbei, nicht abgehakt";
-  return "Puffer negativ";
+  if (element.reason === "no_window") return "Kein Fenster mehr";
+  return `${-element.buffer} Tage zu spät geplant`;
 }
 
 function todoText(element: AgendaElement, todo: AgendaTodo, dDay: string, overdue: boolean): string {

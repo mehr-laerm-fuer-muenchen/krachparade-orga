@@ -261,7 +261,7 @@ describe("myAgenda: overdue & late", () => {
             end: TODAY + 20,
             buffer: -3,
             status: "late",
-            reason: "negative_buffer",
+            reason: "too_late",
           }),
           element({ id: "e", name: "Route steht", start: TODAY + 1, end: TODAY + 1 }),
         ],
@@ -272,7 +272,7 @@ describe("myAgenda: overdue & late", () => {
     expect(agenda.overdue.map((task) => [task.key, task.text])).toEqual([
       ["meeting_todo-m", "aus Treffen 03.02. · war fällig Mi 10.02."],
       ["plan_todo-t", "für Route steht · war fällig 15.02. (3 Tage vor Start)"],
-      ["element-late", "Puffer negativ"],
+      ["element-late", "3 Tage zu spät geplant"],
     ]);
     expect(allKeys(agenda).filter((key) => key === "element-late")).toHaveLength(1);
     expect(keys(agenda.weeks[0].entries)).toEqual(["element-e"]);

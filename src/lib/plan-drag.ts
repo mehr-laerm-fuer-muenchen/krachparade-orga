@@ -27,11 +27,21 @@ export function dragDays(dx: number, pxPerDay: number): number {
   return Math.round(dx / pxPerDay) || 0;
 }
 
-/** The engine's changes for dragging `id` by `delta` days. */
-export function dragChanges(plan: PlanInput, id: string, mode: DragMode, delta: number): PlanElementChange[] {
-  if (mode === "start") return resizeFromStart(plan, id, delta);
-  if (mode === "end") return resizeFromEnd(plan, id, delta);
-  return moveElement(plan, id, delta);
+/** The engine's changes for dragging `id` by `delta` days; none if the plan cannot be computed. */
+export function dragChanges(
+  plan: PlanInput,
+  id: string,
+  mode: DragMode,
+  delta: number,
+  today: number
+): PlanElementChange[] {
+  try {
+    if (mode === "start") return resizeFromStart(plan, id, delta, today);
+    if (mode === "end") return resizeFromEnd(plan, id, delta, today);
+    return moveElement(plan, id, delta, today);
+  } catch {
+    return [];
+  }
 }
 
 export function applyChanges(
@@ -44,8 +54,10 @@ export function applyChanges(
     if (!change) return element;
     return {
       ...element,
-      shiftDays: change.shiftDays ?? element.shiftDays,
-      fixedDay: change.fixedDay ?? element.fixedDay,
+      placement: change.placement ?? element.placement,
+      fixedDay: change.fixedDay === undefined ? element.fixedDay : change.fixedDay,
+      fixedOffsetDays: change.fixedOffsetDays === undefined ? element.fixedOffsetDays : change.fixedOffsetDays,
+      freeStartDay: change.freeStartDay === undefined ? element.freeStartDay : change.freeStartDay,
       durationDays: change.durationDays ?? element.durationDays,
     };
   });

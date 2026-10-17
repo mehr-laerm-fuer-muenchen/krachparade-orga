@@ -46,7 +46,7 @@ const GROUPS: GanttGroup[] = [
   { id: "demo", name: "Demo & Route", sortOrder: 1 },
 ];
 
-const NONE: RowOptions = { collapsed: new Set(), criticalOnly: false, openOnly: false, criticalPath: [] };
+const NONE: RowOptions = { collapsed: new Set(), criticalOnly: false, openOnly: false, criticalIds: [] };
 
 describe("isoWeek and mondayOf", () => {
   it("counts weeks over the turn of the year (KW 53 / KW 1)", () => {
@@ -172,7 +172,7 @@ describe("buildRows", () => {
   });
 
   it("filters to the critical path", () => {
-    const rows = buildRows(elements, GROUPS, { ...NONE, criticalOnly: true, criticalPath: ["first", "route-a"] });
+    const rows = buildRows(elements, GROUPS, { ...NONE, criticalOnly: true, criticalIds: ["first", "route-a"] });
     expect(rows.map((row) => row.key)).toEqual(["demo", "first", "route-a", "finanzen"]);
     expect(rows[0]).toMatchObject({ visibleCount: 2, totalCount: 4 });
     expect(rows[3]).toMatchObject({ visibleCount: 0, totalCount: 1, summary: null });
@@ -189,7 +189,7 @@ describe("buildRows", () => {
       ...NONE,
       criticalOnly: true,
       openOnly: true,
-      criticalPath: ["first", "route-a"],
+      criticalIds: ["first", "route-a"],
     });
     expect(rows.map((row) => row.key)).toEqual(["demo", "first", "finanzen"]);
   });
@@ -342,8 +342,8 @@ describe("weekAgenda", () => {
   });
 
   it("says why an element is late", () => {
-    const result = agenda([item({ id: "negative", buffer: -3, status: "late", reason: "negative_buffer" })]);
-    expect(result.overdue[0].text).toBe("Puffer negativ");
+    const result = agenda([item({ id: "negative", buffer: -3, status: "late", reason: "too_late" })]);
+    expect(result.overdue[0].text).toBe("3 Tage zu spät geplant");
   });
 
   it("filters by my working groups, elements without AK only without filter", () => {

@@ -10,9 +10,9 @@ import {
   deleteNote,
   deleteTodo,
   removeLink,
-  resetShift,
   setDone,
   setFixedDate,
+  setPlacement,
   setWobbly,
   toggleTodo,
   updateElement,
@@ -35,7 +35,7 @@ import {
 import type { DragMode } from "@/lib/plan-drag";
 import { dayToDate } from "@/lib/plan-days";
 import { D_DAY_NAME } from "@/lib/plan-edit";
-import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
+import { predecessorCandidates, reasonText, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
 import { todoDueDay } from "@/lib/plan-engine";
 import { formatTodoDue } from "@/lib/todo-due";
@@ -192,7 +192,8 @@ export function PlanDetail(props: PlanDetailProps) {
     else if (element.buffer > 0) hint = `${element.buffer} Tage Luft bis zum spätesten Termin.`;
     else hint = "Liegt auf dem spätesten Termin. Jede Verzögerung schiebt Nachfolger.";
   }
-  const shift = element.fixed ? null : shiftText(element.shiftDays);
+  // Until spec 025 part B: a "free" element can go back to "so spät wie möglich".
+  const placedByHand = !element.fixed && element.placement === "free";
 
   const predecessors = links.flatMap((link): LinkRow[] => {
     const from = link.toId === element.id ? elements.get(link.fromId) : undefined;
@@ -273,12 +274,12 @@ export function PlanDetail(props: PlanDetailProps) {
               <dd>{dateWithD(element.latestEnd, dDay)}</dd>
             </dl>
             {hint ? <p className={element.buffer < 0 ? "text-status-late" : "text-muted"}>{hint}</p> : null}
-            {shift ? (
+            {placedByHand && open ? (
               <div className="flex flex-wrap items-center gap-2">
-                <p className="min-w-0 flex-1">{shift}</p>
+                <p className="min-w-0 flex-1">Von Hand gelegt</p>
                 <button
                   type="button"
-                  onClick={() => act("shift", () => resetShift(element.id, seen))}
+                  onClick={() => act("shift", () => setPlacement(element.id, "alap", undefined, seen))}
                   className={SMALL_BUTTON}
                 >
                   Auf spätesten Termin
@@ -419,7 +420,11 @@ export function PlanDetail(props: PlanDetailProps) {
                   type="checkbox"
                   defaultChecked={element.fixed}
                   onChange={(event) =>
-                    save("fixed", () => setFixedDate(element.id, event.target.checked ? undefined : null, seen))
+                    save("fixed", () =>
+                      event.target.checked
+                        ? setPlacement(element.id, "fixed", "date", seen)
+                        : setPlacement(element.id, "alap", undefined, seen)
+                    )
                   }
                   className={CHECKBOX}
                 />
@@ -429,7 +434,7 @@ export function PlanDetail(props: PlanDetailProps) {
                 <Labeled label="Fixtermin">
                   <input
                     type="date"
-                    defaultValue={element.fixedDate ?? ""}
+                    defaultValue={element.fixedDate ?? dayToDate(element.start, dDay)}
                     onBlur={(event) => {
                       const value = event.target.value;
                       if (value && value !== element.fixedDate) {

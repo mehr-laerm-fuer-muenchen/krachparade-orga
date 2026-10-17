@@ -1,7 +1,7 @@
 // Editing the plan (spec 008): reconnecting links when an element is deleted
 // and the short German texts for the change history. Pure functions, no
 // database.
-import type { PlanElementKind, PlanLinkInput } from "./plan-engine";
+import type { PlanElementKind, PlanLinkInput, Placement } from "./plan-engine";
 import { formatBuffer, formatWeekdayShort } from "./plan-preview";
 
 /** Name shown for a link to the D-Day. */
@@ -71,9 +71,11 @@ export type ElementState = {
   name: string;
   kind: PlanElementKind;
   durationDays: number;
-  shiftDays: number;
+  placement: Placement;
+  fixedOffsetDays: number | null;
   /** "YYYY-MM-DD" or null. */
   fixedDate: string | null;
+  freeStartDay: number | null;
   done: boolean;
   wobbly: boolean;
   workingGroupId: string | null;
@@ -111,11 +113,75 @@ export function formatDateWithWeekday(date: string): string {
   return `${formatWeekdayShort(date)}${date.slice(0, 4)}`;
 }
 
-function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+const KIND_NAMES: Record<PlanElementKind, string> = { milestone: "Meilenstein", task: "Vorgang" };
+
+/** Names of the placements in the interface (spec 025). */
+export const PLACEMENT_NAMES: Record<Placement, string> = {
+  fixed: "Fest",
+  asap: "So früh wie möglich",
+  alap: "So spät wie möglich",
+  free: "Frei im Fenster",
+};
+
+/** "Fest: 60 T vor der Krachparade" or "Festes Datum: Do 08.04.2027"; null without a fixed value. */
+function fixedText(state: ElementState): string | null {
+  if (state.fixedOffsetDays !== null) return `Fest: ${state.fixedOffsetDays} T vor der ${D_DAY_NAME}`;
+  if (state.fixedDate !== null) return `Festes Datum: ${formatDateWithWeekday(state.fixedDate)}`;
+  return null;
 }
 
-const KIND_NAMES: Record<PlanElementKind, string> = { milestone: "Meilenstein", task: "Vorgang" };
+/** "Do 08.04. → Mo 12.04.2027"; the first year only if it differs. */
+function dateRange(before: string, after: string): string {
+  const first = before.slice(0, 4) === after.slice(0, 4) ? formatWeekdayShort(before) : formatDateWithWeekday(before);
+  return `${first} → ${formatDateWithWeekday(after)}`;
+}
+
+/** Texts for placement and position (spec 025). */
+function positionChanges(
+  before: ElementState,
+  after: ElementState,
+  options: { movedWith?: string; previousStart?: number }
+): string[] {
+  // A changed duration explains a changed start (the other edge stays).
+  const sameDuration = before.durationDays === after.durationDays;
+  if (before.placement !== after.placement) {
+    if (
+      after.placement === "free" &&
+      after.freeStartDay !== null &&
+      options.previousStart !== undefined &&
+      sameDuration
+    ) {
+      const moved = after.freeStartDay - options.previousStart;
+      if (moved !== 0) return [`Verschoben um ${formatBuffer(moved)} (Lage jetzt ${PLACEMENT_NAMES.free})`];
+    }
+    const result = [`Lage: ${PLACEMENT_NAMES[before.placement]} → ${PLACEMENT_NAMES[after.placement]}`];
+    const fixed = after.placement === "fixed" ? fixedText(after) : null;
+    if (fixed) result.push(fixed);
+    return result;
+  }
+  if (after.placement === "fixed") {
+    if (after.fixedOffsetDays !== null && before.fixedOffsetDays !== null) {
+      return before.fixedOffsetDays === after.fixedOffsetDays
+        ? []
+        : [`Fest: ${before.fixedOffsetDays} → ${after.fixedOffsetDays} T vor der ${D_DAY_NAME}`];
+    }
+    if (after.fixedDate !== null && before.fixedDate !== null) {
+      return before.fixedDate === after.fixedDate ? [] : [`Festes Datum: ${dateRange(before.fixedDate, after.fixedDate)}`];
+    }
+    const fixed = fixedText(after);
+    return fixed ? [fixed] : [];
+  }
+  if (after.placement === "free" && sameDuration && before.freeStartDay !== null && after.freeStartDay !== null) {
+    const moved = after.freeStartDay - before.freeStartDay;
+    if (moved === 0) return [];
+    return [
+      options.movedWith === undefined
+        ? `Verschoben um ${formatBuffer(moved)}`
+        : `Mitgeschoben um ${formatBuffer(moved)} (mit ${options.movedWith})`,
+    ];
+  }
+  return [];
+}
 
 function linkChanges(
   label: "Vorgänger" | "Nachfolger",
@@ -127,9 +193,9 @@ function linkChanges(
   for (const link of after) {
     const old = before.find((candidate) => candidate.id === link.id);
     if (!old) {
-      result.push(`${label} verbunden: ${nameOf(link.id)} (${link.lagDays} T)`);
+      result.push(`${label} verbunden: ${nameOf(link.id)} (mind. ${link.lagDays} T)`);
     } else if (old.lagDays !== link.lagDays) {
-      result.push(`Abstand zu ${nameOf(link.id)}: ${old.lagDays} → ${link.lagDays} T`);
+      result.push(`Mindestabstand zu ${nameOf(link.id)}: ${old.lagDays} → ${link.lagDays} T`);
     }
   }
   for (const link of before) {
@@ -155,14 +221,16 @@ function reference(
 /**
  * Short German texts for the change history of one element, e.g. "Dauer
  * 21 → 28 Tage". `names` maps ids of elements, working groups, departments
- * and members to their names. With `movedWith`, a shift reads "Mitverschoben
- * um +3 T (mit ‹movedWith›)" (a predecessor moved along with that element).
+ * and members to their names. With `movedWith`, a move reads "Mitgeschoben
+ * um +3 T (mit ‹movedWith›)" (a free neighbour pushed by that element). With
+ * `previousStart` (the planned start before a move), a switch to "free"
+ * reads "Verschoben um +3 T (Lage jetzt Frei im Fenster)".
  */
 export function changeSummaries(
   before: ElementSnapshot | null,
   after: ElementSnapshot,
   names: ReadonlyMap<string, string>,
-  options: { movedWith?: string } = {}
+  options: { movedWith?: string; previousStart?: number } = {}
 ): string[] {
   if (before === null) return [CREATED_SUMMARY];
   const nameOf = (id: string | null) => (id === null ? D_DAY_NAME : (names.get(id) ?? "?"));
@@ -175,26 +243,7 @@ export function changeSummaries(
     result.push(`Dauer ${before.durationDays} → ${after.durationDays} Tage`);
   }
 
-  // A changed duration explains a changed shift (the start stays), so only
-  // moves without a new duration are reported as such.
-  let moved = 0;
-  if (before.fixedDate === null && after.fixedDate !== null) {
-    result.push(`Fixtermin gesetzt: ${formatDateWithWeekday(after.fixedDate)}`);
-  } else if (before.fixedDate !== null && after.fixedDate === null) {
-    result.push("Fixtermin entfernt");
-  } else if (before.durationDays === after.durationDays) {
-    moved =
-      before.fixedDate !== null && after.fixedDate !== null
-        ? daysBetween(before.fixedDate, after.fixedDate)
-        : after.shiftDays - before.shiftDays;
-  }
-  if (moved !== 0) {
-    result.push(
-      options.movedWith === undefined
-        ? `Verschoben um ${formatBuffer(moved)}`
-        : `Mitverschoben um ${formatBuffer(moved)} (mit ${options.movedWith})`
-    );
-  }
+  result.push(...positionChanges(before, after, options));
 
   if (before.done !== after.done) result.push(after.done ? "Erreicht" : "Wieder offen");
   if (before.wobbly !== after.wobbly) result.push(after.wobbly ? "Wackelt" : "Wackelt nicht mehr");

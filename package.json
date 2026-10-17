@@ -14,7 +14,9 @@
     "db:seed": "tsx --env-file=.env.local src/db/seed.ts",
     "db:reset:dev": "tsx --env-file=.env.local src/db/reset-dev.ts",
     "db:push:prod": "drizzle-kit push --config=drizzle.prod.config.ts",
-    "db:seed:prod": "tsx --env-file=.env.local src/db/seed.ts --prod"
+    "db:seed:prod": "tsx --env-file=.env.local src/db/seed.ts --prod",
+    "db:lage": "tsx --env-file=.env.local scripts/plan-lage-uebernahme.ts",
+    "db:lage:prod": "tsx --env-file=.env.local scripts/plan-lage-uebernahme.ts --prod"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

@@ -2,7 +2,7 @@ import type { PlanViewData } from "@/components/plan/plan-view";
 import { todayInBerlin } from "@/lib/dday";
 import type { PlanNoteView, PlanTodoView, PlanViewElement } from "@/lib/gantt-layout";
 import { dateToDay } from "@/lib/plan-days";
-import { computePlan, PlanCycleError, todoDueDay, type ComputedPlan } from "@/lib/plan-engine";
+import { computePlan, PlanCycleError, resolvePlacement, todoDueDay, type ComputedPlan } from "@/lib/plan-engine";
 import { shortEditionName } from "@/lib/plan-preview";
 import { displayGroupName } from "@/lib/working-groups";
 import { loadPlan, loadPlanDetails, loadPlanOptions } from "./plan";
@@ -86,7 +86,9 @@ export async function loadPlanView(
       status: result.status,
       reason: result.reason,
       done: element.done,
-      fixed: element.fixedDay !== null,
+      fixed: resolvePlacement(element).mode === "fixed",
+      critical: result.critical,
+      tight: result.tight,
       wobbly: element.wobbly,
       workingGroupName: element.workingGroupName === null ? null : displayGroupName(element.workingGroupName),
       departmentName: element.departmentName,
@@ -95,9 +97,12 @@ export async function loadPlanView(
       notes,
       updatedAt: element.updatedAt.toISOString(),
       durationDays: element.durationDays,
-      shiftDays: element.shiftDays,
+      placement: element.placement,
       fixedDay: element.fixedDay,
+      fixedOffsetDays: element.fixedOffsetDays,
       fixedDate: element.fixedDate,
+      freeStartDay: element.freeStartDay,
+      doneDay: element.doneDay,
       sortOrder: element.sortOrder,
       departmentId: element.departmentId,
       ownerId: element.ownerId,
@@ -113,8 +118,7 @@ export async function loadPlanView(
       elements,
       groups: groups.map((group) => ({ id: group.id, name: group.name, sortOrder: group.sortOrder })),
       links: plan.links,
-      criticalPath: computed.criticalPath,
-      latestProjectStart: computed.latestProjectStart,
+      counts: computed.counts,
       myGroupIds: memberships.filter((row) => row.memberId === memberId).map((row) => row.workingGroupId),
       departments: options.departments,
       members: options.members,

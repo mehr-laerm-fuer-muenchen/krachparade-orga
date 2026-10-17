@@ -270,3 +270,20 @@ DB-Änderung + Übernahme. Vor dem Deploy: Screenshot vom Gantt in production (L
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen)
+
+Teil A:
+
+1. **Übergangslösung bis Teil B** (von Franz freigegeben): Filter „Kritischer Pfad“ behält den Namen, filtert aber auf `critical || tight`; Kopfzeile bei aktivem Filter „n kritisch · m knapp“; Fixtermin-Kästchen ruft `setPlacement(fixed, date)` bzw. `setPlacement(alap)` auf, das Datumsfeld das neue `setFixedDate`; „Auf spätesten Termin“ nur bei Lage „frei“ (mit dem Hinweis „Von Hand gelegt“), ruft `setPlacement(alap)` auf; `reasonText` und `lateText` haben Ersatztexte für die neuen Gründe, „Zu früh“ heißt bis Teil B noch „Wackelt“.
+2. **Name `lagDays` im Code bleibt**, keine Umbenennung in `minDays` (von Franz freigegeben).
+3. **`today` als 4. Parameter** für `moveElement`, `resizeFromEnd`, `resizeFromStart` und `setPlacementValues` (von Franz freigegeben). `setPlacementValues(plan, id, placement, variant, today)`.
+4. **Typ `Status` liegt jetzt in `src/lib/plan-engine.ts`**, `src/components/status-pill.tsx` importiert und exportiert ihn von dort (von Franz freigegeben).
+5. Auslegung: `buffer` behält für feste Elemente die bisherige Bedeutung (berechneter spätester Start aus den Nachfolgern − geplanter Start), ebenso `latestFinish`. So zeigt ein zu später fester Termin im Gantt wie bisher „−N T Verzug“ („Gantt behält bis 026 seine Optik“). Für alle anderen Elemente gilt wörtlich `latestStart` − geplanter Start.
+6. Auslegung: `shiftText` (`src/lib/plan-panel.ts`) entfällt, weil `shift_days` nicht mehr gelesen wird; `RowOptions.criticalPath` heißt jetzt `criticalIds`, `PlanViewData` liefert `counts` statt `criticalPath`/`latestProjectStart`, `PlanViewElement` hat zusätzlich `critical` und `tight`.
+7. Auslegung: Der Seed behält bei Social-Media-Plan und Teaser `shift_days` (−10 / −5) neben der neuen Lage „frei“ (−90 / −26), damit das alte Modell (noch laufende Version, `db:lage`-Vorschau) dieselben Termine rechnet.
+8. **Klicktest `plan-bearbeiten.spec.ts`, Schritt „Fixtermin für B“:** Nach dem Eintragen des Datums wird das Feld ausdrücklich verlassen (`blur`), dann wie bisher „−3 T Verzug“ geprüft. Tab springt in Chrome nur zwischen Tag, Monat und Jahr des Datumsfelds und speichert nicht (von Franz freigegeben).
+9. Angepasste Klicktests nach der neuen Rechnung: `plan-bearbeiten.spec.ts` zieht A **früher** („+5 T“, B und C rücken mit; im Verlauf „Verschoben um −5 T (Lage jetzt Frei im Fenster)“ nach Punkt 7 der Umsetzung); `plan.spec.ts` prüft beim Filter „Kritischer Pfad“ die Kopfzeile „n kritisch · m knapp“ und dass genau so viele Elemente im Gantt stehen.
+10. Hinweis: Im Seed stehen Finaler Crosscheck, Briefing Abschnittsleitungen und Gesamtbriefing nach der neuen Rechnung auf Verzug (`no_window`), weil das feste Kooperationsgespräch (−30, mind. 15 T) dem Crosscheck nur „frühestens −15, spätestens −17“ lässt. Termine unverändert.
+
+Für Teil B:
+
+1. **Datumsfeld „Festes Datum“ speichert, sobald ein vollständiges gültiges Datum eingetragen ist (change)**, nicht erst beim Verlassen; der Klicktest prüft das ohne `blur` (von Franz freigegeben).

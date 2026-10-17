@@ -35,10 +35,16 @@ import {
 } from "@/lib/plan-edit";
 import {
   computePlan,
+  MAX_FIXED_OFFSET,
+  MAX_FREE_START,
   MAX_TASK_DAYS,
+  MIN_FIXED_OFFSET,
+  MIN_FREE_START,
   moveElement as moveInPlan,
+  PLACEMENTS,
   resizeFromEnd,
   resizeFromStart,
+  setPlacementValues,
   wouldCreateCycle,
   type PlanElementChange,
   type PlanLinkInput,
@@ -62,11 +68,13 @@ export type PlanActionResult = { ok: true } | Failure;
 export type ElementActionResult = { ok: true; conflict: PlanConflict | null } | Failure;
 export type CreateElementResult = { ok: true; id: string } | Failure;
 
-/** Values of an element before a move or resize, for "Rückgängig". */
+/** Values of an element before a move or resize, for "Rückgängig" (spec 025: with the placement). */
 export type PreviousValues = {
   id: string;
-  shiftDays: number;
+  placement: ElementState["placement"];
+  fixedOffsetDays: number | null;
   fixedDate: string | null;
+  freeStartDay: number | null;
   durationDays: number;
 };
 
@@ -89,6 +97,8 @@ const DEPARTMENT_NOT_FOUND = "Diesen Aufgabenbereich gibt es nicht.";
 const DEPARTMENT_OTHER_GROUP = "Dieser Aufgabenbereich gehört zu einem anderen AK.";
 const MEMBER_NOT_FOUND = "Diese Person gibt es nicht oder sie ist nicht aktiv.";
 const MILESTONE_DURATION = "Meilensteine haben keine Dauer.";
+const DONE_NO_PLACEMENT = "Erreichte Elemente haben keine Lage.";
+const ONLY_FIXED = "Nur bei Lage „Fest“.";
 const LAG_TOO_LONG =
   "Beim Umhängen würde ein Abstand über 365 Tage entstehen. Bitte erst die Verbindungen anpassen.";
 const TODO_NOT_FOUND = "Dieses To-do gibt es nicht.";
@@ -127,6 +137,13 @@ const lagInput = z
   .min(0, "Der Abstand muss 0 bis 365 Tage sein.")
   .max(365, "Der Abstand muss 0 bis 365 Tage sein.");
 const deltaInput = z.number().int().min(-MAX_DAYS).max(MAX_DAYS);
+const placementInput = z.enum(PLACEMENTS);
+const fixedOffsetInput = z
+  .number()
+  .int()
+  .min(MIN_FIXED_OFFSET, "Bitte 0 bis 365 Tage eingeben.")
+  .max(MAX_FIXED_OFFSET, "Bitte 0 bis 365 Tage eingeben.");
+const freeStartInput = z.number().int().min(MIN_FREE_START).max(MAX_FREE_START);
 const dateInput = z.iso.date("Bitte ein gültiges Datum eingeben.");
 const optionalIdInput = z.uuid().nullable();
 
@@ -231,14 +248,30 @@ function stateOf(element: LoadedPlanElement): ElementState & { id: string } {
     name: element.name,
     kind: element.kind,
     durationDays: element.durationDays,
-    shiftDays: element.shiftDays,
+    placement: element.placement,
+    fixedOffsetDays: element.fixedOffsetDays,
     fixedDate: element.fixedDate,
+    freeStartDay: element.freeStartDay,
     done: element.done,
     wobbly: element.wobbly,
     workingGroupId: element.workingGroupId,
     departmentId: element.departmentId,
     ownerId: element.ownerId,
   };
+}
+
+/** Today in Europe/Berlin, relative to the D-Day of `plan`. */
+function todayOf(plan: LoadedPlan): number {
+  return dateToDay(todayInBerlin(new Date()), plan.dDay);
+}
+
+/** The result of a pure engine call; null if the plan cannot be computed (cycle). */
+function tryEngine<T>(call: () => T): T | null {
+  try {
+    return call();
+  } catch {
+    return null;
+  }
 }
 
 function elementNames(plan: LoadedPlan): Map<string, string> {
@@ -272,9 +305,28 @@ async function runBatch(queries: BatchItem<"pg">[]): Promise<boolean> {
 
 type ElementPatch = Partial<Omit<ElementState, "name">> & { name?: string; doneAt?: Date | null };
 
+/** The stored columns of an engine change ("fixed date" as "YYYY-MM-DD"). */
+function storedValues(element: LoadedPlanElement, change: Omit<PlanElementChange, "id">, dDay: string) {
+  return {
+    placement: change.placement ?? element.placement,
+    fixedOffsetDays: change.fixedOffsetDays === undefined ? element.fixedOffsetDays : change.fixedOffsetDays,
+    fixedDate:
+      change.fixedDay === undefined
+        ? element.fixedDate
+        : change.fixedDay === null
+          ? null
+          : dayToDate(change.fixedDay, dDay),
+    freeStartDay: change.freeStartDay === undefined ? element.freeStartDay : change.freeStartDay,
+    durationDays: change.durationDays ?? element.durationDays,
+  };
+}
+
 /** Writes a change of one element with its history; nothing if nothing changes. */
 async function saveElementPatch(context: ElementContext, patch: ElementPatch, names?: Map<string, string>) {
   const { doneAt, ...statePatch } = patch;
+  // Spec 025: every change of the placement sets the old shift to 0.
+  const shift =
+    statePatch.placement !== undefined && statePatch.placement !== context.element.placement ? { shiftDays: 0 } : {};
   const before = stateOf(context.element);
   const summaries = changeSummaries(
     snapshotOf(before, context.plan.links),
@@ -287,7 +339,13 @@ async function saveElementPatch(context: ElementContext, patch: ElementPatch, na
   const saved = await runBatch([
     db
       .update(planElements)
-      .set({ ...statePatch, ...(doneAt !== undefined && { doneAt }), updatedAt: now, updatedBy: context.actor.id })
+      .set({
+        ...statePatch,
+        ...shift,
+        ...(doneAt !== undefined && { doneAt }),
+        updatedAt: now,
+        updatedBy: context.actor.id,
+      })
       .where(eq(planElements.id, context.element.id)),
     historyQuery(context.element.id, context.actor.id, summaries, now),
   ]);
@@ -297,8 +355,16 @@ async function saveElementPatch(context: ElementContext, patch: ElementPatch, na
   return { ok: true as const, conflict: context.conflict };
 }
 
-/** Writes the result of a move or resize of `context.element`. */
-async function saveEngineChanges(context: ElementContext, changes: PlanElementChange[]): Promise<MoveActionResult> {
+/**
+ * Writes the result of a move or resize of `context.element`; `previousStart`
+ * = its planned start before (for the history text).
+ */
+async function saveEngineChanges(
+  context: ElementContext,
+  changes: PlanElementChange[] | null,
+  previousStart: number | undefined
+): Promise<MoveActionResult> {
+  if (changes === null) return fail(SAVE_ERROR);
   if (changes.length === 0) return { ok: true, conflict: context.conflict, previous: [], updatedAt: null };
   const { plan, actor, element: moved } = context;
   const byId = new Map(plan.elements.map((element) => [element.id, element]));
@@ -309,16 +375,13 @@ async function saveEngineChanges(context: ElementContext, changes: PlanElementCh
 
   for (const change of changes) {
     const element = byId.get(change.id)!;
-    const fixedDate = change.fixedDay === undefined ? element.fixedDate : dayToDate(change.fixedDay, plan.dDay);
-    const values = {
-      shiftDays: change.shiftDays ?? element.shiftDays,
-      fixedDate,
-      durationDays: change.durationDays ?? element.durationDays,
-    };
+    const values = storedValues(element, change, plan.dDay);
     previous.push({
       id: element.id,
-      shiftDays: element.shiftDays,
+      placement: element.placement,
+      fixedOffsetDays: element.fixedOffsetDays,
       fixedDate: element.fixedDate,
+      freeStartDay: element.freeStartDay,
       durationDays: element.durationDays,
     });
     const before = stateOf(element);
@@ -326,12 +389,17 @@ async function saveEngineChanges(context: ElementContext, changes: PlanElementCh
       snapshotOf(before, plan.links),
       snapshotOf({ ...before, ...values }, plan.links),
       names,
-      { movedWith: element.id === moved.id ? undefined : moved.name }
+      element.id === moved.id ? { previousStart } : { movedWith: moved.name }
     );
     queries.push(
       db
         .update(planElements)
-        .set({ ...values, updatedAt: now, updatedBy: actor.id })
+        .set({
+          ...values,
+          ...(values.placement !== element.placement && { shiftDays: 0 }),
+          updatedAt: now,
+          updatedBy: actor.id,
+        })
         .where(eq(planElements.id, element.id))
     );
     if (summaries.length > 0) queries.push(historyQuery(element.id, actor.id, summaries, now));
@@ -387,7 +455,8 @@ const createInput = z.object({
   durationDays: durationInput.optional(),
   /** null = the D-Day. */
   successorId: optionalIdInput,
-  lagDays: lagInput,
+  /** Minimum lag (spec 025), 0 if not given. */
+  lagDays: lagInput.default(0),
 });
 
 /** A new element at the end of the order, always with a successor (element or D-Day). */
@@ -438,6 +507,7 @@ export async function createElement(input: z.input<typeof createInput>): Promise
       kind,
       name,
       durationDays,
+      placement: "alap",
       sortOrder: (last ?? 0) + 1,
       createdBy: context.actor.id,
       updatedBy: context.actor.id,
@@ -562,13 +632,25 @@ export async function updateElement(
   );
 }
 
-/** Moves an element by `delta` days, with its predecessors (engine rules). */
+/** Planned start of the element of `context` today; undefined if the plan cannot be computed. */
+function plannedStartOf(context: ElementContext): number | undefined {
+  const { plan, element } = context;
+  return tryEngine(() => computePlan(plan.elements, plan.links, todayOf(plan)).elements.get(element.id)!.plannedStart) ?? undefined;
+}
+
+/**
+ * Moves an element by `delta` days (spec 025): "fixed" changes N or the
+ * date, any other placement becomes "free"; free neighbours are pushed only
+ * where the order would break.
+ */
 export async function moveElement(elementId: string, delta: number, seenUpdatedAt: string): Promise<MoveActionResult> {
   const context = await loadElementContext(elementId, seenUpdatedAt);
   if (isFailure(context)) return context;
   const parsed = deltaInput.safeParse(delta);
   if (!parsed.success) return fail(INVALID);
-  return saveEngineChanges(context, moveInPlan(context.plan, context.element.id, parsed.data));
+  const { plan, element } = context;
+  const changes = tryEngine(() => moveInPlan(plan, element.id, parsed.data, todayOf(plan)));
+  return saveEngineChanges(context, changes, plannedStartOf(context));
 }
 
 /** Drags the start or end of a task by `delta` days; the other edge stays. */
@@ -583,25 +665,39 @@ export async function resizeElement(
   const parsed = z.object({ edge: z.enum(["start", "end"]), delta: deltaInput }).safeParse({ edge, delta });
   if (!parsed.success) return fail(INVALID);
   const resize = parsed.data.edge === "start" ? resizeFromStart : resizeFromEnd;
-  return saveEngineChanges(context, resize(context.plan, context.element.id, parsed.data.delta));
+  const { plan, element } = context;
+  const changes = tryEngine(() => resize(plan, element.id, parsed.data.delta, todayOf(plan)));
+  return saveEngineChanges(context, changes, plannedStartOf(context));
+}
+
+/** Valid combination of placement and values (spec 025, also checked by the engine). */
+function validPlacement(values: Pick<PreviousValues, "placement" | "fixedOffsetDays" | "fixedDate" | "freeStartDay">) {
+  const { placement, fixedOffsetDays, fixedDate, freeStartDay } = values;
+  if (placement === "fixed") return freeStartDay === null && (fixedOffsetDays === null) !== (fixedDate === null);
+  if (placement === "free") return freeStartDay !== null && fixedOffsetDays === null && fixedDate === null;
+  return fixedOffsetDays === null && fixedDate === null && freeStartDay === null;
 }
 
 const previousInput = z
   .array(
-    z.object({
-      id: idInput,
-      shiftDays: deltaInput,
-      fixedDate: dateInput.nullable(),
-      durationDays: z.number().int().min(0).max(MAX_TASK_DAYS),
-    })
+    z
+      .object({
+        id: idInput,
+        placement: placementInput,
+        fixedOffsetDays: fixedOffsetInput.nullable(),
+        fixedDate: dateInput.nullable(),
+        freeStartDay: freeStartInput.nullable(),
+        durationDays: z.number().int().min(0).max(MAX_TASK_DAYS),
+      })
+      .refine(validPlacement)
   )
   .min(1)
   .max(1000);
 
 /**
- * Restores exactly the values returned by a move or resize (`shift_days`,
- * `fixed_date`, `duration_days`). `seenUpdatedAt` belongs to the first
- * element, the one that was dragged.
+ * Restores exactly the values returned by a move or resize (`placement`,
+ * `fixed_offset_days`, `fixed_date`, `free_start_day`, `duration_days`).
+ * `seenUpdatedAt` belongs to the first element, the one that was dragged.
  */
 export async function undoPlanChange(previous: PreviousValues[], seenUpdatedAt: string): Promise<ElementActionResult> {
   const parsed = previousInput.safeParse(previous);
@@ -613,7 +709,7 @@ export async function undoPlanChange(previous: PreviousValues[], seenUpdatedAt: 
 
   const now = new Date();
   const queries: BatchItem<"pg">[] = [];
-  for (const { id, shiftDays, fixedDate, durationDays } of parsed.data) {
+  for (const { id, placement, fixedOffsetDays, fixedDate, freeStartDay, durationDays } of parsed.data) {
     const element = byId.get(id);
     if (!element) return fail(ELEMENT_NOT_FOUND);
     const validDuration = element.kind === "milestone" ? durationDays === 0 : durationDays >= 1;
@@ -621,7 +717,16 @@ export async function undoPlanChange(previous: PreviousValues[], seenUpdatedAt: 
     queries.push(
       db
         .update(planElements)
-        .set({ shiftDays, fixedDate, durationDays, updatedAt: now, updatedBy: context.actor.id })
+        .set({
+          placement,
+          fixedOffsetDays,
+          fixedDate,
+          freeStartDay,
+          durationDays,
+          ...(placement !== element.placement && { shiftDays: 0 }),
+          updatedAt: now,
+          updatedBy: context.actor.id,
+        })
         .where(eq(planElements.id, id)),
       historyQuery(id, context.actor.id, [UNDO_SUMMARY], now)
     );
@@ -632,45 +737,65 @@ export async function undoPlanChange(previous: PreviousValues[], seenUpdatedAt: 
   return { ok: true, conflict: context.conflict };
 }
 
-/** Back to the latest date ("Auf spätesten Termin"): `shift_days` = 0. */
-export async function resetShift(elementId: string, seenUpdatedAt: string): Promise<ElementActionResult> {
-  const context = await loadElementContext(elementId, seenUpdatedAt);
-  if (isFailure(context)) return context;
-  // While a fixed date is set the shift is ignored; removing it resets the shift.
-  if (context.element.fixedDate !== null) return { ok: true, conflict: context.conflict };
-  return saveElementPatch(context, { shiftDays: 0 });
-}
-
 /**
- * Sets a fixed date (`undefined` = the current planned start) or removes it
- * (`null`, then `shift_days` = 0).
+ * New placement (spec 025): "fixed" (variant "offset" or "date") and "free"
+ * start on the current planned start, "asap"/"alap" clear the values.
+ * `shift_days` becomes 0. Refused for done elements.
  */
-export async function setFixedDate(
+export async function setPlacement(
   elementId: string,
-  date: string | null | undefined,
+  placement: string,
+  variant: string | undefined,
   seenUpdatedAt: string
 ): Promise<ElementActionResult> {
   const context = await loadElementContext(elementId, seenUpdatedAt);
   if (isFailure(context)) return context;
+  const parsed = z
+    .object({ placement: placementInput, variant: z.enum(["offset", "date"]).optional() })
+    .safeParse({ placement, variant });
+  if (!parsed.success) return fail(INVALID);
   const { plan, element } = context;
-  if (date === null) return saveElementPatch(context, { fixedDate: null, shiftDays: 0 });
+  if (element.done) return fail(DONE_NO_PLACEMENT);
+  const changes = tryEngine(() =>
+    setPlacementValues(plan, element.id, parsed.data.placement, parsed.data.variant, todayOf(plan))
+  );
+  if (changes === null) return fail(SAVE_ERROR);
+  const [change] = changes;
+  if (!change) return { ok: true, conflict: context.conflict };
+  // saveElementPatch sets `shift_days` to 0 with the new placement.
+  return saveElementPatch(context, storedValues(element, change, plan.dDay));
+}
 
-  let fixedDate: string;
-  if (date === undefined) {
-    try {
-      const today = dateToDay(todayInBerlin(new Date()), plan.dDay);
-      const computed = computePlan(plan.elements, plan.links, today);
-      fixedDate = dayToDate(computed.elements.get(element.id)!.plannedStart, plan.dDay);
-    } catch {
-      return fail(SAVE_ERROR);
-    }
-  } else {
-    const parsed = dateInput.safeParse(date);
-    if (!parsed.success) return fail(firstMessage(parsed.error));
-    if (Math.abs(dateToDay(parsed.data, plan.dDay)) > MAX_DAYS) return fail("Bitte ein Datum näher an der Krachparade wählen.");
-    fixedDate = parsed.data;
+/** The element of a fixed value: must be "fixed" and open. */
+function fixedFailure(context: ElementContext): Failure | null {
+  if (context.element.done) return fail(DONE_NO_PLACEMENT);
+  if (context.element.placement !== "fixed") return fail(ONLY_FIXED);
+  return null;
+}
+
+/** "Fest": N days before the D-Day (0–365); clears the fixed date. */
+export async function setFixedOffset(elementId: string, days: number, seenUpdatedAt: string): Promise<ElementActionResult> {
+  const context = await loadElementContext(elementId, seenUpdatedAt);
+  if (isFailure(context)) return context;
+  const parsed = fixedOffsetInput.safeParse(days);
+  if (!parsed.success) return fail(firstMessage(parsed.error));
+  const failure = fixedFailure(context);
+  if (failure) return failure;
+  return saveElementPatch(context, { fixedOffsetDays: parsed.data, fixedDate: null });
+}
+
+/** "Fest": a fixed date; clears N days before the D-Day. */
+export async function setFixedDate(elementId: string, date: string, seenUpdatedAt: string): Promise<ElementActionResult> {
+  const context = await loadElementContext(elementId, seenUpdatedAt);
+  if (isFailure(context)) return context;
+  const parsed = dateInput.safeParse(date);
+  if (!parsed.success) return fail(firstMessage(parsed.error));
+  if (Math.abs(dateToDay(parsed.data, context.plan.dDay)) > MAX_DAYS) {
+    return fail("Bitte ein Datum näher an der Krachparade wählen.");
   }
-  return saveElementPatch(context, { fixedDate });
+  const failure = fixedFailure(context);
+  if (failure) return failure;
+  return saveElementPatch(context, { fixedDate: parsed.data, fixedOffsetDays: null });
 }
 
 /** "Erreicht": sets or clears `done` and `done_at`. */
@@ -737,15 +862,18 @@ export async function deleteElement(elementId: string, seenUpdatedAt: string): P
 
 // --- Links ------------------------------------------------------------------
 
-/** End of `fromId` → start of `toId` (null = D-Day). Cycles are refused. */
+/**
+ * End of `fromId` → start of `toId` (null = D-Day) with a minimum lag (spec
+ * 025: 0 if not given). Cycles are refused.
+ */
 export async function addLink(
   fromId: string,
   toId: string | null,
-  lagDays: number,
+  lagDays: number | undefined,
   seen: SeenElement
 ): Promise<ElementActionResult> {
   const parsed = z
-    .object({ fromId: idInput, toId: optionalIdInput, lagDays: lagInput })
+    .object({ fromId: idInput, toId: optionalIdInput, lagDays: lagInput.default(0) })
     .safeParse({ fromId, toId, lagDays });
   if (!parsed.success) return fail(firstMessage(parsed.error));
   const link = parsed.data;

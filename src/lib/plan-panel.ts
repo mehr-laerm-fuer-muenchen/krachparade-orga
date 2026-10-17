@@ -6,22 +6,26 @@ function days(count: number): string {
   return count === 1 ? "1 Tag" : `${count} Tage`;
 }
 
-/** "Von Hand um 3 Tage vorgezogen" / "… nach hinten geschoben"; null without a shift. */
-export function shiftText(shiftDays: number): string | null {
-  if (shiftDays < 0) return `Von Hand um ${days(-shiftDays)} vorgezogen`;
-  if (shiftDays > 0) return `Von Hand um ${days(shiftDays)} nach hinten geschoben`;
-  return null;
-}
-
-/** The automatic reason behind the status, shown small under "Status". */
+/**
+ * The automatic reason behind the status, shown small under "Status"
+ * (stand-in texts for the reasons of spec 025 until its part B).
+ */
 export function reasonText(element: { reason: PlanStatusReason; buffer: number }): string {
   switch (element.reason) {
     case "done":
       return "Als erreicht abgehakt.";
     case "fixed_too_late":
       return `Fixtermin liegt ${days(-element.buffer)} zu spät für die Nachfolger.`;
-    case "negative_buffer":
-      return `Puffer negativ: ${days(-element.buffer)} zu spät für die Nachfolger.`;
+    case "fixed_unreachable":
+      return "Die Vorgänger werden zu spät fertig für den Fixtermin.";
+    case "no_window":
+      return "Kein Fenster mehr: Vorgänger und Nachfolger lassen keinen Platz.";
+    case "too_late":
+      return `Zu spät geplant: ${days(-element.buffer)} nach dem spätesten Termin.`;
+    case "too_early":
+      return "Zu früh geplant: liegt vor dem frühesten Termin.";
+    case "before_predecessor":
+      return "Liegt vor dem Ende eines Vorgängers.";
     case "overdue":
       return "Termin vorbei, nicht abgehakt.";
     case "wobbly":

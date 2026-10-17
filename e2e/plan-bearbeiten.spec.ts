@@ -194,11 +194,12 @@ test.describe("Plan bearbeiten", () => {
     for (const name of [a, b, c]) await expect(ganttName(page, name)).toBeVisible();
     await details(page).getByRole("button", { name: "Details schließen" }).click();
 
-    // Drag A by 5 days: A is 5 days late, B and C move along; "Rückgängig".
+    // Drag A 5 days earlier (spec 025): A becomes "Frei im Fenster" with 5 days
+    // of buffer, B and C ("so spät") move along; "Rückgängig".
     const before = { a: await dLabel(page, a), b: await dLabel(page, b), c: await dLabel(page, c) };
-    await dragBy(page, ganttElement(page, a).getByTestId("gantt-mark"), 5 * MONTH_PX);
+    await dragBy(page, ganttElement(page, a).getByTestId("gantt-mark"), -5 * MONTH_PX);
     await expect(page.getByRole("status").filter({ hasText: "Verschoben" })).toBeVisible();
-    await expect(ganttElement(page, a)).toContainText("−5 T");
+    await expect(ganttElement(page, a)).toContainText("+5 T");
     await expect.poll(() => dLabel(page, b)).not.toBe(before.b);
     await expect.poll(() => dLabel(page, c)).not.toBe(before.c);
     await expect(details(page)).toHaveCount(0);
@@ -206,7 +207,7 @@ test.describe("Plan bearbeiten", () => {
     await expect.poll(() => dLabel(page, a)).toBe(before.a);
     await expect.poll(() => dLabel(page, b)).toBe(before.b);
     await expect.poll(() => dLabel(page, c)).toBe(before.c);
-    await expect(ganttElement(page, a)).not.toContainText("−5 T");
+    await expect(ganttElement(page, a)).not.toContainText("+5 T");
 
     // Right edge: longer, start stays. Left edge: end stays.
     let panel = await openInGantt(page, a);
@@ -247,7 +248,8 @@ test.describe("Plan bearbeiten", () => {
     await expect(fixed).toBeVisible();
     const fixedDate = await fixed.inputValue();
     await fixed.fill(addDays(fixedDate, 3));
-    await fixed.press("Tab");
+    // Tab only moves between the parts of the date field; leave it explicitly (spec 025).
+    await fixed.blur();
     await expect(panel.getByText("−3 T Verzug", { exact: true })).toBeVisible();
     await panel.getByLabel("Fixtermin (extern festgelegt)").uncheck();
     await expect(panel.getByLabel("Fixtermin", { exact: true })).toHaveCount(0);
@@ -308,7 +310,7 @@ test.describe("Plan bearbeiten", () => {
     const showAll = history.getByRole("button", { name: /^Alle anzeigen/ });
     if (await showAll.isVisible()) await showAll.click();
     await expect(history.getByText(/^Kim Brenner · \d{2}\.\d{2}\. \d{2}:\d{2} · Angelegt$/)).toBeVisible();
-    await expect(history.getByText(/· Verschoben um \+5 T$/)).toBeVisible();
+    await expect(history.getByText(/· Verschoben um −5 T \(Lage jetzt Frei im Fenster\)$/)).toBeVisible();
     await expect(history.getByText(/To-do|Notiz/)).toHaveCount(0);
 
     // Conflict: page 2 changes the duration, page 1 then the name.
