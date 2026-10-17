@@ -4,7 +4,7 @@ import { useId, type ReactNode } from "react";
 import { StatusPill, type Status } from "@/components/status-pill";
 import { TickBox } from "@/components/tick-box";
 import type { AgendaElement, PlanTodoView, PlanViewElement } from "@/lib/gantt-layout";
-import { formatBuffer } from "@/lib/plan-preview";
+import { slackShort } from "@/lib/plan-status";
 import { formatProgress, todoProgress, type TodoProgress } from "@/lib/todo-progress";
 import { dueText } from "./plan-detail";
 import { ReachHint } from "./reach-hint";
@@ -69,6 +69,14 @@ function ProgressToggle({ progress, open, controls, onClick }: {
  * that opens the details (box and side controls sit above it), side column
  * and optional content below.
  */
+/** Frame of a critical (solid) or tight (dashed) element (spec 026, week list only). */
+export type CardFrame = "critical" | "tight" | null;
+
+const FRAME: Record<Exclude<CardFrame, null>, string> = {
+  critical: "border-2 border-accent",
+  tight: "border-2 border-dashed border-accent",
+};
+
 export function CardShell({
   stripe,
   box,
@@ -78,6 +86,8 @@ export function CardShell({
   side,
   onOpen,
   children,
+  frame = null,
+  detail,
 }: {
   stripe: string;
   box: ReactNode;
@@ -87,9 +97,15 @@ export function CardShell({
   side: ReactNode;
   onOpen: () => void;
   children?: ReactNode;
+  frame?: CardFrame;
+  /** A further line under the meta line (spec 026: the window). */
+  detail?: ReactNode;
 }) {
   return (
-    <li className="overflow-hidden rounded-md border border-line bg-surface">
+    <li
+      data-frame={frame ?? undefined}
+      className={`overflow-hidden rounded-md bg-surface ${frame ? FRAME[frame] : "border border-line"}`}
+    >
       {/* The card opens the details; its button covers the whole row (box and counter sit above it). */}
       <div className="relative flex min-h-11 items-stretch hover:bg-surface-2">
         <span aria-hidden className={`w-1 shrink-0 ${stripe}`} />
@@ -101,6 +117,7 @@ export function CardShell({
         >
           <span className={`font-semibold break-words ${muted ? "text-muted" : ""}`}>{title}</span>
           <span className="text-sm break-words text-muted">{meta}</span>
+          {detail ? <span className="text-sm break-words text-muted tabular-nums">{detail}</span> : null}
         </button>
         <span className="flex shrink-0 flex-col items-end justify-center gap-1 py-2 pr-3">{side}</span>
       </div>
@@ -110,7 +127,7 @@ export function CardShell({
 }
 
 /**
- * A plan element as a card (spec 016): box = "Erreicht", status, buffer,
+ * A plan element as a card (spec 016): box = "Erreicht", status, slack (spec 026),
  * counter that opens the to-dos (each can be ticked off) and the hint "Als
  * erreicht markieren?" once all are done. `full` carries the to-dos.
  */
@@ -127,10 +144,15 @@ export function ElementCard({
   onToggleExpand,
   onExpand,
   onHideHint,
+  frame,
+  detail,
 }: {
   element: AgendaElement;
   full: PlanViewElement | undefined;
   meta: string;
+  /** Spec 026, week list only: frame for critical/tight and the window line. */
+  frame?: CardFrame;
+  detail?: ReactNode;
   today: number;
   dDay: string;
   ticks: PlanTicks;
@@ -165,14 +187,12 @@ export function ElementCard({
       className="relative z-10"
     />
   ) : null;
+  // Spec 026 (Franz, 17.10.2026): slack instead of the buffer, also in the AK workspace.
+  const slack = full && !element.done ? slackShort(full, full) : null;
   const side = (
     <>
       <StatusPill status={element.status} reason={element.reason} assessment={element.reason === "wobbly"} />
-      {element.done ? null : (
-        <span className={`text-sm tabular-nums ${element.buffer < 0 ? "font-semibold text-status-late" : "text-muted"}`}>
-          {formatBuffer(element.buffer)}
-        </span>
-      )}
+      {slack ? <span className="text-sm whitespace-nowrap text-muted tabular-nums">{slack}</span> : null}
       {progress.total > 0 ? (
         <ProgressToggle progress={progress} open={open} controls={listId} onClick={() => onToggleExpand(element.id)} />
       ) : null}
@@ -188,6 +208,8 @@ export function ElementCard({
       muted={reached}
       side={side}
       onOpen={() => onSelect(element.id)}
+      frame={frame}
+      detail={detail}
     >
       {open && full ? (
         <div id={listId} className="flex flex-col gap-2 border-t border-line py-1 pr-3 pl-1">

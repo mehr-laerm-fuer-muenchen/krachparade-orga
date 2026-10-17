@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { TickBox } from "@/components/tick-box";
 import { weekAgenda, type AgendaEntry, type PlanTodoView, type PlanViewElement } from "@/lib/gantt-layout";
-import { CardShell, ElementCard, STRIPE } from "./element-card";
+import { windowText } from "@/lib/plan-status";
+import { CardShell, ElementCard, STRIPE, type CardFrame } from "./element-card";
+import { PinIcon } from "./pin-icon";
 import type { PlanTicks } from "./use-plan-ticks";
 
 /** Weeks per page of the list. */
@@ -33,11 +35,38 @@ function Entry({ entry, context }: { entry: AgendaEntry; context: CardContext })
   const full = byId.get(element.id);
 
   if (entry.type === "element") {
+    // Spec 026: frame and word for critical/tight, the window line with a pin for fixed dates.
+    const frame: CardFrame = full && !full.done ? (full.critical ? "critical" : full.tight ? "tight" : null) : null;
+    const word = frame === "critical" ? "kritisch" : frame === "tight" ? "knapp" : null;
+    const detail = full ? (
+      <span data-testid="card-window">
+        {!full.done && full.fixed ? (
+          <>
+            <PinIcon label={false} />{" "}
+          </>
+        ) : null}
+        {windowText(
+          {
+            status: full.status,
+            earliestStart: full.earliestStart,
+            latestStart: full.latestStart,
+            latestFinish: full.latestEnd,
+            plannedStart: full.start,
+            plannedEnd: full.end,
+            slack: full.slack,
+          },
+          full,
+          context.dDay
+        )}
+      </span>
+    ) : null;
     return (
       <ElementCard
         element={element}
         full={full}
-        meta={[element.workingGroupName, element.ownerName, entry.text].filter(Boolean).join(" · ")}
+        frame={frame}
+        detail={detail}
+        meta={[element.workingGroupName, element.ownerName, entry.text, word].filter(Boolean).join(" · ")}
         today={context.today}
         dDay={context.dDay}
         ticks={ticks}

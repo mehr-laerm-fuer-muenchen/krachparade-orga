@@ -16,6 +16,29 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "026-gantt-zeitfenster",
+    date: "2026-10-17",
+    title: "Zeitfenster im Gantt",
+    items: [
+      {
+        lead: "Helles Band",
+        text: "Hinter jedem Balken zeigt ein helles Band das Zeitfenster von frühestens bis spätestens. Über „Fenster“ blendest du die Bänder aus und ein.",
+      },
+      {
+        lead: "Luft und Pin",
+        text: "Im Label steht jetzt die Luft, feste Termine haben einen Pin.",
+      },
+      {
+        lead: "Kritisch und knapp",
+        text: "Kritisch (keine Luft) hat einen pinken Rahmen, knapp (höchstens 7 Tage) einen gestrichelten – im Gantt und in der Wochenliste. Der Filter „Kritisch & knapp“ erklärt, was das heißt.",
+      },
+      {
+        lead: "Ursache",
+        text: "Ist etwas nur im Verzug, weil davor etwas klemmt, nennt das Element jetzt die Ursache – ein Tipp darauf führt direkt hin.",
+      },
+    ],
+  },
+  {
     id: "025-zeitfenster-rechnung",
     date: "2026-10-17",
     title: "Zeitfenster statt fester Abstände",

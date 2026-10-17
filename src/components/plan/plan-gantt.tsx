@@ -8,7 +8,6 @@ import { formatRelativeDay } from "../../lib/dday";
 import {
   buildRows,
   elbowPath,
-  formatDayMonth,
   HEADER_HEIGHT,
   monthTicks,
   rowPositions,
@@ -16,24 +15,31 @@ import {
   weekTicks,
   xOf,
   ZOOM_PX,
-  type GanttElement,
   type GanttGroup,
   type GanttLink,
   type GanttRow,
+  type GanttWindowElement,
   type Zoom,
 } from "../../lib/gantt-layout";
 import { dayToDate } from "../../lib/plan-days";
 import { dragChanges, dragDays, isDrag, previewPlan, type DragMode } from "../../lib/plan-drag";
 import { D_DAY_NAME } from "../../lib/plan-edit";
 import type { PlanInput } from "../../lib/plan-engine";
-import { formatBuffer } from "../../lib/plan-preview";
+import { barLabel } from "../../lib/plan-status";
 import { formatProgress, type TodoProgress } from "../../lib/todo-progress";
+import { PIN_PATH } from "./pin-icon";
+
+type GanttElement = GanttWindowElement;
 
 const NAME_WIDTH = 240;
 const BAR_HEIGHT = 14;
 const DIAMOND = 7;
 const LANE_BAR_HEIGHT = 8;
 const LATE_BAND_HEIGHT = 18;
+/** Time window behind a bar or diamond (spec 026). */
+const WINDOW_HEIGHT = 22;
+/** Room for the pin in front of the label of a fixed element. */
+const PIN_WIDTH = 12;
 /** To-do progress under a bar (spec 016), inside the 30 px row. */
 const PROGRESS_HEIGHT = 3;
 const PROGRESS_GAP = 3;
@@ -98,6 +104,8 @@ export type PlanGanttProps = {
   edit?: GanttEdit;
   /** To-do progress per element id (spec 016); missing = no to-dos. */
   progress?: ReadonlyMap<string, TodoProgress>;
+  /** Time window bands (spec 026, switch "Fenster"); on by default. */
+  windows?: boolean;
 };
 
 const NO_TODOS: TodoProgress = { done: 0, total: 0, complete: false };
@@ -105,8 +113,9 @@ const NO_TODOS: TodoProgress = { done: 0, total: 0, complete: false };
 /**
  * Read-only Gantt of the plan (spec 007): a name column with buttons on the
  * left, the time axis as SVG in its own horizontal scroll area on the right.
- * Lanes per AK, bars, milestones, buffer, too-late bands, today and D-Day.
- * The selected element shows arrows to its predecessors and successors.
+ * Lanes per AK, bars, milestones, time windows (spec 026), too-late bands,
+ * today and D-Day. The selected element shows arrows to its predecessors and
+ * successors.
  */
 export function PlanGantt({
   elements,
@@ -124,6 +133,7 @@ export function PlanGantt({
   onToggleLane,
   edit,
   progress,
+  windows = true,
 }: PlanGanttProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -338,7 +348,7 @@ export function PlanGantt({
             return (
               <ElementMark
                 key={row.key}
-                element={shown(row.element)}
+                element={shown(byId.get(row.element.id)!)}
                 center={center}
                 x={x}
                 dDay={dDay}
@@ -347,6 +357,7 @@ export function PlanGantt({
                 onDragStart={edit ? startDrag : undefined}
                 dragging={drag !== null}
                 progress={progress?.get(row.element.id) ?? NO_TODOS}
+                windows={windows}
               />
             );
           })}
@@ -452,6 +463,7 @@ function ElementMark({
   onDragStart,
   dragging,
   progress,
+  windows,
 }: {
   element: GanttElement;
   /** To-dos done and in total; total 0 = nothing shown (spec 016). */
@@ -464,23 +476,43 @@ function ElementMark({
   /** Only when editable (spec 008). */
   onDragStart?: (event: ReactPointerEvent, id: string, mode: DragMode) => void;
   dragging: boolean;
+  /** Draw the time window band (spec 026). */
+  windows: boolean;
 }) {
   const open = !element.done;
   const milestone = element.kind === "milestone";
   const left = x(element.start);
   const barWidth = Math.max(3, x(element.end) - left);
   const markEnd = milestone ? left + DIAMOND : left + barWidth;
-  const showBuffer = open && element.buffer > 0;
   const showLate = open && element.buffer < 0;
-  const labelX = Math.max(markEnd, showBuffer ? x(element.latestEnd) : 0) + 6;
-  const outline = element.fixed
-    ? "stroke-text stroke-2"
+  // Spec 026: a band from earliest start to latest finish, not for reached or
+  // fixed elements and not without a window.
+  const showWindow = windows && open && !element.fixed && element.earliestStart <= element.latestStart;
+  const pinned = open && element.fixed;
+  const frame = open && element.critical ? "critical" : open && element.tight ? "tight" : null;
+  const labelX = markEnd + 6;
+  // Fixed dates have the pin instead of a dark outline (spec 026).
+  const outline = frame
+    ? `stroke-accent stroke-2 ${frame === "tight" ? "[stroke-dasharray:3_2]" : ""}`
     : element.status === "ok"
       ? "stroke-on-status-ok stroke-1"
       : "";
-  const dates = milestone
-    ? formatDayMonth(element.start, dDay)
-    : `${formatDayMonth(element.start, dDay)}–${formatDayMonth(element.end, dDay)}`;
+  const label = barLabel(
+    {
+      status: element.status,
+      earliestStart: element.earliestStart,
+      latestStart: element.latestStart,
+      latestFinish: element.latestEnd,
+      plannedStart: element.start,
+      plannedEnd: element.end,
+      slack: element.slack,
+    },
+    element,
+    dDay
+  );
+  const hidden = [pinned ? "fest" : null, frame === "critical" ? "kritisch" : frame === "tight" ? "knapp" : null].filter(
+    Boolean
+  );
   const diamond = (half: number) =>
     `${left},${center - half} ${left + half},${center} ${left},${center + half} ${left - half},${center}`;
 
@@ -489,10 +521,26 @@ function ElementMark({
       data-testid="gantt-element"
       data-element-id={element.id}
       data-element-name={element.name}
+      data-frame={frame ?? undefined}
       className={`group ${onDragStart ? (dragging ? "" : "cursor-grab") : "cursor-pointer"}`}
       onClick={() => onSelect(element.id)}
       onPointerDown={onDragStart ? (event) => onDragStart(event, element.id, "move") : undefined}
     >
+      {/* The SVG is one image for screen readers; the title names what only shape and colour show. */}
+      {hidden.length > 0 ? <title>{`${element.name} · ${hidden.join(" · ")}`}</title> : null}
+      {showWindow ? (
+        <rect
+          aria-hidden
+          data-testid="gantt-window"
+          x={x(element.earliestStart) - (milestone ? DIAMOND : 0)}
+          y={center - WINDOW_HEIGHT / 2}
+          width={x(element.latestEnd) - x(element.earliestStart) + (milestone ? 2 * DIAMOND : 0)}
+          height={WINDOW_HEIGHT}
+          rx={4}
+          strokeDasharray="4 3"
+          className="pointer-events-none fill-window stroke-window-edge"
+        />
+      ) : null}
       {showLate ? (
         <rect
           x={x(element.latestEnd)}
@@ -500,16 +548,6 @@ function ElementMark({
           width={x(element.end) - x(element.latestEnd)}
           height={LATE_BAND_HEIGHT}
           className="fill-gantt-late"
-        />
-      ) : null}
-      {showBuffer ? (
-        <line
-          x1={milestone ? left : x(element.end)}
-          x2={x(element.latestEnd)}
-          y1={center}
-          y2={center}
-          strokeWidth={3}
-          className="stroke-gantt-buffer"
         />
       ) : null}
       {milestone ? (
@@ -581,8 +619,18 @@ function ElementMark({
             />
           ))
         : null}
-      <text x={labelX} y={center + 4} className="fill-text">
-        {dates}
+      {pinned ? (
+        <path
+          data-testid="gantt-pin"
+          d={PIN_PATH}
+          transform={`translate(${labelX} ${center - 6})`}
+          fill="currentColor"
+          fillRule="evenodd"
+          className="text-text"
+        />
+      ) : null}
+      <text x={labelX + (pinned ? PIN_WIDTH : 0)} y={center + 4} className="fill-text">
+        {label}
         {progress.total > 0 ? (
           <>
             {" · "}
@@ -591,14 +639,6 @@ function ElementMark({
               className={`tabular-nums ${progress.complete ? "fill-progress-fill font-semibold" : ""}`}
             >
               {formatProgress(progress)}
-            </tspan>
-          </>
-        ) : null}
-        {open && element.buffer !== 0 ? (
-          <>
-            {" · "}
-            <tspan className={element.buffer < 0 ? "fill-status-late font-semibold" : undefined}>
-              {formatBuffer(element.buffer)}
             </tspan>
           </>
         ) : null}

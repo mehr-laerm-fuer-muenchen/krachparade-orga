@@ -3,8 +3,9 @@
 // (0 = D-Day, -80 = 80 days before). Pure functions, no database, no clock.
 import type { Status } from "@/components/status-pill";
 import { formatRelativeDay } from "./dday";
+import type { PlanCause } from "./plan-cause";
 import { dayToDate } from "./plan-days";
-import type { PlanElementKind, PlanStatusReason, Placement, ReasonDetail } from "./plan-engine";
+import type { PlanElementInput, PlanElementKind, PlanStatusReason, Placement, ReasonDetail } from "./plan-engine";
 import { formatWeekdayShort } from "./plan-preview";
 import { reasonText } from "./plan-status";
 import { formatTodoDue } from "./todo-due";
@@ -28,6 +29,19 @@ export type GanttElement = {
   done: boolean;
   fixed: boolean;
 };
+
+/**
+ * An element as the Gantt draws it since spec 026: with its window (band),
+ * slack, critical/tight (frame) and the placement (pin and label).
+ */
+export type GanttWindowElement = GanttElement &
+  Pick<PlanElementInput, "placement" | "fixedDay" | "fixedOffsetDays" | "freeStartDay"> & {
+    earliestStart: number;
+    latestStart: number;
+    slack: number;
+    critical: boolean;
+    tight: boolean;
+  };
 
 export type GanttGroup = { id: string; name: string; sortOrder: number };
 
@@ -281,6 +295,8 @@ export type PlanViewElement = GanttElement & {
   /** Spec 025: no slack left (or late) / at most 7 days of slack. */
   critical: boolean;
   tight: boolean;
+  /** Spec 026: what makes a follow-on delay (computed on the server); null if none. */
+  cause: PlanCause | null;
   wobbly: boolean;
   /** Display name "AK ‹Name›". */
   workingGroupName: string | null;

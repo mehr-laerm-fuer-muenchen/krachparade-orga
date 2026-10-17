@@ -39,7 +39,7 @@ import { D_DAY_NAME, PLACEMENT_NAMES } from "@/lib/plan-edit";
 import { predecessorCandidates, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
 import { resolvePlacement, todoDueDay, type FixedVariant, type Placement } from "@/lib/plan-engine";
-import { daysShort, reasonText } from "@/lib/plan-status";
+import { causeText, daysShort, reasonText } from "@/lib/plan-status";
 import { formatTodoDue } from "@/lib/todo-due";
 import { formatProgress, todoProgress, type TodoProgress } from "@/lib/todo-progress";
 import { displayGroupName } from "@/lib/working-groups";
@@ -219,6 +219,21 @@ export function PlanDetail(props: PlanDetailProps) {
 
   const names = new Map([...elements.values()].map((item) => [item.id, item.name]));
   const { placement, variant } = placementOf(element);
+  // Spec 026: "– wegen ‹Name› (…)" for a follow-on delay; the name opens that element.
+  const causeName = element.cause ? names.get(element.cause.elementId) : undefined;
+  const cause =
+    element.cause && causeName && (element.status === "late" || element.status === "warn")
+      ? (() => {
+          const text = causeText(element.cause, causeName);
+          const at = text.indexOf(causeName);
+          return {
+            id: element.cause.elementId,
+            name: causeName,
+            before: text.slice(0, at),
+            after: text.slice(at + causeName.length),
+          };
+        })()
+      : null;
 
   const predecessors = links.flatMap((link): LinkRow[] => {
     const from = link.toId === element.id ? elements.get(link.fromId) : undefined;
@@ -271,6 +286,19 @@ export function PlanDetail(props: PlanDetailProps) {
             {element.status !== "ok" ? (
               <p data-testid="detail-reason" className="text-sm">
                 {reasonText(element, names, dDay)}
+              </p>
+            ) : null}
+            {cause ? (
+              <p data-testid="detail-cause" className="text-sm">
+                – {cause.before}
+                <button
+                  type="button"
+                  onClick={() => onSelect(cause.id)}
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  {cause.name}
+                </button>
+                {cause.after}
               </p>
             ) : null}
           </div>
