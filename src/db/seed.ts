@@ -3,6 +3,7 @@
 // to happen before the database module is loaded, so import "./index" only
 // dynamically inside seed().
 import { parseAdminEmails } from "../lib/access";
+import type { Placement } from "../lib/plan-engine";
 import { KP27_PLAN, KP27_PLAN_NOTES, KP27_PLAN_TODOS } from "./kp27-template";
 
 const isProd = process.argv.includes("--prod");
@@ -14,7 +15,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "9";
+export const SEED_VERSION = "10";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -136,7 +137,12 @@ export type PlanTemplateElement = {
   /** Successor by name with lag in days; `null` = the D-Day. */
   next: { to: string | null; lag: number }[];
   fixedDate?: string;
+  /** Spec 006; not read since spec 025, kept so the old model gives the same dates. */
   shiftDays?: number;
+  /** Spec 025; without it "fixed" with `fixedDate`, otherwise "alap". */
+  placement?: Placement;
+  /** Start of a "free" element. */
+  freeStartDay?: number;
   wobbly?: boolean;
 };
 
@@ -154,7 +160,7 @@ export const TEST_PLAN: PlanTemplateElement[] = [
   { name: "Zahlungsfrist Kollektive", group: "Finanzen", kind: "task", durationDays: 23, department: "Finanzen", owner: "noa.fink@example.org", next: [{ to: null, lag: 57 }] },
   { name: "Route & Aufstellung ausarbeiten", group: "Demo & Route", kind: "task", durationDays: 28, department: "Route", owner: "kim.brenner@example.org", next: [{ to: "Versammlungsanzeige beim KVR", lag: 0 }] },
   { name: "Versammlungsanzeige beim KVR", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Kooperationsgespräch KVR/Polizei", lag: 50 }] },
-  { name: "Kooperationsgespräch KVR/Polizei", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Finaler Crosscheck", lag: 15 }], fixedDate: "2027-04-08" },
+  { name: "Kooperationsgespräch KVR/Polizei", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Finaler Crosscheck", lag: 15 }], fixedDate: "2027-04-08", placement: "fixed" },
   { name: "Sicherheitskonzept & Abschnittsleitungen", group: "Demo & Route", kind: "task", durationDays: 30, department: "Demoleitung", owner: "alex.rauch@example.org", next: [{ to: "Finaler Crosscheck", lag: 0 }] },
   { name: "Wagenreihung", group: "Programm", kind: "task", durationDays: 14, owner: "robin.tal@example.org", next: [{ to: "Finaler Crosscheck", lag: 0 }] },
   { name: "Finaler Crosscheck", group: "Demo & Route", kind: "milestone", department: "Demoleitung", owner: "kim.brenner@example.org", next: [{ to: "Briefing Abschnittsleitungen", lag: 3 }] },
@@ -170,10 +176,10 @@ export const TEST_PLAN: PlanTemplateElement[] = [
   { name: "Wagenpakete packen", group: "Flächen & Technik", kind: "task", durationDays: 4, department: "Wagenpakete", owner: "alex.rauch@example.org", next: [{ to: "Gesamtbriefing Wagenverantwortliche", lag: 0 }] },
   { name: "Bands & Reden anfragen", group: "Programm", kind: "task", durationDays: 40, department: "Bühnenprogramm musikalisch", owner: "mika.sonnleitner@example.org", next: [{ to: "Bühnenprogramm final", lag: 0 }] },
   { name: "Bühnenprogramm final", group: "Programm", kind: "milestone", department: "Bühnenprogramm musikalisch", next: [{ to: null, lag: 14 }] },
-  { name: "Social-Media-Plan", group: "Kommunikation", kind: "task", durationDays: 20, department: "Social Media", owner: "luca.pfeffer@example.org", next: [{ to: "Pressemitteilung Vorbericht", lag: 0 }], shiftDays: -10 },
+  { name: "Social-Media-Plan", group: "Kommunikation", kind: "task", durationDays: 20, department: "Social Media", owner: "luca.pfeffer@example.org", next: [{ to: "Pressemitteilung Vorbericht", lag: 0 }], shiftDays: -10, placement: "free", freeStartDay: -90 },
   { name: "Pressemitteilung Vorbericht", group: "Kommunikation", kind: "milestone", department: "Pressearbeit", owner: "jo.kranz@example.org", next: [{ to: null, lag: 60 }] },
   { name: "Schildermalen", group: "Kommunikation", kind: "milestone", department: "Social Media", next: [{ to: null, lag: 34 }] },
-  { name: "Teaser veröffentlicht", group: "Kommunikation", kind: "milestone", department: "Teaser / Aftermovie", owner: "ivy.lamm@example.org", next: [{ to: null, lag: 21 }], shiftDays: -5 },
+  { name: "Teaser veröffentlicht", group: "Kommunikation", kind: "milestone", department: "Teaser / Aftermovie", owner: "ivy.lamm@example.org", next: [{ to: null, lag: 21 }], shiftDays: -5, placement: "free", freeStartDay: -26 },
   { name: "Spendenkonto & Boxen bereit", group: "Finanzen", kind: "milestone", department: "Finanzen", next: [{ to: null, lag: 17 }] },
 ];
 
@@ -633,7 +639,9 @@ export async function seed({ prod }: { prod: boolean }) {
           name: element.name,
           durationDays: element.durationDays ?? 0,
           shiftDays: element.shiftDays ?? 0,
+          placement: element.placement ?? (element.fixedDate ? "fixed" : "alap"),
           fixedDate: element.fixedDate ?? null,
+          freeStartDay: element.freeStartDay ?? null,
           wobbly: element.wobbly ?? false,
           sortOrder: index + 1,
           createdBy,

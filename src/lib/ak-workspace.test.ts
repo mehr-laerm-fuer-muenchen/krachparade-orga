@@ -27,6 +27,7 @@ function element(overrides: Partial<AkElementInput> & { id: string }): AkElement
     departmentId: "route",
     done: false,
     status: "ok",
+    reason: "ok",
     start: T + 10,
     end: T + 10,
     ...overrides,
@@ -60,11 +61,15 @@ describe("ongoingDisplayName", () => {
 describe("withoutOngoing", () => {
   const base = (id: string, overrides: Partial<PlanElementInput> = {}) => ({
     id,
+    name: id,
     kind: "task" as const,
     durationDays: 10,
-    shiftDays: 0,
+    placement: "alap" as const,
     fixedDay: null,
+    fixedOffsetDays: null,
+    freeStartDay: null,
     done: false,
+    doneDay: null,
     wobbly: false,
     sortOrder: 1,
     isOngoing: false,
@@ -86,13 +91,13 @@ describe("withoutOngoing", () => {
     expect(result.links).toEqual(plan.links);
   });
 
-  it("gives the same critical path, buffers and status as without the ongoing element", () => {
+  it("gives the same counts, buffers and status as without the ongoing element", () => {
     const ongoing = { ...base("x", { kind: "milestone", durationDays: 0, sortOrder: 0 }), isOngoing: true };
     const filtered = withoutOngoing([ongoing, ...plan.elements], plan.links);
     const today = day(TODAY);
     const withOngoing = computePlan(filtered.elements, filtered.links, today);
     const without = computePlan(plan.elements, plan.links, today);
-    expect(withOngoing.criticalPath).toEqual(without.criticalPath);
+    expect(withOngoing.counts).toEqual(without.counts);
     expect([...withOngoing.elements.entries()]).toEqual([...without.elements.entries()]);
     expect(withOngoing.elements.has("x")).toBe(false);
   });
@@ -246,16 +251,17 @@ describe("akSummary", () => {
     akSummary({ dDay: D_DAY, elements, ongoingIds: [], planTodos: [], meetingTodos: [], ...extra }, TODAY);
 
   it("is all zero and without a next date for an empty working group", () => {
-    expect(summary([])).toEqual({ late: 0, warn: 0, openTodos: 0, next: null });
+    expect(summary([])).toEqual({ late: 0, wobbly: 0, early: 0, openTodos: 0, next: null });
   });
 
-  it("counts late and wobbly elements", () => {
+  it("counts late, wobbly and too early elements apart (spec 025)", () => {
     const result = summary([
       element({ id: "a", status: "late", start: T - 3, end: T - 3 }),
-      element({ id: "b", status: "warn" }),
-      element({ id: "c", status: "warn" }),
+      element({ id: "b", status: "warn", reason: "wobbly" }),
+      element({ id: "c", status: "warn", reason: "wobbly" }),
+      element({ id: "d", status: "warn", reason: "too_early" }),
     ]);
-    expect(result).toMatchObject({ late: 1, warn: 2 });
+    expect(result).toMatchObject({ late: 1, wobbly: 2, early: 1 });
   });
 
   it("counts open to-dos of elements not reached, of Laufende Aufgaben and from meetings", () => {
@@ -272,7 +278,7 @@ describe("akSummary", () => {
     });
     expect(result.openTodos).toBe(4);
     // Laufende Aufgaben never count as late or wobbly.
-    expect(result).toMatchObject({ late: 0, warn: 0 });
+    expect(result).toMatchObject({ late: 0, wobbly: 0, early: 0 });
   });
 
   it("finds the next date: milestone, starting task, running task", () => {

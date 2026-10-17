@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageTitle } from "@/components/placeholder";
-import { formatRelativeDay } from "@/lib/dday";
 import {
   NO_GROUP_KEY,
   type GanttGroup,
@@ -10,11 +9,10 @@ import {
   type PlanViewLink,
   type Zoom,
 } from "@/lib/gantt-layout";
-import { dayToDate } from "@/lib/plan-days";
 import { D_DAY_NAME } from "@/lib/plan-edit";
-import type { PlanInput } from "@/lib/plan-engine";
+import type { PlanCounts, PlanInput } from "@/lib/plan-engine";
 import { defaultGroupId } from "@/lib/plan-panel";
-import { countLate, formatWeekdayShort } from "@/lib/plan-preview";
+import { countLate } from "@/lib/plan-preview";
 import { todoProgress } from "@/lib/todo-progress";
 import { useUndoBar } from "./plan-bar";
 import { PlanDetail, type PlanDepartmentOption, type PlanOption } from "./plan-detail";
@@ -33,8 +31,8 @@ export type PlanViewData = {
   elements: PlanViewElement[];
   groups: GanttGroup[];
   links: PlanViewLink[];
-  criticalPath: string[];
-  latestProjectStart: number;
+  /** Spec 025: critical and tight elements, late and warn. */
+  counts: PlanCounts;
   myGroupIds: string[];
   /** Choices of the detail panel (spec 008); active members only, names only. */
   departments: PlanDepartmentOption[];
@@ -182,7 +180,7 @@ function Legend() {
  * the browser computes a preview with the same engine.
  */
 export function PlanView({ data }: { data: PlanViewData }) {
-  const { elements, groups, links, criticalPath, today, dDay } = data;
+  const { elements, groups, links, counts, today, dDay } = data;
   const [view, setView] = useState<View>("gantt");
   const [zoom, setZoom] = useState<Zoom>("month");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
@@ -245,11 +243,15 @@ export function PlanView({ data }: { data: PlanViewData }) {
     () => ({
       elements: elements.map((element) => ({
         id: element.id,
+        name: element.name,
         kind: element.kind,
         durationDays: element.durationDays,
-        shiftDays: element.shiftDays,
+        placement: element.placement,
         fixedDay: element.fixedDay,
+        fixedOffsetDays: element.fixedOffsetDays,
+        freeStartDay: element.freeStartDay,
         done: element.done,
+        doneDay: element.doneDay,
         wobbly: element.wobbly,
         sortOrder: element.sortOrder,
       })),
@@ -263,14 +265,18 @@ export function PlanView({ data }: { data: PlanViewData }) {
     [elements]
   );
 
-  // The filters apply to the week list as well.
-  const critical = new Set(criticalPath);
+  // The filters apply to the week list as well. "Kritisch & knapp" (spec 025)
+  // shows critical or tight elements.
+  const criticalIds = useMemo(
+    () => elements.filter((element) => element.critical || element.tight).map((element) => element.id),
+    [elements]
+  );
+  const critical = new Set(criticalIds);
   const listElements = elements.filter(
     (element) => (!criticalOnly || critical.has(element.id)) && (!openOnly || !element.done)
   );
 
   const late = countLate(elements);
-  const startDate = dayToDate(data.latestProjectStart, dDay);
   const selected = selectedId === null ? undefined : byId.get(selectedId);
   const gantt = view === "gantt";
 
@@ -281,7 +287,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
         <p className="text-muted">
           Rückwärts gerechnet ab der {D_DAY_NAME} · {elements.length} Elemente · {late} in Verzug
           {criticalOnly
-            ? ` · Kritischer Pfad: ${criticalPath.length} Elemente, Start spätestens ${formatWeekdayShort(startDate)} (${formatRelativeDay(startDate, dDay)})`
+            ? counts.critical === 0 && counts.tight === 0
+              ? " · nichts kritisch"
+              : ` · ${counts.critical} kritisch · ${counts.tight} knapp`
             : null}
         </p>
       </div>
@@ -298,7 +306,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
           className="hidden desk:flex"
         />
         <FilterButton pressed={criticalOnly} onClick={() => setCriticalOnly(!criticalOnly)}>
-          Kritischer Pfad
+          Kritisch &amp; knapp
         </FilterButton>
         <FilterButton pressed={openOnly} onClick={() => setOpenOnly(!openOnly)}>
           Nur offene
@@ -333,7 +341,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 elements={elements}
                 groups={groups}
                 links={links}
-                criticalPath={criticalPath}
+                criticalIds={criticalIds}
                 today={today}
                 dDay={dDay}
                 zoom={zoom}

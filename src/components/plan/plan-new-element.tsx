@@ -184,18 +184,23 @@ export function PlanNewElement({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-muted">Abstand (T)</span>
-              <input
-                name="lag"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={365}
-                defaultValue={0}
-                className={`${INPUT} w-24`}
-              />
-            </label>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-muted">Abstand</span>
+              <label className="flex items-center gap-1 text-sm text-muted">
+                mind.
+                <input
+                  name="lag"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={365}
+                  defaultValue={0}
+                  aria-label="Mindestabstand (T)"
+                  className={`${INPUT} w-20 text-text`}
+                />
+                T
+              </label>
+            </div>
           </div>
           {error ? (
             <p role="alert" className="font-medium text-status-late">

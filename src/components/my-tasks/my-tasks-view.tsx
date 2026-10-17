@@ -108,7 +108,11 @@ function TaskCard({
   const side =
     task.kind === "element" ? (
       <>
-        <StatusPill status={mode === "done" ? "done" : task.status} assessment={task.reason === "wobbly"} />
+        <StatusPill
+          status={mode === "done" ? "done" : task.status}
+          reason={task.reason}
+          assessment={task.reason === "wobbly"}
+        />
         {mode === "done" ? null : (
           <span className={`text-sm tabular-nums ${task.buffer < 0 ? "font-semibold text-status-late" : "text-muted"}`}>
             {formatBuffer(task.buffer)}

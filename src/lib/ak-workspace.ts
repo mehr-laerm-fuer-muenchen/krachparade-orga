@@ -4,7 +4,8 @@
 // "YYYY-MM-DD". Pure functions, no database, no clock: "today" is passed in.
 import type { Status } from "@/components/status-pill";
 import { dateToDay } from "./plan-days";
-import type { PlanElementKind } from "./plan-engine";
+import type { PlanElementKind, PlanStatusReason } from "./plan-engine";
+import { situationCounts } from "./plan-status";
 import { isOverdue, sortTodos } from "./protocol-rules";
 
 export const ONGOING_NAME = "Laufende Aufgaben";
@@ -41,6 +42,7 @@ export type AkElementInput = {
   departmentId: string | null;
   done: boolean;
   status: Status;
+  reason: PlanStatusReason;
   start: number;
   end: number;
 };
@@ -254,10 +256,11 @@ export function akProgress(ak: {
 
 export type AkNext = { elementId: string; name: string; day: number; type: "milestone" | "starts" | "ends" };
 
-export type AkSummary = { late: number; warn: number; openTodos: number; next: AkNext | null };
+export type AkSummary = { late: number; wobbly: number; early: number; openTodos: number; next: AkNext | null };
 
 /**
- * Overview card of a working group: late and wobbly elements, open to-dos
+ * Overview card of a working group: late, wobbly and too early elements
+ * (spec 025), open to-dos
  * (plan to-dos of elements not reached, "Laufende Aufgaben" included, and
  * protocol to-dos of its departments) and the next date from today on.
  */
@@ -298,8 +301,7 @@ export function akSummary(
   }
 
   return {
-    late: input.elements.filter((element) => element.status === "late").length,
-    warn: input.elements.filter((element) => element.status === "warn").length,
+    ...situationCounts(input.elements),
     openTodos:
       input.planTodos.filter((todo) => !todo.done && open.has(todo.elementId)).length +
       input.meetingTodos.filter((todo) => !todo.done).length,

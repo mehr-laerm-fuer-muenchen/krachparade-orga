@@ -5,9 +5,10 @@
 import type { Status } from "@/components/status-pill";
 import { todayInBerlin } from "./dday";
 import { ongoingDisplayName } from "./ak-workspace";
-import { formatDayMonth, lateText, mondayOf, weekday, weekHeading } from "./gantt-layout";
+import { formatDayMonth, mondayOf, weekday, weekHeading } from "./gantt-layout";
 import { dateToDay, dayToDate } from "./plan-days";
-import { todoDueDay, type PlanElementKind, type PlanStatusReason } from "./plan-engine";
+import { todoDueDay, type PlanElementKind, type PlanStatusReason, type ReasonDetail } from "./plan-engine";
+import { reasonText } from "./plan-status";
 import { isOverdue } from "./protocol-rules";
 import { formatTodoDue } from "./todo-due";
 import { displayGroupName } from "./working-groups";
@@ -28,6 +29,7 @@ export type MyElementInput = {
   buffer: number;
   status: Status;
   reason: PlanStatusReason;
+  reasonDetail: ReasonDetail;
 };
 
 export type MyPlanTodoInput = {
@@ -270,11 +272,12 @@ function describeOpen(input: MyTasksInput, builder: Builder) {
   const todayDate = dayToDate(today, dDay);
   const meetingLabel = (todo: MyMeetingTodoInput) =>
     `aus Treffen ${formatDayMonth(dateToDay(todo.meetingDate, dDay), dDay)}`;
+  const names = new Map(input.computed.map((element) => [element.id, element.name]));
 
   return {
     element(element: MyElementInput): Placed {
       if (element.status === "late") {
-        return { task: builder.element(element, element.end, lateText(element)), overdue: true };
+        return { task: builder.element(element, element.end, reasonText(element, names, dDay)), overdue: true };
       }
       if (element.kind === "milestone") {
         return {

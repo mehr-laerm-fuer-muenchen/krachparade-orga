@@ -167,7 +167,7 @@ export function ElementCard({
   ) : null;
   const side = (
     <>
-      <StatusPill status={element.status} assessment={element.reason === "wobbly"} />
+      <StatusPill status={element.status} reason={element.reason} assessment={element.reason === "wobbly"} />
       {element.done ? null : (
         <span className={`text-sm tabular-nums ${element.buffer < 0 ? "font-semibold text-status-late" : "text-muted"}`}>
           {formatBuffer(element.buffer)}

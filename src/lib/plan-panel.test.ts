@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultGroupId, predecessorCandidates, reasonText, shiftText, successorCandidates } from "./plan-panel";
+import { defaultGroupId, predecessorCandidates, successorCandidates } from "./plan-panel";
 
 const ELEMENTS = [
   { id: "a", name: "A" },
@@ -13,23 +13,6 @@ const LINKS = [
   { fromId: "b", toId: "a", lagDays: 0 },
   { fromId: "c", toId: "b", lagDays: 3 },
 ];
-
-describe("shiftText", () => {
-  it("describes manual shifts", () => {
-    expect(shiftText(0)).toBeNull();
-    expect(shiftText(-3)).toBe("Von Hand um 3 Tage vorgezogen");
-    expect(shiftText(1)).toBe("Von Hand um 1 Tag nach hinten geschoben");
-  });
-});
-
-describe("reasonText", () => {
-  it("explains the status", () => {
-    expect(reasonText({ reason: "fixed_too_late", buffer: -3 })).toBe(
-      "Fixtermin liegt 3 Tage zu spät für die Nachfolger."
-    );
-    expect(reasonText({ reason: "ok", buffer: 2 })).toBe("Im Plan.");
-  });
-});
 
 describe("link candidates", () => {
   it("leaves out linked elements and cycles for predecessors", () => {

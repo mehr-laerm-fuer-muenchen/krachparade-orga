@@ -60,6 +60,7 @@ export const loadMyAgenda = cache(async (memberId: string, today: string): Promi
         buffer: result.buffer,
         status: result.status,
         reason: result.reason,
+        reasonDetail: result.reasonDetail,
       };
     }),
     todos: details.todos,

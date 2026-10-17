@@ -32,6 +32,7 @@ function element(overrides: Partial<MyElementInput> & { id: string }): MyElement
     buffer: 5,
     status: "ok",
     reason: "ok",
+    reasonDetail: {},
     ...overrides,
   };
 }
@@ -261,7 +262,8 @@ describe("myAgenda: overdue & late", () => {
             end: TODAY + 20,
             buffer: -3,
             status: "late",
-            reason: "negative_buffer",
+            reason: "too_late",
+            reasonDetail: { days: 3 },
           }),
           element({ id: "e", name: "Route steht", start: TODAY + 1, end: TODAY + 1 }),
         ],
@@ -272,7 +274,7 @@ describe("myAgenda: overdue & late", () => {
     expect(agenda.overdue.map((task) => [task.key, task.text])).toEqual([
       ["meeting_todo-m", "aus Treffen 03.02. · war fällig Mi 10.02."],
       ["plan_todo-t", "für Route steht · war fällig 15.02. (3 Tage vor Start)"],
-      ["element-late", "Puffer negativ"],
+      ["element-late", "Zu spät geplant: 3 Tage nach dem spätesten Start"],
     ]);
     expect(allKeys(agenda).filter((key) => key === "element-late")).toHaveLength(1);
     expect(keys(agenda.weeks[0].entries)).toEqual(["element-e"]);
@@ -282,14 +284,28 @@ describe("myAgenda: overdue & late", () => {
     const agenda = myAgenda(
       input({
         computed: [
-          element({ id: "fixed", buffer: -4, status: "late", reason: "fixed_too_late" }),
-          element({ id: "past", start: TODAY - 2, end: TODAY - 2, buffer: 0, status: "late", reason: "overdue" }),
+          element({
+            id: "fixed",
+            buffer: -4,
+            status: "late",
+            reason: "fixed_too_late",
+            reasonDetail: { day: day("2027-03-01") },
+          }),
+          element({
+            id: "past",
+            start: TODAY - 2,
+            end: TODAY - 2,
+            buffer: 0,
+            status: "late",
+            reason: "overdue",
+            reasonDetail: { day: TODAY - 2 },
+          }),
         ],
       })
     );
     expect(agenda.overdue.map((task) => task.text)).toEqual([
-      "Termin vorbei, nicht abgehakt",
-      "Fixtermin liegt 4 Tage zu spät",
+      "Überfällig seit Mo 15.02.",
+      "Nachfolger brauchen es spätestens Mo 01.03. – der feste Termin ist zu spät",
     ]);
   });
 

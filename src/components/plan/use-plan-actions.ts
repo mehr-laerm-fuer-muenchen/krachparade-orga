@@ -4,6 +4,8 @@ import { useCallback } from "react";
 import { moveElement, resizeElement, undoPlanChange, type PlanConflict, type PreviousValues } from "@/actions/plan";
 import type { PlanViewElement } from "@/lib/gantt-layout";
 import type { DragMode } from "@/lib/plan-drag";
+import { PLACEMENT_NAMES } from "@/lib/plan-edit";
+import { resolvePlacement } from "@/lib/plan-engine";
 import type { ShowNotice } from "./plan-bar";
 import type { DragAction, PlanResult, RunAction } from "./plan-detail";
 
@@ -61,7 +63,11 @@ export function usePlanActions(
         if (result.conflict) show(conflictText(result.conflict), "info");
         else if (result.previous.length > 0 && result.updatedAt !== null) {
           const { previous, updatedAt } = result;
-          show(mode === "move" ? "Verschoben" : "Dauer geändert", "info", () => void undo(previous, updatedAt));
+          // Spec 025: moving "so früh"/"so spät" makes the element "Frei im Fenster".
+          const placement = resolvePlacement(element).mode;
+          const nowFree = previous.some((values) => values.id === id) && placement !== "free" && placement !== "fixed";
+          const text = `${mode === "move" ? "Verschoben" : "Dauer geändert"}${nowFree ? ` · Lage jetzt „${PLACEMENT_NAMES.free}“` : ""}`;
+          show(text, "info", () => void undo(previous, updatedAt));
         }
         return true;
       } catch {

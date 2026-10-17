@@ -75,8 +75,10 @@ const BASE: ElementSnapshot = {
   name: "Anmeldung offen",
   kind: "task",
   durationDays: 21,
-  shiftDays: 0,
+  placement: "alap",
+  fixedOffsetDays: null,
   fixedDate: null,
+  freeStartDay: null,
   done: false,
   wobbly: false,
   workingGroupId: null,
@@ -95,9 +97,17 @@ const NAMES = new Map([
   ["e2", "Finaler Crosscheck"],
 ]);
 
-function summaries(after: Partial<ElementSnapshot>, before: Partial<ElementSnapshot> = {}, movedWith?: string) {
-  return changeSummaries({ ...BASE, ...before }, { ...BASE, ...after }, NAMES, { movedWith });
+function summaries(
+  after: Partial<ElementSnapshot>,
+  before: Partial<ElementSnapshot> = {},
+  options: { movedWith?: string; previousStart?: number } = {}
+) {
+  return changeSummaries({ ...BASE, ...before }, { ...BASE, ...after }, NAMES, options);
 }
+
+const FREE = { placement: "free" as const };
+const offset = (days: number) => ({ placement: "fixed" as const, fixedOffsetDays: days });
+const dated = (date: string) => ({ placement: "fixed" as const, fixedDate: date });
 
 describe("changeSummaries", () => {
   it("reports a new element", () => {
@@ -108,31 +118,57 @@ describe("changeSummaries", () => {
     expect(summaries({})).toEqual([]);
   });
 
-  it("reports moves with a sign", () => {
-    expect(summaries({ shiftDays: 3 })).toEqual(["Verschoben um +3 T"]);
-    expect(summaries({ shiftDays: -3 })).toEqual(["Verschoben um −3 T"]);
-    expect(summaries({ shiftDays: 2 }, { shiftDays: 5 })).toEqual(["Verschoben um −3 T"]);
+  it("reports every change of the placement with its names", () => {
+    const names = {
+      fixed: "Fest",
+      asap: "So früh wie möglich",
+      alap: "So spät wie möglich",
+      free: "Frei im Fenster",
+    } as const;
+    for (const from of ["asap", "alap", "free"] as const) {
+      for (const to of ["asap", "alap", "free"] as const) {
+        if (from === to) continue;
+        const values = (placement: typeof from) => ({ placement, freeStartDay: placement === "free" ? -30 : null });
+        expect(summaries(values(to), values(from))).toEqual([`Lage: ${names[from]} → ${names[to]}`]);
+      }
+    }
+    expect(summaries({ placement: "alap" }, offset(60))).toEqual(["Lage: Fest → So spät wie möglich"]);
   });
 
-  it("reports predecessors moved along", () => {
-    expect(summaries({ shiftDays: 3 }, {}, "Finaler Crosscheck")).toEqual([
-      "Mitverschoben um +3 T (mit Finaler Crosscheck)",
+  it("reports fixed values", () => {
+    expect(summaries(offset(60))).toEqual(["Lage: So spät wie möglich → Fest", "Fest: 60 T vor der Krachparade"]);
+    expect(summaries(dated("2027-04-08"))).toEqual([
+      "Lage: So spät wie möglich → Fest",
+      "Festes Datum: Do 08.04.2027",
     ]);
-    expect(summaries({ shiftDays: -2 }, {}, "X")).toEqual(["Mitverschoben um −2 T (mit X)"]);
+    expect(summaries(offset(55), offset(60))).toEqual(["Fest: 60 → 55 T vor der Krachparade"]);
+    expect(summaries(dated("2027-04-12"), dated("2027-04-08"))).toEqual([
+      "Festes Datum: Do 08.04. → Mo 12.04.2027",
+    ]);
+    expect(summaries(dated("2027-04-08"), offset(30))).toEqual(["Festes Datum: Do 08.04.2027"]);
+    expect(summaries(offset(30), dated("2027-04-08"))).toEqual(["Fest: 30 T vor der Krachparade"]);
   });
 
-  it("reports a moved fixed date as a move", () => {
-    expect(summaries({ fixedDate: "2027-04-11" }, { fixedDate: "2027-04-08" })).toEqual(["Verschoben um +3 T"]);
+  it("reports a move that makes the element free", () => {
+    expect(summaries({ ...FREE, freeStartDay: -27 }, {}, { previousStart: -30 })).toEqual([
+      "Verschoben um +3 T (Lage jetzt Frei im Fenster)",
+    ]);
   });
 
-  it("reports a new duration without the shift that keeps the start", () => {
-    expect(summaries({ durationDays: 28, shiftDays: 7 })).toEqual(["Dauer 21 → 28 Tage"]);
+  it("reports moves of a free element with a sign", () => {
+    expect(summaries({ ...FREE, freeStartDay: -27 }, { ...FREE, freeStartDay: -30 })).toEqual(["Verschoben um +3 T"]);
+    expect(summaries({ ...FREE, freeStartDay: -33 }, { ...FREE, freeStartDay: -30 })).toEqual(["Verschoben um −3 T"]);
   });
 
-  it("reports fixed dates", () => {
-    expect(summaries({ fixedDate: "2027-04-08" })).toEqual(["Fixtermin gesetzt: Do 08.04.2027"]);
-    expect(summaries({ fixedDate: null, shiftDays: 0 }, { fixedDate: "2027-04-08", shiftDays: 4 })).toEqual([
-      "Fixtermin entfernt",
+  it("reports free neighbours pushed along", () => {
+    expect(
+      summaries({ ...FREE, freeStartDay: -27 }, { ...FREE, freeStartDay: -30 }, { movedWith: "Finaler Crosscheck" })
+    ).toEqual(["Mitgeschoben um +3 T (mit Finaler Crosscheck)"]);
+  });
+
+  it("reports a new duration without the move that keeps the end", () => {
+    expect(summaries({ ...FREE, durationDays: 28, freeStartDay: -37 }, { ...FREE, freeStartDay: -30 })).toEqual([
+      "Dauer 21 → 28 Tage",
     ]);
   });
 
@@ -156,13 +192,13 @@ describe("changeSummaries", () => {
 
   it("reports links", () => {
     expect(summaries({ predecessors: [{ id: "e1", lagDays: 0 }] })).toEqual([
-      "Vorgänger verbunden: Anmeldung offen (0 T)",
+      "Vorgänger verbunden: Anmeldung offen (mind. 0 T)",
     ]);
     expect(summaries({ successors: [] }, { successors: [{ id: null, lagDays: 0 }] })).toEqual([
       "Nachfolger gelöst: Krachparade",
     ]);
     expect(summaries({ successors: [{ id: "e2", lagDays: 10 }] }, { successors: [{ id: "e2", lagDays: 15 }] })).toEqual(
-      ["Abstand zu Finaler Crosscheck: 15 → 10 T"]
+      ["Mindestabstand zu Finaler Crosscheck: 15 → 10 T"]
     );
   });
 

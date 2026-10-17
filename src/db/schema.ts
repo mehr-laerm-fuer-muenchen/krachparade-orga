@@ -121,7 +121,7 @@ export type Department = typeof departments.$inferSelect;
 /**
  * Milestones (no duration) and tasks (duration in calendar days) of the Gantt
  * plan (spec 006). Everything is stored relative to the D-Day except
- * `fixed_date`; while it is set, `shift_days` is ignored.
+ * `fixed_date`. Since spec 025 `placement` decides where an element lies.
  */
 export const planElements = pgTable(
   "plan_elements",
@@ -137,9 +137,19 @@ export const planElements = pgTable(
     kind: text("kind").notNull(),
     name: text("name").notNull(),
     durationDays: integer("duration_days").notNull().default(0),
-    /** Shift against the latest date: negative = earlier (buffer), positive = later (delay). */
+    /**
+     * Shift against the latest date (spec 006). Not read any more since spec
+     * 025; every change of `placement` sets it to 0.
+     */
     shiftDays: integer("shift_days").notNull().default(0),
+    /** Spec 025: where the element lies in its window ("fixed", "asap", "alap", "free"). */
+    placement: text("placement").notNull().default("alap"),
+    /** `placement` "fixed", variant "N days before the D-Day" (start of a task). */
+    fixedOffsetDays: integer("fixed_offset_days"),
+    /** `placement` "fixed", variant "fixed date" (start of a task). */
     fixedDate: date("fixed_date", { mode: "string" }),
+    /** `placement` "free": start relative to the D-Day. */
+    freeStartDay: integer("free_start_day"),
     done: boolean("done").notNull().default(false),
     doneAt: timestamp("done_at", { withTimezone: true }),
     /** "Wackelt" as a manual assessment. */
@@ -162,6 +172,11 @@ export const planElements = pgTable(
       "plan_elements_duration",
       sql`(${table.kind} = 'milestone' and ${table.durationDays} = 0) or (${table.kind} = 'task' and ${table.durationDays} between 1 and 365)`
     ),
+    // Spec 025: no rule across columns here (db:push would fail before the
+    // data takeover); Zod and the actions keep the combinations valid.
+    check("plan_elements_placement", sql`${table.placement} in ('fixed', 'asap', 'alap', 'free')`),
+    check("plan_elements_fixed_offset", sql`${table.fixedOffsetDays} between 0 and 365`),
+    check("plan_elements_free_start", sql`${table.freeStartDay} between -730 and 0`),
     index("plan_elements_edition").on(table.editionId, table.sortOrder),
     uniqueIndex("plan_elements_ongoing_department")
       .on(table.editionId, table.departmentId)

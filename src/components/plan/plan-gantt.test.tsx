@@ -62,7 +62,7 @@ function render(overrides: Partial<PlanGanttProps> = {}): string {
         { fromId: "talk", toId: "check", lagDays: 15 },
         { fromId: "check", toId: null, lagDays: 10 },
       ]}
-      criticalPath={["talk", "check"]}
+      criticalIds={["talk", "check"]}
       today={-205}
       dDay={D_DAY}
       zoom="month"

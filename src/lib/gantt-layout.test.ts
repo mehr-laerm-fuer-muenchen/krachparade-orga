@@ -46,7 +46,7 @@ const GROUPS: GanttGroup[] = [
   { id: "demo", name: "Demo & Route", sortOrder: 1 },
 ];
 
-const NONE: RowOptions = { collapsed: new Set(), criticalOnly: false, openOnly: false, criticalPath: [] };
+const NONE: RowOptions = { collapsed: new Set(), criticalOnly: false, openOnly: false, criticalIds: [] };
 
 describe("isoWeek and mondayOf", () => {
   it("counts weeks over the turn of the year (KW 53 / KW 1)", () => {
@@ -172,7 +172,7 @@ describe("buildRows", () => {
   });
 
   it("filters to the critical path", () => {
-    const rows = buildRows(elements, GROUPS, { ...NONE, criticalOnly: true, criticalPath: ["first", "route-a"] });
+    const rows = buildRows(elements, GROUPS, { ...NONE, criticalOnly: true, criticalIds: ["first", "route-a"] });
     expect(rows.map((row) => row.key)).toEqual(["demo", "first", "route-a", "finanzen"]);
     expect(rows[0]).toMatchObject({ visibleCount: 2, totalCount: 4 });
     expect(rows[3]).toMatchObject({ visibleCount: 0, totalCount: 1, summary: null });
@@ -189,7 +189,7 @@ describe("buildRows", () => {
       ...NONE,
       criticalOnly: true,
       openOnly: true,
-      criticalPath: ["first", "route-a"],
+      criticalIds: ["first", "route-a"],
     });
     expect(rows.map((row) => row.key)).toEqual(["demo", "first", "finanzen"]);
   });
@@ -253,6 +253,7 @@ describe("weekAgenda", () => {
       done: false,
       fixed: false,
       reason: "ok",
+      reasonDetail: {},
       workingGroupName: "AK Demo & Route",
       ownerName: null,
       todos: [],
@@ -311,6 +312,7 @@ describe("weekAgenda", () => {
       buffer: -2,
       status: "late",
       reason: "fixed_too_late",
+      reasonDetail: { day: day("2027-04-06") },
       fixed: true,
     });
     const check = item({
@@ -325,13 +327,13 @@ describe("weekAgenda", () => {
         { id: "t3", text: "PR geprüft", ownerName: null, anchor: "start", daysBefore: 10, due: day("2027-02-10"), done: true },
       ],
     });
-    const overdueTask = item({ id: "overdue", kind: "task", start: day("2027-01-01"), end: day("2027-02-01"), status: "late", reason: "overdue" });
+    const overdueTask = item({ id: "overdue", kind: "task", start: day("2027-01-01"), end: day("2027-02-01"), status: "late", reason: "overdue", reasonDetail: { day: day("2027-02-01") } });
     const result = agenda([late, check, overdueTask]);
 
     expect(result.overdue.map((entry) => [entry.key, entry.text])).toEqual([
-      ["overdue", "Termin vorbei, nicht abgehakt"],
+      ["overdue", "Überfällig seit Mo 01.02."],
       ["todo-t1", "für Finaler Crosscheck · war fällig 16.02. (4 Tage vor Start)"],
-      ["late", "Fixtermin liegt 2 Tage zu spät"],
+      ["late", "Nachfolger brauchen es spätestens Di 06.04. – der feste Termin ist zu spät"],
     ]);
     expect(result.weeks[0].entries.map((entry) => [entry.key, entry.text])).toEqual([
       ["todo-t2", "für Finaler Crosscheck · fällig 18.02. (2 Tage vor Start) · Sascha Möller"],
@@ -342,8 +344,10 @@ describe("weekAgenda", () => {
   });
 
   it("says why an element is late", () => {
-    const result = agenda([item({ id: "negative", buffer: -3, status: "late", reason: "negative_buffer" })]);
-    expect(result.overdue[0].text).toBe("Puffer negativ");
+    const result = agenda([
+      item({ id: "negative", buffer: -3, status: "late", reason: "too_late", reasonDetail: { days: 3 } }),
+    ]);
+    expect(result.overdue[0].text).toBe("Zu spät geplant: 3 Tage nach dem spätesten Start");
   });
 
   it("filters by my working groups, elements without AK only without filter", () => {

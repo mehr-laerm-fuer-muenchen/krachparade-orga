@@ -9,11 +9,15 @@ const TODAY = "2026-10-15";
 
 const elements: PlanElementInput[] = KP27_PLAN.map((element, index) => ({
   id: element.name,
+  name: element.name,
   kind: element.kind,
   durationDays: element.durationDays ?? 0,
-  shiftDays: element.shiftDays ?? 0,
+  placement: element.placement ?? (element.fixedDate ? "fixed" : "alap"),
   fixedDay: element.fixedDate ? dateToDay(element.fixedDate, D_DAY) : null,
+  fixedOffsetDays: null,
+  freeStartDay: element.freeStartDay ?? null,
   done: false,
+  doneDay: null,
   wobbly: element.wobbly ?? false,
   sortOrder: index + 1,
 }));
@@ -61,16 +65,9 @@ describe("KP27 template", () => {
     expect(days("Finales Vortreffen (Zoom)")).toEqual([-3, -3]);
   });
 
-  it("finds the critical path from D-138", () => {
-    expect(plan.criticalPath).toEqual([
-      "Voranmeldung geöffnet",
-      "Vortreffen Kollektive",
-      "Anmeldung offen",
-      "Auswahlkommission",
-      "Finale Zusage an Kollektive",
-      "Zahlungsfrist Kollektive",
-    ]);
-    expect(plan.latestProjectStart).toBe(-138);
+  it("starts at D-138 with slack and nothing critical or tight (spec 025)", () => {
+    expect(plan.elements.get("Voranmeldung geöffnet")!.latestStart).toBe(-138);
+    expect(plan.counts).toEqual({ critical: 0, tight: 0, late: 0, warn: 0 });
   });
 
   it("has no cycle, no element without successor and only status ok", () => {

@@ -81,7 +81,8 @@ export type PlanGanttProps = {
   elements: readonly GanttElement[];
   groups: readonly GanttGroup[];
   links: readonly GanttLink[];
-  criticalPath: readonly string[];
+  /** Elements the filter "Kritisch & knapp" shows (spec 025: critical or tight). */
+  criticalIds: readonly string[];
   /** Today and the D-Day come from the server, never from the browser clock. */
   today: number;
   dDay: string;
@@ -111,7 +112,7 @@ export function PlanGantt({
   elements,
   groups,
   links,
-  criticalPath,
+  criticalIds,
   today,
   dDay,
   zoom,
@@ -133,7 +134,7 @@ export function PlanGantt({
   const x = (day: number) => xOf(day, range, px);
   const width = x(range.end) + px;
 
-  const rows = buildRows(elements, groups, { collapsed, criticalOnly, openOnly, criticalPath });
+  const rows = buildRows(elements, groups, { collapsed, criticalOnly, openOnly, criticalIds });
   const { positions, height: bodyHeight } = rowPositions(rows);
   const height = HEADER_HEIGHT + bodyHeight;
 
@@ -179,7 +180,7 @@ export function PlanGantt({
   const preview = useMemo(
     () =>
       drag && edit && drag.delta !== 0
-        ? previewPlan(edit.plan, dragChanges(edit.plan, drag.id, drag.mode, drag.delta), today)
+        ? previewPlan(edit.plan, dragChanges(edit.plan, drag.id, drag.mode, drag.delta, today), today)
         : null,
     [drag, edit, today]
   );

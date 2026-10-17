@@ -194,11 +194,12 @@ test.describe("Plan bearbeiten", () => {
     for (const name of [a, b, c]) await expect(ganttName(page, name)).toBeVisible();
     await details(page).getByRole("button", { name: "Details schließen" }).click();
 
-    // Drag A by 5 days: A is 5 days late, B and C move along; "Rückgängig".
+    // Drag A 5 days earlier (spec 025): A becomes "Frei im Fenster" with 5 days
+    // of buffer, B and C ("so spät") move along; "Rückgängig".
     const before = { a: await dLabel(page, a), b: await dLabel(page, b), c: await dLabel(page, c) };
-    await dragBy(page, ganttElement(page, a).getByTestId("gantt-mark"), 5 * MONTH_PX);
+    await dragBy(page, ganttElement(page, a).getByTestId("gantt-mark"), -5 * MONTH_PX);
     await expect(page.getByRole("status").filter({ hasText: "Verschoben" })).toBeVisible();
-    await expect(ganttElement(page, a)).toContainText("−5 T");
+    await expect(ganttElement(page, a)).toContainText("+5 T");
     await expect.poll(() => dLabel(page, b)).not.toBe(before.b);
     await expect.poll(() => dLabel(page, c)).not.toBe(before.c);
     await expect(details(page)).toHaveCount(0);
@@ -206,7 +207,7 @@ test.describe("Plan bearbeiten", () => {
     await expect.poll(() => dLabel(page, a)).toBe(before.a);
     await expect.poll(() => dLabel(page, b)).toBe(before.b);
     await expect.poll(() => dLabel(page, c)).toBe(before.c);
-    await expect(ganttElement(page, a)).not.toContainText("−5 T");
+    await expect(ganttElement(page, a)).not.toContainText("+5 T");
 
     // Right edge: longer, start stays. Left edge: end stays.
     let panel = await openInGantt(page, a);
@@ -242,21 +243,25 @@ test.describe("Plan bearbeiten", () => {
 
     // Fixed date for B, 3 days later → late; remove it again.
     panel = await openInGantt(page, b);
-    await panel.getByLabel("Fixtermin (extern festgelegt)").check();
-    const fixed = panel.getByLabel("Fixtermin", { exact: true });
+    // Spec 025: "Fest · Festes Datum"; the date saves as soon as it is complete.
+    const placement = panel.getByRole("group", { name: "Lage" });
+    await placement.getByRole("button", { name: "Fest" }).click();
+    await panel.getByRole("group", { name: "Fest" }).getByRole("button", { name: "Festes Datum" }).click();
+    const fixed = panel.getByLabel("Festes Datum", { exact: true });
     await expect(fixed).toBeVisible();
     const fixedDate = await fixed.inputValue();
     await fixed.fill(addDays(fixedDate, 3));
-    await fixed.press("Tab");
-    await expect(panel.getByText("−3 T Verzug", { exact: true })).toBeVisible();
-    await panel.getByLabel("Fixtermin (extern festgelegt)").uncheck();
-    await expect(panel.getByLabel("Fixtermin", { exact: true })).toHaveCount(0);
-    await expect(panel.getByText("0 T Puffer", { exact: true })).toBeVisible();
+    await expect(panel.getByTestId("detail-reason")).toHaveText(/der feste Termin ist zu spät$/);
+    await expect(panel.getByTestId("detail-window-pill")).toHaveText("festes Datum");
+    await placement.getByRole("button", { name: "So spät wie möglich" }).click();
+    await expect(placement.getByRole("button", { name: "So spät wie möglich" })).toHaveAttribute("aria-pressed", "true");
+    await expect(panel.getByLabel("Festes Datum", { exact: true })).toHaveCount(0);
+    await expect(panel.getByTestId("detail-reason")).toHaveCount(0);
 
     // C reached.
     panel = await openInGantt(page, c);
     await panel.getByLabel("Erreicht", { exact: true }).check();
-    await expect(panel.getByText("erledigt", { exact: true })).toBeVisible();
+    await expect(panel.getByTestId("detail-window-pill")).toHaveText("erreicht");
     await expect(panel.getByText(/^Erreicht$/).first()).toBeVisible();
 
     // To-do at A: add, tick off, delete.
@@ -308,7 +313,7 @@ test.describe("Plan bearbeiten", () => {
     const showAll = history.getByRole("button", { name: /^Alle anzeigen/ });
     if (await showAll.isVisible()) await showAll.click();
     await expect(history.getByText(/^Kim Brenner · \d{2}\.\d{2}\. \d{2}:\d{2} · Angelegt$/)).toBeVisible();
-    await expect(history.getByText(/· Verschoben um \+5 T$/)).toBeVisible();
+    await expect(history.getByText(/· Verschoben um −5 T \(Lage jetzt Frei im Fenster\)$/)).toBeVisible();
     await expect(history.getByText(/To-do|Notiz/)).toHaveCount(0);
 
     // Conflict: page 2 changes the duration, page 1 then the name.

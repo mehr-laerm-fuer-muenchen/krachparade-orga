@@ -1,7 +1,8 @@
 import { and, asc, count, desc, eq } from "drizzle-orm";
 import { withoutOngoing } from "@/lib/ak-workspace";
+import { todayInBerlin } from "@/lib/dday";
 import { dateToDay } from "@/lib/plan-days";
-import type { PlanElementInput, PlanElementKind, PlanLinkInput } from "@/lib/plan-engine";
+import { toPlacement, type PlanElementInput, type PlanElementKind, type PlanLinkInput } from "@/lib/plan-engine";
 import { db } from "./index";
 import {
   departments,
@@ -64,8 +65,10 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
         kind: planElements.kind,
         name: planElements.name,
         durationDays: planElements.durationDays,
-        shiftDays: planElements.shiftDays,
+        placement: planElements.placement,
+        fixedOffsetDays: planElements.fixedOffsetDays,
         fixedDate: planElements.fixedDate,
+        freeStartDay: planElements.freeStartDay,
         done: planElements.done,
         doneAt: planElements.doneAt,
         wobbly: planElements.wobbly,
@@ -110,7 +113,10 @@ export async function loadPlan(editionId: string): Promise<LoadedPlan> {
     elements: plan.elements.map((row) => ({
       ...row,
       kind: row.kind as PlanElementKind,
+      placement: toPlacement(row.placement),
       fixedDay: row.fixedDate === null ? null : dateToDay(row.fixedDate, edition.dDay),
+      // Spec 025: a done element ends on the day it was ticked off (in Berlin).
+      doneDay: row.done ? dateToDay(todayInBerlin(row.doneAt ?? row.updatedAt), edition.dDay) : null,
       openTodos: openTodos.get(row.id) ?? 0,
     })),
     links: plan.links,

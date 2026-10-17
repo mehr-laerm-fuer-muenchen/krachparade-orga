@@ -7,8 +7,11 @@ import {
   PlanCycleError,
   resizeFromEnd,
   resizeFromStart,
+  setPlacementValues,
+  TIGHT_SLACK_DAYS,
   todoDueDay,
   wouldCreateCycle,
+  type PlanElementChange,
   type PlanElementInput,
   type PlanInput,
   type PlanLinkInput,
@@ -21,11 +24,15 @@ let nextSortOrder = 1;
 function milestone(id: string, extra: Partial<PlanElementInput> = {}): PlanElementInput {
   return {
     id,
+    name: id,
     kind: "milestone",
     durationDays: 0,
-    shiftDays: 0,
+    placement: "alap",
     fixedDay: null,
+    fixedOffsetDays: null,
+    freeStartDay: null,
     done: false,
+    doneDay: null,
     wobbly: false,
     sortOrder: nextSortOrder++,
     ...extra,
@@ -37,6 +44,19 @@ function task(id: string, durationDays: number, extra: Partial<PlanElementInput>
 function link(fromId: string, toId: string | null, lagDays = 0): PlanLinkInput {
   return { fromId, toId, lagDays };
 }
+const fixedOffset = (days: number) => ({ placement: "fixed" as const, fixedOffsetDays: days });
+const fixedDate = (day: number) => ({ placement: "fixed" as const, fixedDay: day });
+const free = (day: number) => ({ placement: "free" as const, freeStartDay: day });
+
+function apply(input: PlanInput, changes: PlanElementChange[]): PlanInput {
+  return {
+    ...input,
+    elements: input.elements.map((element) => ({ ...element, ...changes.find((change) => change.id === element.id) })),
+  };
+}
+const sorted = <T extends { id: string }>(changes: T[]) => [...changes].sort((a, b) => a.id.localeCompare(b.id));
+const planned = (input: PlanInput, id: string, today = EARLY) =>
+  computePlan(input.elements, input.links, today).elements.get(id)!;
 
 describe("computePlan", () => {
   it("places a single milestone 10 days before the D-Day", () => {
@@ -57,51 +77,100 @@ describe("computePlan", () => {
     expect(plan.elements.get("t")).toMatchObject({ latestFinish: 0, latestStart: -5, plannedEnd: 0 });
   });
 
-  it("moves all predecessors earlier when a task gets longer, successors stay", () => {
-    const elements = [milestone("a"), task("b", 10), milestone("c")];
-    const links = [link("a", "b", 2), link("b", "c", 3), link("c", null, 5)];
-    const before = computePlan(elements, links, EARLY);
-    const after = computePlan(
-      elements.map((element) => (element.id === "b" ? { ...element, durationDays: 17 } : element)),
-      links,
-      EARLY
-    );
-    expect(after.elements.get("a")!.latestStart).toBe(before.elements.get("a")!.latestStart - 7);
-    expect(after.elements.get("b")!.latestStart).toBe(before.elements.get("b")!.latestStart - 7);
-    expect(after.elements.get("b")!.latestFinish).toBe(before.elements.get("b")!.latestFinish);
-    expect(after.elements.get("c")).toEqual(before.elements.get("c"));
-  });
-
   it("takes the earliest of several successors", () => {
     const elements = [milestone("a"), milestone("b"), milestone("c")];
     const links = [link("a", "b", 0), link("a", "c", 0), link("b", null, 10), link("c", null, 30)];
     expect(computePlan(elements, links, EARLY).elements.get("a")!.latestFinish).toBe(-30);
   });
 
+  it("computes the window and the slack", () => {
+    const plan = computePlan([milestone("a"), task("b", 5)], [link("a", "b", 3), link("b", null, 10)], -100);
+    expect(plan.elements.get("b")).toMatchObject({
+      earliestStart: -97,
+      earliestFinish: -92,
+      latestStart: -15,
+      latestFinish: -10,
+      slack: 82,
+    });
+  });
+
   it("schedules predecessors from a fixed date that is too late", () => {
-    const elements = [milestone("before"), milestone("fix", { fixedDay: -8 }), milestone("after")];
+    const elements = [milestone("before"), milestone("fix", fixedDate(-8)), milestone("after")];
     const links = [link("before", "fix", 5), link("fix", "after", 0), link("after", null, 10)];
     const plan = computePlan(elements, links, EARLY);
     expect(plan.elements.get("fix")).toMatchObject({
-      latestStart: -10,
+      latestStart: -8,
       plannedStart: -8,
       buffer: -2,
       status: "late",
       reason: "fixed_too_late",
+      reasonDetail: { day: -10 },
+      critical: true,
     });
-    expect(plan.elements.get("before")).toMatchObject({ latestFinish: -13, plannedStart: -13, buffer: 0 });
+    expect(plan.elements.get("before")).toMatchObject({ plannedStart: -13, latestStart: -13 });
   });
 
-  it("turns a negative shift into buffer and a positive shift into delay", () => {
-    const early = computePlan([milestone("m", { shiftDays: -10 })], [link("m", null, 20)], EARLY);
-    expect(early.elements.get("m")).toMatchObject({ plannedStart: -30, buffer: 10, status: "ok" });
-    const late = computePlan([milestone("m", { shiftDays: 3 })], [link("m", null, 20)], EARLY);
-    expect(late.elements.get("m")).toMatchObject({
-      plannedStart: -17,
-      buffer: -3,
-      status: "late",
-      reason: "negative_buffer",
+  it("puts a fixed element N days before the D-Day", () => {
+    const plan = computePlan([task("t", 4, fixedOffset(20))], [link("t", null, 0)], EARLY);
+    expect(plan.elements.get("t")).toMatchObject({ plannedStart: -20, plannedEnd: -16, status: "ok" });
+  });
+
+  it("starts „so früh“ without predecessors today", () => {
+    const plan = computePlan([task("t", 3, { placement: "asap" })], [link("t", null, 10)], -50);
+    expect(plan.elements.get("t")).toMatchObject({ plannedStart: -50, earliestStart: -50, slack: 37 });
+  });
+
+  it("lets „so spät“ fall to the latest start of a „so früh“ successor", () => {
+    const elements = [milestone("a"), milestone("b", { placement: "asap" })];
+    const plan = computePlan(elements, [link("a", "b", 2), link("b", null, 10)], -50);
+    // a: latest start of b (-10) − 2; b then starts right after a.
+    expect(plan.elements.get("a")!.plannedStart).toBe(-12);
+    expect(plan.elements.get("b")).toMatchObject({ plannedStart: -10, latestStart: -10 });
+  });
+
+  it("lets „so spät“ follow a successor that lies earlier", () => {
+    const elements = [milestone("a"), milestone("b", free(-30))];
+    const plan = computePlan(elements, [link("a", "b", 2), link("b", null, 10)], EARLY);
+    expect(plan.elements.get("a")).toMatchObject({ plannedStart: -32, status: "ok" });
+  });
+
+  it("computes an invalid placement like „so spät“", () => {
+    const expected = computePlan([milestone("m")], [link("m", null, 10)], EARLY).elements.get("m")!;
+    for (const extra of [
+      { placement: "fixed" as const },
+      { placement: "fixed" as const, fixedDay: -3, fixedOffsetDays: 3 },
+      { placement: "free" as const },
+    ]) {
+      const plan = computePlan([milestone("m", extra)], [link("m", null, 10)], EARLY);
+      expect(plan.elements.get("m")).toMatchObject({ plannedStart: expected.plannedStart, status: "ok" });
+    }
+  });
+
+  it("freezes a done element on the day it was ticked off", () => {
+    const elements = [task("a", 5, { done: true, doneDay: -40 }), milestone("b")];
+    const plan = computePlan(elements, [link("a", "b", 3), link("b", null, 10)], -30);
+    expect(plan.elements.get("a")).toMatchObject({
+      plannedStart: -45,
+      plannedEnd: -40,
+      earliestStart: -45,
+      latestStart: -45,
+      status: "done",
+      critical: false,
+      tight: false,
     });
+    expect(plan.elements.get("b")).toMatchObject({ earliestStart: -30, plannedStart: -10 });
+  });
+
+  it("counts critical, tight, late and warn", () => {
+    const elements = [
+      milestone("late", free(-5)),
+      milestone("tight"),
+      milestone("wobbly", { wobbly: true }),
+    ];
+    const links = [link("late", null, 10), link("tight", null, 10 + TIGHT_SLACK_DAYS), link("wobbly", null, 0)];
+    const plan = computePlan(elements, links, -24);
+    expect(plan.elements.get("tight")).toMatchObject({ slack: 7, tight: true });
+    expect(plan.counts).toEqual({ critical: 1, tight: 1, late: 1, warn: 1 });
   });
 
   describe("status", () => {
@@ -109,21 +178,50 @@ describe("computePlan", () => {
       computePlan([task("t", 5, extra)], [link("t", null, 10)], today).elements.get("t")!;
 
     it("is overdue when the planned end was yesterday", () => {
-      expect(run({}, -9)).toMatchObject({ plannedEnd: -10, status: "late", reason: "overdue" });
+      expect(run({}, -9)).toMatchObject({ plannedEnd: -10, status: "late", reason: "overdue", reasonDetail: { day: -10 } });
     });
 
     it("is not overdue when the planned end is today", () => {
       expect(run({}, -10)).toMatchObject({ status: "ok", reason: "ok" });
     });
 
+    it("is running, not late, between start and end", () => {
+      expect(run({}, -12)).toMatchObject({ running: true, earliestStart: -15, status: "ok" });
+    });
+
     it("lets done win over everything", () => {
-      expect(run({ done: true, shiftDays: 4, wobbly: true }, 0)).toMatchObject({ status: "done", reason: "done" });
+      expect(run({ done: true, doneDay: 4, wobbly: true }, 0)).toMatchObject({ status: "done", reason: "done" });
+    });
+
+    it("is too late after the latest start and too early before the earliest", () => {
+      expect(run(free(-13), EARLY)).toMatchObject({ status: "late", reason: "too_late", reasonDetail: { days: 2 } });
+    });
+
+    it("is too early before the end of a fixed predecessor", () => {
+      const plan = computePlan(
+        [milestone("fix", fixedDate(-20)), task("t", 5, free(-40))],
+        [link("fix", "t", 0), link("t", null, 10)],
+        EARLY
+      );
+      expect(plan.elements.get("t")).toMatchObject({ status: "warn", reason: "too_early", reasonDetail: { day: -20 } });
+    });
+
+    it("lies before its predecessor when only the planned dates clash", () => {
+      const plan = computePlan(
+        [milestone("p", free(-10)), milestone("s", free(-15))],
+        [link("p", "s", 0), link("s", null, 0)],
+        EARLY
+      );
+      expect(plan.elements.get("s")).toMatchObject({
+        status: "warn",
+        reason: "before_predecessor",
+        reasonDetail: { elementId: "p", days: 0 },
+      });
     });
 
     it("shows wobbly as warn, but late goes first", () => {
       expect(run({ wobbly: true }, EARLY)).toMatchObject({ status: "warn", reason: "wobbly" });
       expect(run({ wobbly: true }, 0)).toMatchObject({ status: "late", reason: "overdue" });
-      expect(run({ wobbly: true, shiftDays: 1 }, EARLY)).toMatchObject({ status: "late", reason: "negative_buffer" });
     });
   });
 
@@ -135,12 +233,12 @@ describe("computePlan", () => {
   });
 
   it("throws PlanCycleError for a cycle through a fixed date", () => {
-    const elements = [milestone("a"), milestone("b", { fixedDay: -5 })];
+    const elements = [milestone("a"), milestone("b", fixedDate(-5))];
     expect(() => computePlan(elements, [link("a", "b"), link("b", "a")], EARLY)).toThrow(PlanCycleError);
   });
 
-  it("returns an empty critical path for an empty plan", () => {
-    expect(computePlan([], [], EARLY)).toMatchObject({ criticalPath: [], latestProjectStart: 0 });
+  it("counts nothing for an empty plan", () => {
+    expect(computePlan([], [], EARLY)).toMatchObject({ counts: { critical: 0, tight: 0, late: 0, warn: 0 } });
   });
 });
 
@@ -168,108 +266,200 @@ describe("wouldCreateCycle", () => {
 });
 
 describe("editing", () => {
-  // first → second → fix (fixed) → target → D-Day; pre → target
-  const plan: PlanInput = {
-    elements: [
-      milestone("first", { shiftDays: 1 }),
-      milestone("second"),
-      milestone("fix", { fixedDay: -40 }),
-      milestone("pre"),
-      task("target", 10, { shiftDays: -2 }),
-      task("fixedTask", 10, { fixedDay: -30 }),
-      milestone("tail"),
-    ],
-    links: [
-      link("first", "second", 3),
-      link("second", "fix", 0),
-      link("fix", "target", 0),
-      link("pre", "target", 0),
-      link("target", null, 5),
-      link("fixedTask", "tail", 0),
-      link("tail", null, 0),
-    ],
-  };
-  const sorted = <T extends { id: string }>(changes: T[]) => [...changes].sort((a, b) => a.id.localeCompare(b.id));
-  const planned = (input: PlanInput, id: string) =>
-    computePlan(input.elements, input.links, EARLY).elements.get(id)!;
-  const apply = (input: PlanInput, changes: ReturnType<typeof moveElement>): PlanInput => ({
-    ...input,
-    elements: input.elements.map((element) => ({ ...element, ...changes.find((change) => change.id === element.id) })),
+  describe("moveElement", () => {
+    const plan: PlanInput = {
+      elements: [
+        milestone("offset", fixedOffset(40)),
+        milestone("date", fixedDate(-40)),
+        task("late", 5),
+        milestone("done", { done: true, doneDay: -50 }),
+      ],
+      links: [link("offset", null), link("date", null), link("late", null, 10), link("done", null)],
+    };
+
+    it("changes N of „fest N T vorher“", () => {
+      expect(moveElement(plan, "offset", 3, EARLY)).toEqual([{ id: "offset", fixedOffsetDays: 37 }]);
+    });
+
+    it("changes the fixed date", () => {
+      expect(moveElement(plan, "date", -3, EARLY)).toEqual([{ id: "date", fixedDay: -43 }]);
+    });
+
+    it("turns any other placement into „frei“", () => {
+      expect(moveElement(plan, "late", -4, EARLY)).toEqual([{ id: "late", placement: "free", freeStartDay: -19 }]);
+    });
+
+    it("never moves the end after the D-Day", () => {
+      expect(moveElement(plan, "late", 20, EARLY)).toEqual([{ id: "late", placement: "free", freeStartDay: -5 }]);
+    });
+
+    it("never changes a done element", () => {
+      expect(moveElement(plan, "done", 3, EARLY)).toEqual([]);
+    });
   });
 
-  describe("moveElement", () => {
-    it("moves the element and its predecessors, but not a fixed predecessor or what lies before it", () => {
-      expect(sorted(moveElement(plan, "target", 4))).toEqual([
-        { id: "pre", shiftDays: 4 },
-        { id: "target", shiftDays: 2 },
+  describe("pushing free neighbours", () => {
+    // pp → p → x → s → D-Day, alap → x
+    const plan: PlanInput = {
+      elements: [
+        milestone("pp", free(-22)),
+        milestone("p", free(-20)),
+        milestone("alap"),
+        milestone("doneFree", { ...free(-10), done: true, doneDay: -10 }),
+        milestone("x"),
+        milestone("s", free(-5)),
+      ],
+      links: [
+        link("pp", "p"),
+        link("p", "x"),
+        link("alap", "x"),
+        link("doneFree", "x"),
+        link("x", "s"),
+        link("s", null),
+      ],
+    };
+
+    it("pushes free predecessors transitively, never other placements or done elements", () => {
+      expect(sorted(moveElement(plan, "x", -20, EARLY))).toEqual([
+        { id: "p", freeStartDay: -25 },
+        { id: "pp", freeStartDay: -25 },
+        { id: "x", placement: "free", freeStartDay: -25 },
       ]);
     });
 
-    it("moves only the fixed date of a fixed element", () => {
-      expect(moveElement(plan, "fix", -3)).toEqual([{ id: "fix", fixedDay: -43 }]);
+    it("pushes a free successor", () => {
+      expect(sorted(moveElement(plan, "x", 3, EARLY))).toEqual([
+        { id: "s", freeStartDay: -2 },
+        { id: "x", placement: "free", freeStartDay: -2 },
+      ]);
     });
 
-    it("keeps planned distances between moved elements", () => {
-      const moved = apply(plan, moveElement(plan, "second", -6));
-      expect(planned(moved, "second").plannedStart).toBe(planned(plan, "second").plannedStart - 6);
-      expect(planned(moved, "first").plannedStart).toBe(planned(plan, "first").plannedStart - 6);
+    it("pushes nothing while the order holds", () => {
+      expect(moveElement(plan, "x", -4, EARLY)).toEqual([{ id: "x", placement: "free", freeStartDay: -9 }]);
     });
   });
 
   describe("resizeFromEnd", () => {
-    it("keeps the start and moves the predecessors along", () => {
-      const changes = resizeFromEnd(plan, "target", 3);
-      expect(sorted(changes)).toEqual([
-        { id: "pre", shiftDays: 3 },
-        { id: "target", shiftDays: 1, durationDays: 13 },
-      ]);
-      const resized = apply(plan, changes);
-      expect(planned(resized, "target").plannedStart).toBe(planned(plan, "target").plannedStart);
-      expect(planned(resized, "target").plannedEnd).toBe(planned(plan, "target").plannedEnd + 3);
-      expect(planned(resized, "pre").plannedStart).toBe(planned(plan, "pre").plannedStart);
+    const plan: PlanInput = {
+      elements: [task("t", 10), task("fixedTask", 10, fixedOffset(30)), milestone("m"), task("d", 3, { done: true, doneDay: -4 })],
+      links: [link("t", null, 5), link("fixedTask", null), link("m", null), link("d", null)],
+    };
+
+    it("keeps the start and becomes „frei“", () => {
+      const changes = resizeFromEnd(plan, "t", 3, EARLY);
+      expect(changes).toEqual([{ id: "t", placement: "free", freeStartDay: -15, durationDays: 13 }]);
+      expect(planned(apply(plan, changes), "t")).toMatchObject({ plannedStart: -15, plannedEnd: -2 });
     });
 
     it("clamps the duration to 1 and 365", () => {
-      expect(resizeFromEnd(plan, "target", -50)).toContainEqual({ id: "target", shiftDays: -11, durationDays: 1 });
-      expect(resizeFromEnd(plan, "target", 1000)).toContainEqual({
-        id: "target",
-        shiftDays: 353,
-        durationDays: 365,
-      });
+      expect(resizeFromEnd(plan, "t", -50, EARLY)[0]).toMatchObject({ durationDays: 1 });
+      expect(resizeFromEnd(plan, "t", 1000, EARLY)[0]).toMatchObject({ durationDays: 365 });
     });
 
     it("changes only the duration of a fixed task", () => {
-      expect(resizeFromEnd(plan, "fixedTask", 5)).toEqual([{ id: "fixedTask", durationDays: 15 }]);
+      expect(resizeFromEnd(plan, "fixedTask", 5, EARLY)).toEqual([{ id: "fixedTask", durationDays: 15 }]);
     });
 
-    it("returns nothing for a milestone", () => {
-      expect(resizeFromEnd(plan, "second", 5)).toEqual([]);
+    it("returns nothing for a milestone or a done task", () => {
+      expect(resizeFromEnd(plan, "m", 5, EARLY)).toEqual([]);
+      expect(resizeFromEnd(plan, "d", 5, EARLY)).toEqual([]);
     });
   });
 
   describe("resizeFromStart", () => {
-    it("keeps the end, shift stays the same", () => {
-      const changes = resizeFromStart(plan, "target", -4);
-      expect(changes).toEqual([{ id: "target", durationDays: 14 }]);
-      const resized = apply(plan, changes);
-      expect(planned(resized, "target").plannedEnd).toBe(planned(plan, "target").plannedEnd);
-      expect(planned(resized, "target").plannedStart).toBe(planned(plan, "target").plannedStart - 4);
+    const plan: PlanInput = {
+      elements: [task("t", 10), task("fixedTask", 10, fixedOffset(30)), task("dated", 10, fixedDate(-30)), milestone("m")],
+      links: [link("t", null, 5), link("fixedTask", null), link("dated", null), link("m", null)],
+    };
+
+    it("keeps the end and becomes „frei“", () => {
+      const changes = resizeFromStart(plan, "t", -4, EARLY);
+      expect(changes).toEqual([{ id: "t", placement: "free", freeStartDay: -19, durationDays: 14 }]);
+      expect(planned(apply(plan, changes), "t")).toMatchObject({ plannedStart: -19, plannedEnd: -5 });
     });
 
     it("clamps the duration to 1 and 365", () => {
-      expect(resizeFromStart(plan, "target", 50)).toEqual([{ id: "target", durationDays: 1 }]);
-      expect(resizeFromStart(plan, "target", -1000)).toEqual([{ id: "target", durationDays: 365 }]);
+      expect(resizeFromStart(plan, "t", 50, EARLY)[0]).toMatchObject({ durationDays: 1, freeStartDay: -6 });
+      expect(resizeFromStart(plan, "t", -1000, EARLY)[0]).toMatchObject({ durationDays: 365 });
     });
 
-    it("moves the fixed date of a fixed task so its end stays", () => {
-      const changes = resizeFromStart(plan, "fixedTask", 3);
-      expect(changes).toEqual([{ id: "fixedTask", durationDays: 7, fixedDay: -27 }]);
-      expect(planned(apply(plan, changes), "fixedTask").plannedEnd).toBe(planned(plan, "fixedTask").plannedEnd);
+    it("keeps a fixed task fixed and its end where it is", () => {
+      expect(resizeFromStart(plan, "fixedTask", 3, EARLY)).toEqual([
+        { id: "fixedTask", fixedOffsetDays: 27, durationDays: 7 },
+      ]);
+      expect(resizeFromStart(plan, "dated", 3, EARLY)).toEqual([{ id: "dated", fixedDay: -27, durationDays: 7 }]);
     });
 
     it("returns nothing for a milestone", () => {
-      expect(resizeFromStart(plan, "second", 5)).toEqual([]);
+      expect(resizeFromStart(plan, "m", 5, EARLY)).toEqual([]);
     });
+  });
+
+  describe("setPlacementValues", () => {
+    const plan: PlanInput = {
+      elements: [task("t", 5), milestone("f", free(-30)), milestone("d", { done: true, doneDay: -3 })],
+      links: [link("t", null, 10), link("f", null), link("d", null)],
+    };
+
+    it("puts „fest“ on the planned start, in both variants", () => {
+      expect(setPlacementValues(plan, "t", "fixed", "offset", EARLY)).toEqual([
+        { id: "t", placement: "fixed", fixedOffsetDays: 15 },
+      ]);
+      expect(setPlacementValues(plan, "t", "fixed", "date", EARLY)).toEqual([
+        { id: "t", placement: "fixed", fixedDay: -15 },
+      ]);
+    });
+
+    it("puts „frei“ on the planned start", () => {
+      expect(setPlacementValues(plan, "t", "free", undefined, EARLY)).toEqual([
+        { id: "t", placement: "free", freeStartDay: -15 },
+      ]);
+    });
+
+    it("clears the values for „so früh“ and „so spät“", () => {
+      expect(setPlacementValues(plan, "f", "asap", undefined, EARLY)).toEqual([
+        { id: "f", placement: "asap", freeStartDay: null },
+      ]);
+      expect(setPlacementValues(plan, "f", "alap", undefined, EARLY)).toEqual([
+        { id: "f", placement: "alap", freeStartDay: null },
+      ]);
+    });
+
+    it("changes nothing for a done element or the same placement", () => {
+      expect(setPlacementValues(plan, "d", "free", undefined, EARLY)).toEqual([]);
+      expect(setPlacementValues(plan, "t", "alap", undefined, EARLY)).toEqual([]);
+    });
+  });
+});
+
+describe("new date of the edition", () => {
+  // Stored values: fixed dates and done days are calendar days, the rest is relative.
+  function plan(dDay: string) {
+    const elements = [
+      milestone("dated", fixedDate(dateToDay("2027-04-08", dDay))),
+      milestone("offset", fixedOffset(20)),
+      milestone("free", free(-15)),
+      milestone("asap", { placement: "asap" }),
+      milestone("alap"),
+      milestone("done", { done: true, doneDay: dateToDay("2027-04-01", dDay) }),
+    ];
+    const links = [
+      link("dated", null),
+      link("offset", "asap", 2),
+      link("asap", null),
+      link("free", null),
+      link("alap", null, 5),
+      link("done", null),
+    ];
+    return computePlan(elements, links, dateToDay("2026-10-17", dDay));
+  }
+
+  it("keeps relative placements, fixed dates and done elements move 7 days earlier", () => {
+    const before = plan("2027-05-08");
+    const after = plan("2027-05-15");
+    const start = (computed: ReturnType<typeof plan>, id: string) => computed.elements.get(id)!.plannedStart;
+    for (const id of ["offset", "free", "asap", "alap"]) expect(start(after, id), id).toBe(start(before, id));
+    for (const id of ["dated", "done"]) expect(start(after, id), id).toBe(start(before, id) - 7);
   });
 });
 
@@ -283,17 +473,28 @@ describe("todoDueDay", () => {
   it("counts back from the planned end", () => {
     expect(todoDueDay({ anchor: "end", daysBefore: 0 }, computed)).toBe(-10);
   });
+
+  it("uses the frozen dates of a done element", () => {
+    const element = computePlan([task("t", 5, { done: true, doneDay: -10 })], [link("t", null, 30)], 0)
+      .elements.get("t")!;
+    expect(todoDueDay({ anchor: "start", daysBefore: 1 }, element)).toBe(-16);
+    expect(todoDueDay({ anchor: "end", daysBefore: 0 }, element)).toBe(-10);
+  });
 });
 
 describe("KP27 example plan", () => {
   function kp27(dDay: string) {
     const elements: PlanElementInput[] = TEST_PLAN.map((element, index) => ({
       id: element.name,
+      name: element.name,
       kind: element.kind,
       durationDays: element.durationDays ?? 0,
-      shiftDays: element.shiftDays ?? 0,
+      placement: element.placement ?? (element.fixedDate ? "fixed" : "alap"),
       fixedDay: element.fixedDate ? dateToDay(element.fixedDate, dDay) : null,
+      fixedOffsetDays: null,
+      freeStartDay: element.freeStartDay ?? null,
       done: false,
+      doneDay: null,
       wobbly: element.wobbly ?? false,
       sortOrder: index + 1,
     }));
@@ -323,42 +524,9 @@ describe("KP27 example plan", () => {
     expect(start("Kooperationsgespräch KVR/Polizei")).toBe("2027-04-08");
   });
 
-  it("finds the critical path", () => {
-    expect(plan.criticalPath).toEqual([
-      "Budget KP27 beschlossen",
-      "Voranmeldung geöffnet",
-      "Vortreffen Kollektive",
-      "Anmeldung offen",
-      "Auswahlkommission",
-      "Finale Zusage an Kollektive",
-      "Zahlungsfrist Kollektive",
-    ]);
-    expect(plan.latestProjectStart).toBe(-150);
-    expect(dayToDate(plan.latestProjectStart, D_DAY)).toBe("2026-12-09");
-  });
-
-  it("shows shifts as buffer and the wobbly order as warn", () => {
-    expect(plan.elements.get("Social-Media-Plan")!.buffer).toBe(10);
-    expect(plan.elements.get("Teaser veröffentlicht")!.buffer).toBe(5);
+  it("keeps the earlier dates of the free elements and the wobbly order as warn", () => {
+    expect(plan.elements.get("Social-Media-Plan")).toMatchObject({ plannedStart: -90, buffer: 10 });
+    expect(plan.elements.get("Teaser veröffentlicht")).toMatchObject({ plannedStart: -26, buffer: 5 });
     expect(plan.elements.get("T-Shirts bestellt")!.status).toBe("warn");
-  });
-
-  it("moves everything relative with a new D-Day, fixed dates stay absolute", () => {
-    const later = kp27("2027-05-15");
-    // The fixed date and everything scheduled from it lie 7 days earlier relative to the D-Day.
-    const fromFixed = [
-      "Kooperationsgespräch KVR/Polizei",
-      "Versammlungsanzeige beim KVR",
-      "Route & Aufstellung ausarbeiten",
-    ];
-    for (const [id, element] of plan.elements) {
-      const moved = later.elements.get(id)!;
-      expect(moved.plannedStart).toBe(element.plannedStart - (fromFixed.includes(id) ? 7 : 0));
-    }
-    expect(later.elements.get("Kooperationsgespräch KVR/Polizei")!.buffer).toBe(5);
-    expect(dayToDate(later.elements.get("Kooperationsgespräch KVR/Polizei")!.plannedStart, "2027-05-15")).toBe(
-      "2027-04-08"
-    );
-    expect(later.elements.get("Voranmeldung geöffnet")!.plannedStart).toBe(-138);
   });
 });

@@ -10,9 +10,10 @@ import {
   deleteNote,
   deleteTodo,
   removeLink,
-  resetShift,
   setDone,
   setFixedDate,
+  setFixedOffset,
+  setPlacement,
   setWobbly,
   toggleTodo,
   updateElement,
@@ -34,10 +35,11 @@ import {
 } from "@/lib/gantt-layout";
 import type { DragMode } from "@/lib/plan-drag";
 import { dayToDate } from "@/lib/plan-days";
-import { D_DAY_NAME } from "@/lib/plan-edit";
-import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
+import { D_DAY_NAME, PLACEMENT_NAMES } from "@/lib/plan-edit";
+import { predecessorCandidates, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
-import { todoDueDay } from "@/lib/plan-engine";
+import { resolvePlacement, todoDueDay, type FixedVariant, type Placement } from "@/lib/plan-engine";
+import { daysShort, reasonText } from "@/lib/plan-status";
 import { formatTodoDue } from "@/lib/todo-due";
 import { formatProgress, todoProgress, type TodoProgress } from "@/lib/todo-progress";
 import { displayGroupName } from "@/lib/working-groups";
@@ -56,13 +58,42 @@ export type DragAction = (id: string, mode: DragMode, delta: number) => Promise<
 export type PlanOption = { id: string; name: string };
 export type PlanDepartmentOption = PlanOption & { workingGroupId: string | null };
 
-/** "+5 T Puffer", "0 T Puffer", "−2 T Verzug" or "erledigt". */
-export function bufferLabel(element: Pick<PlanViewElement, "buffer" | "done">): string {
-  if (element.done) return "erledigt";
-  if (element.buffer > 0) return `+${element.buffer} T Puffer`;
-  if (element.buffer < 0) return `−${-element.buffer} T Verzug`;
-  return "0 T Puffer";
+/** Order of the placement buttons (2 × 2) and their explanations (spec 025). */
+const PLACEMENT_ORDER: readonly Placement[] = ["fixed", "asap", "alap", "free"];
+const PLACEMENT_HINTS: Record<Placement, string> = {
+  fixed: "Liegt immer auf diesem Termin. Für gewollte Termine wie Pressemitteilung oder Gesamtbriefing.",
+  asap: "Startet, sobald die Vorgänger fertig sind (plus Mindestabstand). Wandert mit, wenn sich die Vorgänger verschieben.",
+  alap: "Liegt auf dem letzten Termin, der nichts danach gefährdet. So hat die App bisher alles gerechnet.",
+  free: "Ihr legt den Termin selbst, zum Beispiel durch Ziehen. Liegt er außerhalb des Fensters, wird er gelb oder rot.",
+};
+
+/** The placement as it counts and the variant of "Fest". */
+function placementOf(element: PlanViewElement): { placement: Placement; variant: FixedVariant } {
+  const resolved = resolvePlacement(element);
+  return {
+    placement: resolved.mode,
+    variant: resolved.mode === "fixed" ? resolved.variant : "offset",
+  };
 }
+
+/** Neutral pill in the head: "Luft 5 T", "keine Luft", "fest · 80 T vorher", "festes Datum" or "erreicht". */
+export function windowLabel(element: PlanViewElement): string {
+  if (element.done) return "erreicht";
+  const { placement, variant } = placementOf(element);
+  if (placement === "fixed") {
+    return variant === "offset" ? `fest · ${daysShort(element.fixedOffsetDays ?? 0)} vorher` : "festes Datum";
+  }
+  return element.slack > 0 ? `Luft ${daysShort(element.slack)}` : "keine Luft";
+}
+
+/** "5 Tage", "1 Tag" */
+function daysLong(days: number): string {
+  return days === 1 ? "1 Tag" : `${days} Tage`;
+}
+
+const NEUTRAL_PILL =
+  "inline-flex items-center whitespace-nowrap rounded-full border border-line-strong px-2.5 py-0.5 text-xs font-semibold text-muted";
+const MARK_PILL = "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold text-text";
 
 /** "3/10 To-dos", "10/10 To-dos ✓" (spec 023); "3/10" and "✓" from formatProgress. */
 function progressLabel(progress: TodoProgress): string {
@@ -186,13 +217,8 @@ export function PlanDetail(props: PlanDetailProps) {
     element.ownerName,
   ].filter(Boolean);
 
-  let hint: string | null = null;
-  if (open) {
-    if (element.buffer < 0) hint = `Liegt ${-element.buffer} Tage zu spät für die Nachfolger.`;
-    else if (element.buffer > 0) hint = `${element.buffer} Tage Luft bis zum spätesten Termin.`;
-    else hint = "Liegt auf dem spätesten Termin. Jede Verzögerung schiebt Nachfolger.";
-  }
-  const shift = element.fixed ? null : shiftText(element.shiftDays);
+  const names = new Map([...elements.values()].map((item) => [item.id, item.name]));
+  const { placement, variant } = placementOf(element);
 
   const predecessors = links.flatMap((link): LinkRow[] => {
     const from = link.toId === element.id ? elements.get(link.fromId) : undefined;
@@ -222,11 +248,9 @@ export function PlanDetail(props: PlanDetailProps) {
         <div className="flex items-start gap-2 border-b border-line py-2 pr-1 pl-4">
           <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <StatusPill status={element.status} assessment={element.reason === "wobbly"} />
-              <span
-                className={`text-sm tabular-nums ${open && element.buffer < 0 ? "font-semibold text-status-late" : "text-muted"}`}
-              >
-                {bufferLabel(element)}
+              <StatusPill status={element.status} reason={element.reason} assessment={element.reason === "wobbly"} />
+              <span data-testid="detail-window-pill" className={`${NEUTRAL_PILL} tabular-nums`}>
+                {windowLabel(element)}
               </span>
               {progress.total > 0 ? (
                 <span
@@ -236,9 +260,19 @@ export function PlanDetail(props: PlanDetailProps) {
                   {progressLabel(progress)}
                 </span>
               ) : null}
+              {open && element.critical ? (
+                <span className={`${MARK_PILL} ring-2 ring-accent ring-inset`}>Kritisch</span>
+              ) : open && element.tight ? (
+                <span className={`${MARK_PILL} border-2 border-dashed border-accent`}>Knapp</span>
+              ) : null}
             </div>
             <h2 className="text-lg leading-snug font-semibold break-words">{element.name}</h2>
             <p className="text-sm text-muted">{meta.join(" · ")}</p>
+            {element.status !== "ok" ? (
+              <p data-testid="detail-reason" className="text-sm">
+                {reasonText(element, names, dDay)}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -254,50 +288,103 @@ export function PlanDetail(props: PlanDetailProps) {
           {showHint ? (
             <ReachHint onReach={() => props.onReach(element)} onDismiss={() => props.onHideHint(element.id)} />
           ) : null}
-          <Section title="Termin">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 tabular-nums">
-              {milestone ? (
-                <>
-                  <dt className="text-muted">Datum</dt>
-                  <dd data-testid="detail-start">{dateWithD(element.start, dDay)}</dd>
-                </>
-              ) : (
-                <>
-                  <dt className="text-muted">Start</dt>
-                  <dd data-testid="detail-start">{dateWithD(element.start, dDay)}</dd>
-                  <dt className="text-muted">Ende</dt>
-                  <dd data-testid="detail-end">{dateWithD(element.end, dDay)}</dd>
-                </>
-              )}
-              <dt className="text-muted">Spätestens</dt>
-              <dd>{dateWithD(element.latestEnd, dDay)}</dd>
-            </dl>
-            {hint ? <p className={element.buffer < 0 ? "text-status-late" : "text-muted"}>{hint}</p> : null}
-            {shift ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="min-w-0 flex-1">{shift}</p>
+          <Section title="Lage">
+            <div role="group" aria-label="Lage" className="grid grid-cols-2 gap-2">
+              {PLACEMENT_ORDER.map((option) => (
                 <button
+                  key={option}
                   type="button"
-                  onClick={() => act("shift", () => resetShift(element.id, seen))}
-                  className={SMALL_BUTTON}
+                  aria-pressed={open && placement === option}
+                  disabled={!open}
+                  onClick={() => {
+                    if (placement !== option) {
+                      void save("placement", () =>
+                        setPlacement(element.id, option, option === "fixed" ? "offset" : undefined, seen)
+                      );
+                    }
+                  }}
+                  className="min-h-11 rounded-md border border-line px-2 py-1.5 text-sm leading-tight font-medium disabled:opacity-50 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-on-primary not-aria-pressed:not-disabled:hover:bg-surface-2"
                 >
-                  Auf spätesten Termin
-                </button>
-              </div>
-            ) : null}
-            <FieldError message={errors.shift} />
-            <div role="group" aria-label="Verschieben" className="grid grid-cols-4 gap-2 desk:hidden">
-              {[-7, -1, 1, 7].map((delta) => (
-                <button
-                  key={delta}
-                  type="button"
-                  onClick={() => void drag(element.id, "move", delta)}
-                  className={SMALL_BUTTON}
-                >
-                  {delta < 0 ? `−${-delta} T` : `+${delta} T`}
+                  {PLACEMENT_NAMES[option]}
                 </button>
               ))}
             </div>
+            {status("placement")}
+            {open ? (
+              <p data-testid="placement-hint" className="text-sm text-muted">
+                {PLACEMENT_HINTS[placement]}
+              </p>
+            ) : (
+              <p className="text-sm text-muted">Erreicht – die Lage gilt wieder, wenn du den Haken entfernst.</p>
+            )}
+            {open && placement === "fixed" ? (
+              <FixedEditor
+                key={version}
+                element={element}
+                variant={variant}
+                dDay={dDay}
+                onVariant={(next) => save("fixed", () => setPlacement(element.id, "fixed", next, seen))}
+                onOffset={(days) => save("fixed", () => setFixedOffset(element.id, days, seen))}
+                onDate={(date) => save("fixed", () => setFixedDate(element.id, date, seen))}
+                status={status("fixed")}
+                failed={failed("fixed")}
+              />
+            ) : null}
+          </Section>
+
+          <Section title="Zeitfenster">
+            {element.done ? (
+              <p data-testid="detail-window" className="tabular-nums">
+                Erreicht am {formatWeekdayDate(element.end, dDay)}
+              </p>
+            ) : (
+              <div className="rounded-md border border-line bg-surface-2 p-3">
+                <dl data-testid="detail-window" className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 tabular-nums">
+                  <dt className="text-muted">Frühestens</dt>
+                  <dd data-testid="detail-earliest">{formatWeekdayDate(element.earliestStart, dDay)}</dd>
+                  <dt className="text-muted">Spätestens</dt>
+                  <dd>
+                    {formatWeekdayDate(element.latestStart, dDay)}
+                    {milestone ? null : ` (Ende ${formatWeekdayShort(dayToDate(element.latestEnd, dDay))})`}
+                  </dd>
+                  <dt className="text-muted">Geplant</dt>
+                  <dd>
+                    {milestone ? (
+                      <span data-testid="detail-start">{dateWithD(element.start, dDay)}</span>
+                    ) : (
+                      <>
+                        <span data-testid="detail-start">{formatWeekdayDate(element.start, dDay)}</span>
+                        {" – "}
+                        <span data-testid="detail-end">{formatWeekdayDate(element.end, dDay)}</span>
+                      </>
+                    )}
+                  </dd>
+                  <dt className="text-muted">Luft</dt>
+                  <dd data-testid="detail-slack">
+                    {placement === "fixed" ? "fester Termin" : element.slack > 0 ? daysLong(element.slack) : "keine"}
+                  </dd>
+                </dl>
+                {element.running ? (
+                  <p className="mt-1 text-sm text-muted">
+                    läuft seit {formatWeekdayShort(dayToDate(element.start, dDay))}
+                  </p>
+                ) : null}
+              </div>
+            )}
+            {open ? (
+              <div role="group" aria-label="Verschieben" className="grid grid-cols-4 gap-2 desk:hidden">
+                {[-7, -1, 1, 7].map((delta) => (
+                  <button
+                    key={delta}
+                    type="button"
+                    onClick={() => void drag(element.id, "move", delta)}
+                    className={SMALL_BUTTON}
+                  >
+                    {delta < 0 ? `−${-delta} T` : `+${delta} T`}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </Section>
 
           <Section title="Zuständig">
@@ -414,33 +501,6 @@ export function PlanDetail(props: PlanDetailProps) {
                   />
                 </Labeled>
               )}
-              <label className="flex min-h-11 items-center gap-3">
-                <input
-                  type="checkbox"
-                  defaultChecked={element.fixed}
-                  onChange={(event) =>
-                    save("fixed", () => setFixedDate(element.id, event.target.checked ? undefined : null, seen))
-                  }
-                  className={CHECKBOX}
-                />
-                <span>Fixtermin (extern festgelegt)</span>
-              </label>
-              {element.fixed ? (
-                <Labeled label="Fixtermin">
-                  <input
-                    type="date"
-                    defaultValue={element.fixedDate ?? ""}
-                    onBlur={(event) => {
-                      const value = event.target.value;
-                      if (value && value !== element.fixedDate) {
-                        void save("fixed", () => setFixedDate(element.id, value, seen));
-                      }
-                    }}
-                    className={`${INPUT} w-48`}
-                  />
-                </Labeled>
-              ) : null}
-              {status("fixed")}
             </div>
           </Section>
 
@@ -466,7 +526,6 @@ export function PlanDetail(props: PlanDetailProps) {
                 <span>Wackelt (Einschätzung)</span>
               </label>
               {status("wobbly")}
-              <p className="text-sm text-muted">{reasonText(element)}</p>
               <FieldError message={errors.status} />
             </div>
           </Section>
@@ -498,12 +557,13 @@ export function PlanDetail(props: PlanDetailProps) {
               status={status}
               errors={errors}
               version={version}
+              empty="Keine – frühestens ab heute."
             />
             <AddLink
               label="Vorgänger wählen"
               options={predecessorOptions}
-              onAdd={(id) =>
-                save("add-predecessor", () => addLink(id!, element.id, 0, { id: element.id, updatedAt: seen }))
+              onAdd={(id, lag) =>
+                save("add-predecessor", () => addLink(id!, element.id, lag, { id: element.id, updatedAt: seen }))
               }
               status={status("add-predecessor")}
             />
@@ -527,10 +587,13 @@ export function PlanDetail(props: PlanDetailProps) {
             <AddLink
               label="Nachfolger wählen"
               options={successorOptions}
-              onAdd={(id) => save("add-successor", () => addLink(element.id, id, 0, { id: element.id, updatedAt: seen }))}
+              onAdd={(id, lag) =>
+                save("add-successor", () => addLink(element.id, id, lag, { id: element.id, updatedAt: seen }))
+              }
               status={status("add-successor")}
             />
             <p className="text-sm text-muted">Nur Ende → Start. Kreise sind ausgeschlossen.</p>
+            <p className="text-sm text-muted">Abstände sind Mindestabstände. 0 heißt: nur die Reihenfolge zählt.</p>
           </Section>
 
           <HistorySection elementId={element.id} updatedAt={element.updatedAt} />
@@ -592,6 +655,7 @@ function LinkList({
   status,
   errors,
   version,
+  empty,
 }: {
   rows: LinkRow[];
   direction: "from" | "to";
@@ -601,8 +665,10 @@ function LinkList({
   status: FieldStatus;
   errors: Record<string, string | null>;
   version: string;
+  /** Text without links; "Noch keine." by default. */
+  empty?: string;
 }) {
-  if (rows.length === 0) return EMPTY;
+  if (rows.length === 0) return empty ? <p className="text-muted">{empty}</p> : EMPTY;
   return (
     <ul className="flex flex-col gap-1">
       {rows.map((row) => (
@@ -620,6 +686,7 @@ function LinkList({
               </button>
             )}
             <label className="flex shrink-0 items-center gap-1 text-sm text-muted">
+              mind.
               <input
                 key={`${version}-${row.link.lagDays}`}
                 type="number"
@@ -632,9 +699,10 @@ function LinkList({
                   const value = toInt(event.target.value);
                   if (value !== row.link.lagDays) onLag(row, value);
                 }}
-                className={`${INPUT} w-20 text-text`}
+                className={`${INPUT} w-16 text-text`}
               />
-              T Abstand
+              {/* The element starts at least N days after a predecessor, ends at least N days before a successor. */}
+              {direction === "from" ? "T danach" : "T davor"}
             </label>
             <button
               type="button"
@@ -661,20 +729,22 @@ function AddLink({
 }: {
   label: string;
   options: { id: string | null; name: string }[];
-  onAdd: (id: string | null) => Promise<boolean>;
+  /** `lag` = the minimum lag of the new link (spec 025, 0 by default). */
+  onAdd: (id: string | null, lag: number) => Promise<boolean>;
   status: ReactNode;
 }) {
   const [value, setValue] = useState("");
+  const [lag, setLag] = useState("0");
   const valueOf = (id: string | null) => id ?? "dday";
   const chosen = options.find((option) => valueOf(option.id) === value);
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <select
           aria-label={label}
           value={chosen ? value : ""}
           onChange={(event) => setValue(event.target.value)}
-          className={`${INPUT} min-w-0 flex-1`}
+          className={`${INPUT} min-w-0 flex-1 basis-40`}
         >
           <option value="">{label} …</option>
           {options.map((option) => (
@@ -683,17 +753,125 @@ function AddLink({
             </option>
           ))}
         </select>
+        <label className="flex shrink-0 items-center gap-1 text-sm text-muted">
+          mind.
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={365}
+            value={lag}
+            onChange={(event) => setLag(event.target.value)}
+            aria-label={`${label}: Mindestabstand in Tagen`}
+            className={`${INPUT} w-16 text-text`}
+          />
+          T
+        </label>
         <button
           type="button"
           disabled={!chosen}
           onClick={async () => {
-            if (chosen && (await onAdd(chosen.id))) setValue("");
+            if (chosen && (await onAdd(chosen.id, toInt(lag)))) {
+              setValue("");
+              setLag("0");
+            }
           }}
           className={SMALL_BUTTON}
         >
           Verbinden
         </button>
       </div>
+      {status}
+    </div>
+  );
+}
+
+/**
+ * "Fest" (spec 025): variant "Tage vor der Krachparade" (N, saved when
+ * leaving the field) or "Festes Datum" (saved as soon as a complete valid
+ * date is entered). Both refer to the start of a task.
+ */
+function FixedEditor({
+  element,
+  variant,
+  dDay,
+  onVariant,
+  onOffset,
+  onDate,
+  status,
+  failed,
+}: {
+  element: PlanViewElement;
+  variant: FixedVariant;
+  dDay: string;
+  onVariant: (variant: FixedVariant) => void;
+  onOffset: (days: number) => void;
+  onDate: (date: string) => void;
+  status: ReactNode;
+  failed: boolean;
+}) {
+  const task = element.kind === "task";
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="group" aria-label="Fest" className="flex overflow-hidden rounded-md border border-line">
+        {(
+          [
+            ["offset", "Tage vor der Krachparade"],
+            ["date", "Festes Datum"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={variant === value}
+            onClick={() => {
+              if (variant !== value) onVariant(value);
+            }}
+            className="min-h-11 flex-1 px-2 text-sm font-medium not-first:border-l not-first:border-line aria-pressed:bg-primary aria-pressed:text-on-primary not-aria-pressed:hover:bg-surface-2"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {variant === "offset" ? (
+        <div className="flex flex-col gap-1">
+          <label className="flex flex-wrap items-center gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={365}
+              defaultValue={element.fixedOffsetDays ?? 0}
+              aria-label="Tage vor der Krachparade"
+              aria-invalid={failed}
+              onBlur={(event) => {
+                const value = toInt(event.target.value);
+                if (value !== element.fixedOffsetDays) onOffset(value);
+              }}
+              className={`${INPUT} w-24`}
+            />
+            <span>Tage vor der {D_DAY_NAME}</span>
+          </label>
+          <p data-testid="fixed-date-line" className="text-sm text-muted tabular-nums">
+            {task ? "Start" : "Am"} {formatWeekdayDate(element.start, dDay)}
+          </p>
+        </div>
+      ) : (
+        <Labeled label="Festes Datum">
+          <input
+            type="date"
+            defaultValue={element.fixedDate ?? dayToDate(element.start, dDay)}
+            aria-invalid={failed}
+            onChange={(event) => {
+              const value = event.target.value;
+              // Date fields only report complete, valid dates (or nothing).
+              if (/^\d{4}-\d{2}-\d{2}$/.test(value) && value !== element.fixedDate) onDate(value);
+            }}
+            className={`${INPUT} w-48`}
+          />
+        </Labeled>
+      )}
+      {task ? <p className="text-sm text-muted">Bezieht sich auf den Start.</p> : null}
       {status}
     </div>
   );

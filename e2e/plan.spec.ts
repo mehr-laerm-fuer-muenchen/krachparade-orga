@@ -100,8 +100,13 @@ test.describe("Plan", () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByRole("heading", { name: "Kooperationsgespräch KVR/Polizei" })).toBeVisible();
     await expect(panel.getByText("Verzug", { exact: true })).toBeVisible();
-    await expect(panel.getByText("−2 T Verzug", { exact: true })).toBeVisible();
-    await expect(panel.getByText("Fixtermin (extern festgelegt)")).toBeVisible();
+    // Spec 025: fixed date, its reason and the placement "Fest".
+    await expect(panel.getByTestId("detail-window-pill")).toHaveText("festes Datum");
+    await expect(panel.getByTestId("detail-reason")).toHaveText(/^Nachfolger brauchen es spätestens .+ – der feste Termin ist zu spät$/);
+    await expect(panel.getByRole("group", { name: "Lage" }).getByRole("button", { name: "Fest" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
     await expect(panel.getByRole("button", { name: "Finaler Crosscheck", exact: true })).toBeVisible();
     await expect(panel.getByLabel("Abstand zu Finaler Crosscheck in Tagen")).toHaveValue("15");
     await expect(page.getByTestId("gantt-arrows").locator("path").first()).toBeAttached();
@@ -120,17 +125,20 @@ test.describe("Plan", () => {
     await panel.getByRole("button", { name: "Details schließen" }).click();
     await expect(panel).toHaveCount(0);
 
-    // Critical path: exactly the seven elements of the chain.
-    await page.getByRole("button", { name: "Kritischer Pfad", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Kritischer Pfad", exact: true })).toHaveAttribute(
+    // Filter "Kritisch & knapp" (spec 025): critical and tight elements, as
+    // many as the header counts; the late fixed date is one.
+    await page.getByRole("button", { name: "Kritisch & knapp", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Kritisch & knapp", exact: true })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
-    await expect(page.getByTestId("gantt-element")).toHaveCount(7);
-    await expect(ganttName(page, "Budget KP27 beschlossen")).toBeVisible();
+    const counts = page.getByText(/ · (\d+) kritisch · (\d+) knapp/);
+    await expect(counts).toBeVisible();
+    const [, critical, tight] = / · (\d+) kritisch · (\d+) knapp/.exec((await counts.textContent()) ?? "")!;
+    await expect(page.getByTestId("gantt-element")).toHaveCount(Number(critical) + Number(tight));
+    await expect(ganttName(page, "Kooperationsgespräch KVR/Polizei")).toBeVisible();
     await expect(ganttName(page, "Schildermalen")).toHaveCount(0);
-    await expect(page.getByText(/Kritischer Pfad: 7 Elemente, Start spätestens \S+ \d{2}\.\d{2}\. \(150\sT vorher\)/)).toBeVisible();
-    await page.getByRole("button", { name: "Kritischer Pfad", exact: true }).click();
+    await page.getByRole("button", { name: "Kritisch & knapp", exact: true }).click();
     await expect(ganttName(page, "Schildermalen")).toBeVisible();
 
     // Collapse a lane; it stays collapsed after reloading.
@@ -180,7 +188,7 @@ test.describe("Plan", () => {
     await overdue.getByText("Kooperationsgespräch KVR/Polizei", { exact: true }).click();
     const panel = details(page);
     await expect(panel).toBeVisible();
-    await expect(panel.getByText("−2 T Verzug", { exact: true })).toBeVisible();
+    await expect(panel.getByTestId("detail-window-pill")).toHaveText("festes Datum");
     await expectNoHorizontalScroll(page);
     await panel.getByRole("button", { name: "Details schließen" }).click();
     await expect(panel).toHaveCount(0);

@@ -4,8 +4,9 @@
 import type { Status } from "@/components/status-pill";
 import { formatRelativeDay } from "./dday";
 import { dayToDate } from "./plan-days";
-import type { PlanElementKind, PlanStatusReason } from "./plan-engine";
+import type { PlanElementKind, PlanStatusReason, Placement, ReasonDetail } from "./plan-engine";
 import { formatWeekdayShort } from "./plan-preview";
+import { reasonText } from "./plan-status";
 import { formatTodoDue } from "./todo-due";
 import { displayGroupName } from "./working-groups";
 
@@ -145,9 +146,10 @@ export type GanttRow = LaneRow | ElementRow;
 export type RowOptions = {
   /** Lane keys (working group ids, `NO_GROUP_KEY`) that are collapsed. */
   collapsed: ReadonlySet<string>;
+  /** Filter "Kritisch & knapp": only the elements in `criticalIds` (spec 025: critical or tight). */
   criticalOnly: boolean;
   openOnly: boolean;
-  criticalPath: readonly string[];
+  criticalIds: readonly string[];
 };
 
 function byStartEndName(a: GanttElement, b: GanttElement): number {
@@ -165,7 +167,7 @@ export function buildRows(
   groups: readonly GanttGroup[],
   options: RowOptions
 ): GanttRow[] {
-  const critical = new Set(options.criticalPath);
+  const critical = new Set(options.criticalIds);
   const visible = (element: GanttElement) =>
     (!options.criticalOnly || critical.has(element.id)) && (!options.openOnly || !element.done);
 
@@ -269,7 +271,16 @@ export type PlanViewLink = GanttLink & { id: string };
 /** Everything the plan page shows of an element, computed on the server. */
 export type PlanViewElement = GanttElement & {
   latestStart: number;
+  /** Spec 025: the window, slack and why the element has its status. */
+  earliestStart: number;
+  slack: number;
+  /** Not done, started before today and not yet ended. */
+  running: boolean;
   reason: PlanStatusReason;
+  reasonDetail: ReasonDetail;
+  /** Spec 025: no slack left (or late) / at most 7 days of slack. */
+  critical: boolean;
+  tight: boolean;
   wobbly: boolean;
   /** Display name "AK ‹Name›". */
   workingGroupName: string | null;
@@ -282,9 +293,13 @@ export type PlanViewElement = GanttElement & {
   /** ISO time of the last change, sent back for the conflict notice. */
   updatedAt: string;
   durationDays: number;
-  shiftDays: number;
+  placement: Placement;
   fixedDay: number | null;
+  fixedOffsetDays: number | null;
   fixedDate: string | null;
+  freeStartDay: number | null;
+  /** Day it was ticked off, relative to the D-Day (spec 025). */
+  doneDay: number | null;
   sortOrder: number;
   departmentId: string | null;
   ownerId: string | null;
@@ -292,6 +307,7 @@ export type PlanViewElement = GanttElement & {
 
 export type AgendaElement = GanttElement & {
   reason: PlanStatusReason;
+  reasonDetail: ReasonDetail;
   /** Display name "AK ‹Name›". */
   workingGroupName: string | null;
   ownerName: string | null;
@@ -327,13 +343,6 @@ export function weekday(day: number, dDay: string): string {
   return formatWeekdayShort(dayToDate(day, dDay));
 }
 
-/** Why a late element is late, as the week list says it. */
-export function lateText(element: Pick<AgendaElement, "reason" | "buffer">): string {
-  if (element.reason === "fixed_too_late") return `Fixtermin liegt ${-element.buffer} Tage zu spät`;
-  if (element.reason === "overdue") return "Termin vorbei, nicht abgehakt";
-  return "Puffer negativ";
-}
-
 function todoText(element: AgendaElement, todo: AgendaTodo, dDay: string, overdue: boolean): string {
   const due = formatTodoDue(todo.daysBefore, todo.anchor, todo.due, dDay, overdue);
   if (overdue) return `für ${element.name} · ${due}`;
@@ -364,12 +373,20 @@ export function weekAgenda(
     (element) => mine === null || (element.workingGroupId !== null && mine.has(element.workingGroupId))
   );
 
+  // Names of all elements: a predecessor may belong to another working group.
+  const names = new Map(plan.elements.map((element) => [element.id, element.name]));
   const overdue: AgendaEntry[] = [];
   const lateIds = new Set<string>();
   for (const element of elements) {
     if (!element.done && element.status === "late") {
       lateIds.add(element.id);
-      overdue.push({ type: "element", key: element.id, day: element.end, element, text: lateText(element) });
+      overdue.push({
+        type: "element",
+        key: element.id,
+        day: element.end,
+        element,
+        text: reasonText(element, names, dDay),
+      });
     }
     for (const todo of element.todos) {
       if (!todo.done && todo.due < today) {
