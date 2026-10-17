@@ -76,7 +76,7 @@ function FeedbackLink({ text }: { text: string }) {
       <span className="flex items-center gap-3">
         <BugIcon className="size-5 shrink-0 text-muted" />
         <span className="flex flex-col leading-tight">
-          <span className="font-medium">Feedback</span>
+          <span className="font-medium">Feedback zur App</span>
           <span className="text-sm text-muted">{text}</span>
         </span>
       </span>

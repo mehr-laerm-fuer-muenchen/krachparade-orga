@@ -16,6 +16,25 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "023-klarer-machen",
+    date: "2026-10-17",
+    title: "Fälligkeiten mit Datum, Fortschritt im Panel",
+    items: [
+      {
+        lead: "Fälligkeiten von To-dos",
+        text: "stehen jetzt mit Datum da, z. B. „fällig 18.12. (3 Tage vor Start)“.",
+      },
+      {
+        lead: "Fortschritt",
+        text: "siehst du auch oben im Panel, neben Status und Puffer.",
+      },
+      {
+        lead: "Der Käfer",
+        text: "heißt jetzt „Feedback zur App“ – Inhaltliches zur Krachparade gehört in die Notizen.",
+      },
+    ],
+  },
+  {
     id: "018-ak-arbeitsbereich",
     date: "2026-10-16",
     title: "Arbeitsbereich für jeden AK",

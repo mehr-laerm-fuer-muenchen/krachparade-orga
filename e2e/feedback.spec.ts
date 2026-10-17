@@ -36,11 +36,11 @@ function escape(text: string) {
 }
 
 function bugButton(page: Page) {
-  return page.getByRole("banner").getByRole("button", { name: /^Feedback geben/ });
+  return page.getByRole("banner").getByRole("button", { name: /^Feedback zur App geben/ });
 }
 
 function dialog(page: Page) {
-  return page.getByRole("dialog", { name: "Feedback geben" });
+  return page.getByRole("dialog", { name: "Feedback zur App" });
 }
 
 function details(page: Page) {
@@ -207,12 +207,12 @@ test.describe("Feedback", () => {
     await expectNoHorizontalScroll(page);
 
     // Alex is no admin: no number at the bug.
-    await expect(bugButton(page)).toHaveAttribute("aria-label", "Feedback geben");
+    await expect(bugButton(page)).toHaveAttribute("aria-label", "Feedback zur App geben");
     await expect(page.getByTestId("feedback-new-count")).toHaveCount(0);
 
     // Kim (admin): number at the bug, set "Erledigt" with a reply.
     await devLogin(page, "Kim Brenner");
-    await expect(bugButton(page)).toHaveAttribute("aria-label", /^Feedback geben, \d+ neue Meldungen?$/);
+    await expect(bugButton(page)).toHaveAttribute("aria-label", /^Feedback zur App geben, \d+ neue Meldungen?$/);
     await expect(page.getByTestId("feedback-new-count").filter({ visible: true })).toHaveText(/^\d+$/);
     await page.goto(detailUrl);
     await expectPageReady(page, "Fehler");
@@ -240,7 +240,7 @@ test.describe("Feedback", () => {
 
     // Alex: no number, reply readable.
     await devLogin(page, "Alex Rauch");
-    await expect(bugButton(page)).toHaveAttribute("aria-label", "Feedback geben");
+    await expect(bugButton(page)).toHaveAttribute("aria-label", "Feedback zur App geben");
     await page.goto(detailUrl);
     await expectPageReady(page, "Fehler");
     await expect(page.getByText(/^Antwort von Kim Brenner · /)).toBeVisible();
@@ -268,7 +268,7 @@ test.describe("Feedback", () => {
   test("Einstellungen verlinken auf die Übersicht", async ({ page }) => {
     await page.goto("/einstellungen");
     await expectPageReady(page, "Einstellungen");
-    const link = page.getByRole("link", { name: /^Feedback/ });
+    const link = page.getByRole("link", { name: /^Feedback zur App/ });
     await expect(link).toHaveAttribute("href", "/feedback");
     await expect(link).toContainText(/Keine neuen Meldungen\.|\d+ neue Meldungen?/);
     await link.click();
@@ -294,6 +294,6 @@ test.describe("Feedback", () => {
   test("Kein Käfer auf /login", async ({ page }) => {
     await page.context().clearCookies();
     await page.goto("/login");
-    await expect(page.getByRole("button", { name: /^Feedback geben/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Feedback zur App geben/ })).toHaveCount(0);
   });
 });

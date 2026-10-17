@@ -100,7 +100,7 @@ test.describe("Neuigkeiten", () => {
     const banner = page.getByRole("banner");
     const logo = await box(banner.getByRole("link", { name: "Krachparade Orga" }));
     const bellBox = await box(bell(page));
-    const bug = await box(banner.getByRole("button", { name: /^Feedback geben/ }));
+    const bug = await box(banner.getByRole("button", { name: /^Feedback zur App geben/ }));
     const countdown = await box(page.getByTestId("dday-label"));
 
     // Admin: the pink number at the bug button stays.
@@ -293,7 +293,7 @@ test.describe("Neuigkeiten", () => {
     await expect(dialog).toBeVisible();
 
     // The header (bug button) is covered: a hit there lands on the panel or its dimming.
-    const bug = await box(page.getByRole("banner").getByRole("button", { name: /^Feedback geben/ }));
+    const bug = await box(page.getByRole("banner").getByRole("button", { name: /^Feedback zur App geben/ }));
     const covered = await page.evaluate(
       ([x, y]) => Boolean(document.elementFromPoint(x, y)?.closest("dialog[open]")),
       [bug.x + bug.width / 2, bug.y + bug.height / 2] as const

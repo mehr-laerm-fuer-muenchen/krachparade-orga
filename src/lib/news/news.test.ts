@@ -45,8 +45,8 @@ describe("latestNewsId", () => {
     expect(latestNewsId([])).toBeNull();
   });
 
-  it("is the AK workspace entry of spec 018", () => {
-    expect(latestNewsId(NEWS)).toBe("018-ak-arbeitsbereich");
+  it("is the entry of spec 023", () => {
+    expect(latestNewsId(NEWS)).toBe("023-klarer-machen");
   });
 });
 

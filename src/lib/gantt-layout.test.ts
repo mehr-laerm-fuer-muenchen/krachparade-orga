@@ -320,9 +320,9 @@ describe("weekAgenda", () => {
       end: day("2027-02-20"),
       ownerName: "Kim Brenner",
       todos: [
-        { id: "t1", text: "Rechtliches geprüft", ownerName: "Kim Brenner", anchor: "start", due: day("2027-02-16"), done: false },
-        { id: "t2", text: "Programm geprüft", ownerName: "Sascha Möller", anchor: "start", due: day("2027-02-18"), done: false },
-        { id: "t3", text: "PR geprüft", ownerName: null, anchor: "start", due: day("2027-02-10"), done: true },
+        { id: "t1", text: "Rechtliches geprüft", ownerName: "Kim Brenner", anchor: "start", daysBefore: 4, due: day("2027-02-16"), done: false },
+        { id: "t2", text: "Programm geprüft", ownerName: "Sascha Möller", anchor: "start", daysBefore: 2, due: day("2027-02-18"), done: false },
+        { id: "t3", text: "PR geprüft", ownerName: null, anchor: "start", daysBefore: 10, due: day("2027-02-10"), done: true },
       ],
     });
     const overdueTask = item({ id: "overdue", kind: "task", start: day("2027-01-01"), end: day("2027-02-01"), status: "late", reason: "overdue" });
@@ -330,11 +330,11 @@ describe("weekAgenda", () => {
 
     expect(result.overdue.map((entry) => [entry.key, entry.text])).toEqual([
       ["overdue", "Termin vorbei, nicht abgehakt"],
-      ["todo-t1", "für Finaler Crosscheck · war fällig Di 16.02."],
+      ["todo-t1", "für Finaler Crosscheck · war fällig 16.02. (4 Tage vor Start)"],
       ["late", "Fixtermin liegt 2 Tage zu spät"],
     ]);
     expect(result.weeks[0].entries.map((entry) => [entry.key, entry.text])).toEqual([
-      ["todo-t2", "für Finaler Crosscheck · fällig Do 18.02. · Sascha Möller"],
+      ["todo-t2", "für Finaler Crosscheck · fällig 18.02. (2 Tage vor Start) · Sascha Möller"],
       ["check", "Meilenstein · Sa 20.02."],
     ]);
     // The late fixed date does not show up again in its own week.

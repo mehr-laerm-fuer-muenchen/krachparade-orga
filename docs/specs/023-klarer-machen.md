@@ -83,3 +83,10 @@ Keine DB-Änderung. Build-Agent → PR → Auto-Merge bei grünen Prüfungen. Da
 ## Abweichungen beim Bau
 
 (vom Build-Agenten zu ergänzen; nie den Freigabe-Haken hier eintragen)
+
+- Der Abgleich mit dem Code wurde lokal im Chat berichtet statt im PR-Text.
+- `formatTodoDue(days, anchor, dueDay, dDay)` bekommt `dDay` als vierten Parameter, weil `dueDay` eine Tageszahl relativ zur Krachparade ist; Datum über `dayToDate`, Format TT.MM. (von Franz freigegeben)
+- Überfällige Plan-To-dos (Wochenliste, `/meine`, AK-Arbeitsbereich) zeigen „war fällig TT.MM. (N Tage vor Start/Ende)“ über einen optionalen fünften Parameter `overdue` (von Franz freigegeben)
+- `daysBefore` und `anchor` sind nur in den Anzeige-Typen ergänzt und durchgereicht (`AgendaTodo` in `src/lib/gantt-layout.ts`, `AkPlanTodo` in `src/db/ak-workspace.ts`), ohne Engine- oder DB-Änderung (von Franz freigegeben)
+- Link-Test in `e2e/feedback.spec.ts` auf „Feedback zur App“ angepasst (von Franz freigegeben). Korrektur beim Bau: Der `/einstellungen`-Test ist „Einstellungen verlinken auf die Übersicht“ (`/^Feedback zur App/`); der Link „Feedback“ (exact) im Admin-Test ist der Zurück-Link der Meldungs-Seite und bleibt, weil die Überschrift „Feedback“ bleibt.
+- Zusätzlich zur Spec: Hilfsfunktion `todoDueOrigin(days, anchor)` in `src/lib/todo-due.ts` für die Herkunft; Kopf-Anzeige „1/1 To-dos ✓“ (Haken hinter „To-dos“). Die Hinweiszeile im Käfer steht nur im Formular, nicht in der „Danke!“-Ansicht. Panel und Wochenkarte zeigen auch bei überfälligen To-dos „fällig …“ (rot hervorgehoben wie bisher). Unit-Test `src/lib/news/news.test.ts` erwartet jetzt `023-klarer-machen` als neuesten Eintrag (angepasst, nicht gelöscht).

@@ -9,6 +9,7 @@ import { formatDayMonth, lateText, mondayOf, weekday, weekHeading } from "./gant
 import { dateToDay, dayToDate } from "./plan-days";
 import { todoDueDay, type PlanElementKind, type PlanStatusReason } from "./plan-engine";
 import { isOverdue } from "./protocol-rules";
+import { formatTodoDue } from "./todo-due";
 import { displayGroupName } from "./working-groups";
 
 /** A plan element with its computed dates (loadPlan + computePlan). */
@@ -292,10 +293,11 @@ function describeOpen(input: MyTasksInput, builder: Builder) {
     planTodo(todo: MyPlanTodoInput, element: MyElementInput): Placed {
       const due = todoDueDay(todo, { plannedStart: element.start, plannedEnd: element.end });
       if (due < today) {
-        const text = `für ${element.name} · war fällig ${weekday(due, dDay)}`;
+        const text = `für ${element.name} · ${formatTodoDue(todo.daysBefore, todo.anchor, due, dDay, true)}`;
         return { task: builder.planTodo(todo, element, due, text), overdue: true };
       }
-      return { task: builder.planTodo(todo, element, due, `fällig ${weekday(due, dDay)}`), overdue: false };
+      const text = formatTodoDue(todo.daysBefore, todo.anchor, due, dDay);
+      return { task: builder.planTodo(todo, element, due, text), overdue: false };
     },
 
     meetingTodo(todo: MyMeetingTodoInput): Placed {

@@ -74,6 +74,9 @@ export type AkPlanTodo = {
   text: string;
   ownerName: string | null;
   done: boolean;
+  /** For the due text "war fällig 18.12. (3 Tage vor Start)" (spec 023). */
+  anchor: "start" | "end";
+  daysBefore: number;
   due: number | null;
 };
 
@@ -168,6 +171,8 @@ function planTodosOf(elements: readonly PlanViewElement[]): AkPlanTodo[] {
       text: todo.text,
       ownerName: todo.ownerName,
       done: todo.done,
+      anchor: todo.anchor,
+      daysBefore: todo.daysBefore,
       due: todo.due,
     }))
   );
