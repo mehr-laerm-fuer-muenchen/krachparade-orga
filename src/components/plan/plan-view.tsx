@@ -19,6 +19,7 @@ import { PlanDetail, type PlanDepartmentOption, type PlanOption } from "./plan-d
 import { PlanGantt, type GanttEdit } from "./plan-gantt";
 import { PlanNewElement } from "./plan-new-element";
 import { PlanWeekList } from "./plan-week-list";
+import { PIN_PATH } from "./pin-icon";
 import { usePlanActions } from "./use-plan-actions";
 import { usePlanTicks } from "./use-plan-ticks";
 
@@ -44,6 +45,8 @@ type View = "gantt" | "list";
 const VIEW_KEY = "kp-plan-view";
 const ZOOM_KEY = "kp-plan-zoom";
 const COLLAPSED_KEY = "kp-plan-collapsed";
+/** Spec 026: time window bands on ("1", default) or off ("0"). */
+const WINDOWS_KEY = "kp-plan-windows";
 
 const ZOOMS: { value: Zoom; label: string }[] = [
   { value: "quarter", label: "Quartal" },
@@ -112,13 +115,23 @@ function Segmented<T extends string>({
   );
 }
 
-function FilterButton({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
+function FilterButton({
+  pressed,
+  onClick,
+  children,
+  className = "",
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <button
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`${PRESSABLE} rounded-md border border-line bg-surface aria-pressed:border-primary`}
+      className={`${PRESSABLE} rounded-md border border-line bg-surface aria-pressed:border-primary ${className}`}
     >
       {children}
     </button>
@@ -136,32 +149,42 @@ function LegendItem({ children, label }: { children: ReactNode; label: string })
   );
 }
 
+/** Legend for the model of spec 026; wraps on phones, never scrolls sideways. */
 function Legend() {
   return (
     <ul aria-label="Legende" className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-      <LegendItem label="Erreicht">
-        <rect x="1" y="2" width="16" height="8" rx="2" className="fill-status-done" />
+      <LegendItem label="Zeitfenster">
+        <rect x="0.5" y="1.5" width="17" height="9" rx="2" strokeDasharray="3 2" className="fill-window stroke-window-edge" />
       </LegendItem>
       <LegendItem label="On track">
         <rect x="1.5" y="2.5" width="15" height="7" rx="2" className="fill-status-ok stroke-on-status-ok" />
       </LegendItem>
-      <LegendItem label="Wackelt">
+      <LegendItem label="Erreicht">
+        <rect x="1" y="2" width="16" height="8" rx="2" className="fill-status-done" />
+      </LegendItem>
+      <LegendItem label="Wackelt / Zu früh">
         <rect x="1" y="2" width="16" height="8" rx="2" className="fill-status-warn" />
       </LegendItem>
       <LegendItem label="Verzug">
         <rect x="1" y="2" width="16" height="8" rx="2" className="fill-status-late" />
       </LegendItem>
-      <LegendItem label="Meilenstein">
-        <polygon points="9,1 14,6 9,11 4,6" className="fill-muted" />
+      <LegendItem label="fest">
+        <path d={PIN_PATH} transform="translate(4 0)" fill="currentColor" fillRule="evenodd" className="text-text" />
       </LegendItem>
-      <LegendItem label="Puffer">
-        <line x1="1" x2="17" y1="6" y2="6" strokeWidth="3" className="stroke-gantt-buffer" />
+      <LegendItem label="kritisch">
+        <rect x="2" y="2" width="14" height="8" rx="2" strokeWidth="2" className="fill-surface stroke-accent" />
       </LegendItem>
-      <LegendItem label="zu spät">
-        <rect x="1" y="0" width="16" height="12" className="fill-gantt-late" />
-      </LegendItem>
-      <LegendItem label="Fixtermin">
-        <rect x="2" y="3" width="14" height="6" rx="2" strokeWidth="2" className="fill-surface stroke-text" />
+      <LegendItem label="knapp">
+        <rect
+          x="2"
+          y="2"
+          width="14"
+          height="8"
+          rx="2"
+          strokeWidth="2"
+          strokeDasharray="3 2"
+          className="fill-surface stroke-accent"
+        />
       </LegendItem>
       <LegendItem label="Heute">
         <line x1="9" x2="9" y1="0" y2="12" strokeWidth="2" className="stroke-accent" />
@@ -186,6 +209,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const [criticalOnly, setCriticalOnly] = useState(false);
   const [openOnly, setOpenOnly] = useState(false);
+  const [windows, setWindows] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const { show, bar } = useUndoBar();
@@ -200,6 +224,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
     if (storedView === "gantt" || storedView === "list") setView(storedView);
     if (storedZoom === "quarter" || storedZoom === "month" || storedZoom === "week") setZoom(storedZoom);
     if (storedCollapsed.length > 0) setCollapsed(new Set(storedCollapsed));
+    if (readStored(WINDOWS_KEY) === "0") setWindows(false);
   }, []);
 
   const byId = useMemo(() => new Map(elements.map((element) => [element.id, element])), [elements]);
@@ -220,6 +245,10 @@ export function PlanView({ data }: { data: PlanViewData }) {
   const changeZoom = (next: Zoom) => {
     setZoom(next);
     writeStored(ZOOM_KEY, next);
+  };
+  const toggleWindows = () => {
+    setWindows(!windows);
+    writeStored(WINDOWS_KEY, windows ? "0" : "1");
   };
   const changeCollapsed = (next: Set<string>) => {
     setCollapsed(next);
@@ -320,6 +349,9 @@ export function PlanView({ data }: { data: PlanViewData }) {
         </button>
         {gantt ? (
           <>
+            <FilterButton pressed={windows} onClick={toggleWindows} className="hidden desk:block">
+              Fenster
+            </FilterButton>
             <Segmented label="Zoom" options={ZOOMS} value={zoom} onChange={changeZoom} className="hidden desk:flex" />
             <button
               type="button"
@@ -331,12 +363,25 @@ export function PlanView({ data }: { data: PlanViewData }) {
           </>
         ) : null}
       </div>
+      <Legend />
 
       <div className="flex items-start gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {criticalOnly ? (
+            <div data-testid="critical-explanation" className="rounded-md border border-line bg-surface-2 px-3 py-2 text-sm">
+              <p>
+                <strong>Kritisch</strong> heißt keine Luft: Das Fenster ist nicht größer als das Element selbst. Wird es
+                später fertig, ist etwas danach zu spät. <strong>Knapp</strong> heißt höchstens 7 Tage Luft.
+              </p>
+              {counts.critical === 0 && counts.tight === 0 ? (
+                <p className="mt-1">
+                  Gerade hat alles noch Luft. Mit jedem Tag rückt „frühestens“ näher, die Fenster schrumpfen.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {gantt ? (
             <div className="hidden flex-col gap-3 desk:flex">
-              <Legend />
               <PlanGantt
                 elements={elements}
                 groups={groups}
@@ -353,14 +398,15 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 onToggleLane={toggleLane}
                 edit={ganttEdit}
                 progress={progress}
+                windows={windows}
               />
               <p className="text-sm text-muted">
-                Antippen zeigt Abhängigkeiten und Details. Ziehen verschiebt (mit Vorgängern), die Ränder ändern die
-                Dauer.
+                Antippen zeigt Abhängigkeiten und Details. Ziehen legt den Termin selbst fest (Lage „Frei im
+                Fenster“); bei festen Terminen ändert es die Tage vor der {D_DAY_NAME}.
               </p>
             </div>
           ) : null}
-          <div className={gantt ? "desk:hidden" : undefined}>
+          <div className={`flex flex-col gap-3 ${gantt ? "desk:hidden" : ""}`}>
             <PlanWeekList
               elements={listElements}
               today={today}
@@ -370,6 +416,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
               onCreate={() => setCreating(true)}
               ticks={ticks}
             />
+            <p className="text-sm text-muted desk:hidden">Antippen öffnet Details und Lage.</p>
           </div>
         </div>
         {selected ? (

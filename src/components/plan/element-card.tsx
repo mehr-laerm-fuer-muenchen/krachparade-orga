@@ -69,6 +69,14 @@ function ProgressToggle({ progress, open, controls, onClick }: {
  * that opens the details (box and side controls sit above it), side column
  * and optional content below.
  */
+/** Frame of a critical (solid) or tight (dashed) element (spec 026, week list only). */
+export type CardFrame = "critical" | "tight" | null;
+
+const FRAME: Record<Exclude<CardFrame, null>, string> = {
+  critical: "border-2 border-accent",
+  tight: "border-2 border-dashed border-accent",
+};
+
 export function CardShell({
   stripe,
   box,
@@ -78,6 +86,8 @@ export function CardShell({
   side,
   onOpen,
   children,
+  frame = null,
+  detail,
 }: {
   stripe: string;
   box: ReactNode;
@@ -87,9 +97,15 @@ export function CardShell({
   side: ReactNode;
   onOpen: () => void;
   children?: ReactNode;
+  frame?: CardFrame;
+  /** A further line under the meta line (spec 026: the window). */
+  detail?: ReactNode;
 }) {
   return (
-    <li className="overflow-hidden rounded-md border border-line bg-surface">
+    <li
+      data-frame={frame ?? undefined}
+      className={`overflow-hidden rounded-md bg-surface ${frame ? FRAME[frame] : "border border-line"}`}
+    >
       {/* The card opens the details; its button covers the whole row (box and counter sit above it). */}
       <div className="relative flex min-h-11 items-stretch hover:bg-surface-2">
         <span aria-hidden className={`w-1 shrink-0 ${stripe}`} />
@@ -101,6 +117,7 @@ export function CardShell({
         >
           <span className={`font-semibold break-words ${muted ? "text-muted" : ""}`}>{title}</span>
           <span className="text-sm break-words text-muted">{meta}</span>
+          {detail ? <span className="text-sm break-words text-muted tabular-nums">{detail}</span> : null}
         </button>
         <span className="flex shrink-0 flex-col items-end justify-center gap-1 py-2 pr-3">{side}</span>
       </div>
@@ -127,10 +144,15 @@ export function ElementCard({
   onToggleExpand,
   onExpand,
   onHideHint,
+  frame,
+  detail,
 }: {
   element: AgendaElement;
   full: PlanViewElement | undefined;
   meta: string;
+  /** Spec 026, week list only: frame for critical/tight and the window line. */
+  frame?: CardFrame;
+  detail?: ReactNode;
   today: number;
   dDay: string;
   ticks: PlanTicks;
@@ -188,6 +210,8 @@ export function ElementCard({
       muted={reached}
       side={side}
       onOpen={() => onSelect(element.id)}
+      frame={frame}
+      detail={detail}
     >
       {open && full ? (
         <div id={listId} className="flex flex-col gap-2 border-t border-line py-1 pr-3 pl-1">

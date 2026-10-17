@@ -1,6 +1,7 @@
 import type { PlanViewData } from "@/components/plan/plan-view";
 import { todayInBerlin } from "@/lib/dday";
 import type { PlanNoteView, PlanTodoView, PlanViewElement } from "@/lib/gantt-layout";
+import { findCause } from "@/lib/plan-cause";
 import { dateToDay } from "@/lib/plan-days";
 import { computePlan, PlanCycleError, resolvePlacement, todoDueDay, type ComputedPlan } from "@/lib/plan-engine";
 import { shortEditionName } from "@/lib/plan-preview";
@@ -93,6 +94,7 @@ export async function loadPlanView(
       fixed: resolvePlacement(element).mode === "fixed",
       critical: result.critical,
       tight: result.tight,
+      cause: findCause(computed, plan.elements, plan.links, element.id),
       wobbly: element.wobbly,
       workingGroupName: element.workingGroupName === null ? null : displayGroupName(element.workingGroupName),
       departmentName: element.departmentName,

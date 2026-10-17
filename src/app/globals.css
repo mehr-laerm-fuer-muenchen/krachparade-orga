@@ -41,6 +41,9 @@
   --gantt-buffer: #9fb3a7;
   --gantt-late: #f3c9d2;
   --gantt-lane: #e9eeea;
+  /* Time window behind bars and diamonds (spec 026). */
+  --window: #e2f0dc;
+  --window-edge: #8db884;
 
   /* To-do progress and the "Als erreicht markieren?" hint (spec 016). */
   --progress-track: #d3dbd6;
@@ -86,6 +89,8 @@
     --gantt-buffer: #5c7266;
     --gantt-late: #5a2531;
     --gantt-lane: #1e2622;
+    --window: #1f3326;
+    --window-edge: #4f7d57;
 
     --progress-track: #36423c;
     --progress-fill: #7cc98f;
@@ -129,6 +134,8 @@
   --color-gantt-buffer: var(--gantt-buffer);
   --color-gantt-late: var(--gantt-late);
   --color-gantt-lane: var(--gantt-lane);
+  --color-window: var(--window);
+  --color-window-edge: var(--window-edge);
   --color-progress-track: var(--progress-track);
   --color-progress-fill: var(--progress-fill);
   --color-hint-bg: var(--hint-bg);

@@ -63,8 +63,19 @@ export function applyChanges(
   });
 }
 
-/** What the Gantt draws of an element. */
-export type PreviewValues = { start: number; end: number; latestEnd: number; buffer: number; status: Status };
+/** What the Gantt draws of an element (window, slack, frame and placement since spec 026). */
+export type PreviewValues = {
+  start: number;
+  end: number;
+  latestEnd: number;
+  buffer: number;
+  status: Status;
+  earliestStart: number;
+  latestStart: number;
+  slack: number;
+  critical: boolean;
+  tight: boolean;
+} & Pick<PlanElementInput, "placement" | "fixedDay" | "fixedOffsetDays" | "freeStartDay">;
 
 /**
  * The plan after the changes, for every element; null if it cannot be
@@ -76,15 +87,26 @@ export function previewPlan(
   today: number
 ): Map<string, PreviewValues> | null {
   try {
-    const computed = computePlan(applyChanges(plan.elements, changes), plan.links, today);
+    const elements = applyChanges(plan.elements, changes);
+    const computed = computePlan(elements, plan.links, today);
     const result = new Map<string, PreviewValues>();
-    for (const [id, element] of computed.elements) {
-      result.set(id, {
+    for (const input of elements) {
+      const element = computed.elements.get(input.id)!;
+      result.set(input.id, {
         start: element.plannedStart,
         end: element.plannedEnd,
         latestEnd: element.latestFinish,
         buffer: element.buffer,
         status: element.status,
+        earliestStart: element.earliestStart,
+        latestStart: element.latestStart,
+        slack: element.slack,
+        critical: element.critical,
+        tight: element.tight,
+        placement: input.placement,
+        fixedDay: input.fixedDay,
+        fixedOffsetDays: input.fixedOffsetDays,
+        freeStartDay: input.freeStartDay,
       });
     }
     return result;

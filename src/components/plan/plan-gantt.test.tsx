@@ -1,14 +1,17 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { GanttElement } from "../../lib/gantt-layout";
+import type { GanttWindowElement } from "../../lib/gantt-layout";
 import { PlanGantt, type PlanGanttProps } from "./plan-gantt";
 
 // Renders the Gantt to HTML on the server side (as on the first render) and
 // checks what it draws. Interaction is covered by the click test in e2e/.
 
 const D_DAY = "2027-05-08";
+const NBSP = " ";
 
-const ELEMENTS: GanttElement[] = [
+const OPEN = { placement: "alap", fixedDay: null, fixedOffsetDays: null, freeStartDay: null } as const;
+
+const ELEMENTS: GanttWindowElement[] = [
   {
     id: "talk",
     name: "Kooperationsgespräch",
@@ -21,6 +24,14 @@ const ELEMENTS: GanttElement[] = [
     status: "late",
     done: false,
     fixed: true,
+    ...OPEN,
+    placement: "fixed",
+    fixedDay: -150,
+    earliestStart: -150,
+    latestStart: -150,
+    slack: 0,
+    critical: true,
+    tight: false,
   },
   {
     id: "check",
@@ -34,6 +45,12 @@ const ELEMENTS: GanttElement[] = [
     status: "ok",
     done: false,
     fixed: false,
+    ...OPEN,
+    earliestStart: -140,
+    latestStart: -130,
+    slack: 10,
+    critical: false,
+    tight: false,
   },
   {
     id: "budget",
@@ -47,6 +64,12 @@ const ELEMENTS: GanttElement[] = [
     status: "done",
     done: true,
     fixed: false,
+    ...OPEN,
+    earliestStart: -180,
+    latestStart: -180,
+    slack: 0,
+    critical: false,
+    tight: false,
   },
 ];
 
@@ -92,10 +115,35 @@ describe("PlanGantt", () => {
     expect(html).not.toContain("D-Day");
     expect(html).not.toMatch(/D[-−+]\d/);
     expect(html).toContain("fill-gantt-late");
-    expect(html).toContain("stroke-gantt-buffer");
+    // Spec 026: no buffer line and no buffer in the label any more.
+    expect(html).not.toContain("stroke-gantt-buffer");
+    expect(html).not.toContain("−2 T");
     expect(html).toContain(">Fix<");
-    expect(html).toContain("−2 T");
-    expect(html).toContain("2/2");
+  });
+
+  it("draws a window band only for open elements that are not fixed (spec 026)", () => {
+    const html = render();
+    // Only "Finaler Crosscheck": the fixed date and the reached element have none.
+    expect(count(html, 'data-testid="gantt-window"')).toBe(1);
+    expect(html).toContain("fill-window stroke-window-edge");
+    expect(count(render({ windows: false }), 'data-testid="gantt-window"')).toBe(0);
+    // No window left: no band either.
+    const noWindow = ELEMENTS.map((element) =>
+      element.id === "check" ? { ...element, earliestStart: -120, latestStart: -130, slack: -10 } : element
+    );
+    expect(count(render({ elements: noWindow }), 'data-testid="gantt-window"')).toBe(0);
+  });
+
+  it("pins fixed dates and frames critical and tight elements with a word for them", () => {
+    const html = render();
+    expect(count(html, 'data-testid="gantt-pin"')).toBe(1);
+    expect(html).toContain("<title>Kooperationsgespräch · fest · kritisch</title>");
+    expect(html).toContain('data-frame="critical"');
+    const tight = ELEMENTS.map((element) => (element.id === "check" ? { ...element, slack: 5, tight: true } : element));
+    const tightHtml = render({ elements: tight });
+    expect(tightHtml).toContain('data-frame="tight"');
+    expect(tightHtml).toContain("<title>Finaler Crosscheck · knapp</title>");
+    expect(tightHtml).toContain("[stroke-dasharray:3_2]");
   });
 
   it("shows arrows only for a selected element", () => {
@@ -136,8 +184,8 @@ describe("PlanGantt", () => {
     expect(html).toContain(">KW 18<");
   });
 
-  it("adds the buffer to the label only if it is not 0", () => {
-    const onTime: GanttElement = {
+  it("labels with the slack, „keine Luft“, „fest“ and „erreicht“ (spec 026)", () => {
+    const onTime: GanttWindowElement = {
       id: "brief",
       name: "Briefing",
       kind: "milestone",
@@ -149,15 +197,22 @@ describe("PlanGantt", () => {
       status: "ok",
       done: false,
       fixed: false,
+      ...OPEN,
+      earliestStart: -100,
+      latestStart: -100,
+      slack: 0,
+      critical: true,
+      tight: false,
     };
     const html = render({ elements: [...ELEMENTS, onTime] });
-    expect(html).toContain(">28.01.</text>");
+    expect(html).toContain(">28.01. · keine Luft</text>");
+    expect(html).toContain(`· Luft 10${NBSP}T</text>`);
+    expect(html).toContain(" · fest</text>");
+    expect(html).toContain(" · erreicht</text>");
     expect(html).not.toContain("0 T");
-    expect(html).toContain("+5 T");
-    expect(html).toContain("−2 T");
   });
 
-  it("shows the to-do progress: bar under tasks, number between dates and buffer", () => {
+  it("shows the to-do progress: bar under tasks, number after dates and slack", () => {
     expect(render()).not.toContain("gantt-progress");
     const html = render({
       progress: new Map([
@@ -168,7 +223,7 @@ describe("PlanGantt", () => {
     // Only the task has a bar; its fill is a quarter of the track.
     expect(count(html, 'data-testid="gantt-progress"')).toBe(1);
     expect(count(html, "fill-progress-fill")).toBe(2);
-    expect(html).toMatch(/· <tspan[^>]*>1\/4<\/tspan> · <tspan[^>]*>\+5 T/);
+    expect(html).toMatch(new RegExp(`Luft 10${NBSP}T · <tspan[^>]*>1/4</tspan>`));
     expect(html).toMatch(/fill-progress-fill font-semibold[^>]*>2\/2 ✓</);
   });
 });

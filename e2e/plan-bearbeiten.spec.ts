@@ -194,12 +194,14 @@ test.describe("Plan bearbeiten", () => {
     for (const name of [a, b, c]) await expect(ganttName(page, name)).toBeVisible();
     await details(page).getByRole("button", { name: "Details schließen" }).click();
 
-    // Drag A 5 days earlier (spec 025): A becomes "Frei im Fenster" with 5 days
-    // of buffer, B and C ("so spät") move along; "Rückgängig".
+    // Drag A 5 days earlier (spec 025): A becomes "Frei im Fenster", its label
+    // shows the new dates (spec 026: no buffer in the label any more), B and C
+    // ("so spät") move along; "Rückgängig".
     const before = { a: await dLabel(page, a), b: await dLabel(page, b), c: await dLabel(page, c) };
+    const labelA = (await ganttElement(page, a).textContent()) ?? "";
     await dragBy(page, ganttElement(page, a).getByTestId("gantt-mark"), -5 * MONTH_PX);
     await expect(page.getByRole("status").filter({ hasText: "Verschoben" })).toBeVisible();
-    await expect(ganttElement(page, a)).toContainText("+5 T");
+    await expect(ganttElement(page, a)).not.toHaveText(labelA);
     await expect.poll(() => dLabel(page, b)).not.toBe(before.b);
     await expect.poll(() => dLabel(page, c)).not.toBe(before.c);
     await expect(details(page)).toHaveCount(0);
@@ -207,7 +209,7 @@ test.describe("Plan bearbeiten", () => {
     await expect.poll(() => dLabel(page, a)).toBe(before.a);
     await expect.poll(() => dLabel(page, b)).toBe(before.b);
     await expect.poll(() => dLabel(page, c)).toBe(before.c);
-    await expect(ganttElement(page, a)).not.toContainText("+5 T");
+    await expect(ganttElement(page, a)).toHaveText(labelA);
 
     // Right edge: longer, start stays. Left edge: end stays.
     let panel = await openInGantt(page, a);

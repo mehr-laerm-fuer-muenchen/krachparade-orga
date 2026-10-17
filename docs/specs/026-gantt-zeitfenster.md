@@ -153,3 +153,14 @@ Teil A:
 - **E4 (von Franz freigegeben):** `findCause` steht in `src/lib/plan-cause.ts`, als Breitensuche nach Abstand über beide Seiten gleichzeitig (Vorgänger, die den frühesten Start bestimmen; Nachfolger, die den spätesten Termin bestimmen; jeweils in derselben Richtung weiter), bei gleichem Abstand die frühe Seite zuerst. Bei `too_late` und `before_predecessor` zählen auf der frühen Seite die geplanten Enden der Vorgänger. „Spät erreicht“ = mindestens 1 Tag nach dem spätesten Ende, das die Nachfolger brauchen.
 - KP27-Vorlage: To-do „Wagenreihung“ bei „Programm fertig“ entfällt (33 → 32 To-dos); „Wagenreihung steht“ ohne Aufgabenbereich, weil „Programm fertig“ keinen hat. 24 Elemente, 27 Verbindungen, 15 Notizen (Notiz-Texte von Franz vorgegeben). Der alte Vorlagen-Test (Stand Spec 010/025) ist durch die Erwartungen aus 026 ersetzt.
 - Zusätzlicher `findCause`-Testfall „spät erreicht“ (Voranmeldung am −130 erreicht, heute −125).
+
+Teil B:
+
+- Die Ursache rechnet der Server (`loadPlanView` → Feld `cause` am Element), das Panel zeigt sie nur an.
+- Gantt: Das SVG ist für Screenreader ein Bild („Gantt-Plan“), `sr-only` wirkt darin nicht. „fest“, „kritisch“ und „knapp“ stehen deshalb im `<title>` des Elements (zugleich Tooltip). In der Wochenliste sind es echte Texte.
+- Gantt: Die rote Fläche „zu spät“ (Ende nach dem spätesten Ende) und der dunkle Rand fester, nicht kritischer Termine bleiben. Die Legende nennt nur die Punkte aus der Spec.
+- Die Zieh-Vorschau (`previewPlan`) liefert zusätzlich Fenster, Luft, kritisch/knapp und Lage, damit Band und Label beim Ziehen mitgehen.
+- Die Legende steht unter der Werkzeugleiste in beiden Ansichten und am Handy (bricht um).
+- Die Wochen-Karte zeigt rechts weiter den bisherigen Puffer („−2 T“, „0 T“). Dieselbe Karte nutzt auch der AK-Arbeitsbereich, der ruhig bleiben soll. Offen für Franz.
+- Tests: `news.test.ts` erwartet jetzt den Eintrag 026 als neuesten. In `plan-bearbeiten.spec.ts` prüft der Ziehen-Schritt statt „+5 T“, dass sich das Label ändert und nach „Rückgängig“ wieder stimmt. Die Testdaten in `plan-gantt.test.tsx` haben die Fenster-Felder bekommen.
+- `--gantt-buffer` ist ungenutzt, aber stehen geblieben.
