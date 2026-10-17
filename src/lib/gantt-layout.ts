@@ -6,6 +6,7 @@ import { formatRelativeDay } from "./dday";
 import { dayToDate } from "./plan-days";
 import type { PlanElementKind, PlanStatusReason } from "./plan-engine";
 import { formatWeekdayShort } from "./plan-preview";
+import { formatTodoDue } from "./todo-due";
 import { displayGroupName } from "./working-groups";
 
 /** A computed plan element as the Gantt draws it (from loadPlan + computePlan). */
@@ -294,7 +295,7 @@ export type AgendaElement = GanttElement & {
   /** Display name "AK ‹Name›". */
   workingGroupName: string | null;
   ownerName: string | null;
-  todos: readonly Pick<PlanTodoView, "id" | "text" | "ownerName" | "anchor" | "due" | "done">[];
+  todos: readonly Pick<PlanTodoView, "id" | "text" | "ownerName" | "anchor" | "daysBefore" | "due" | "done">[];
 };
 
 export type AgendaTodo = AgendaElement["todos"][number];
@@ -334,8 +335,9 @@ export function lateText(element: Pick<AgendaElement, "reason" | "buffer">): str
 }
 
 function todoText(element: AgendaElement, todo: AgendaTodo, dDay: string, overdue: boolean): string {
-  if (overdue) return `für ${element.name} · war fällig ${weekday(todo.due, dDay)}`;
-  const parts = [`für ${element.name}`, `fällig ${weekday(todo.due, dDay)}`];
+  const due = formatTodoDue(todo.daysBefore, todo.anchor, todo.due, dDay, overdue);
+  if (overdue) return `für ${element.name} · ${due}`;
+  const parts = [`für ${element.name}`, due];
   if (todo.ownerName) parts.push(todo.ownerName);
   return parts.join(" · ");
 }

@@ -135,7 +135,7 @@ export function FeedbackButton({
         ref={buttonRef}
         type="button"
         onClick={open}
-        aria-label={newCount > 0 ? `Feedback geben, ${newFeedbackText(newCount)}` : "Feedback geben"}
+        aria-label={newCount > 0 ? `Feedback zur App geben, ${newFeedbackText(newCount)}` : "Feedback zur App geben"}
         aria-haspopup="dialog"
         className={`relative flex size-11 shrink-0 items-center justify-center rounded-md text-header-text hover:bg-white/10 ${className}`}
       >
@@ -160,8 +160,14 @@ export function FeedbackButton({
       >
         <div className="flex flex-col gap-4 p-4 desk:p-5">
           <h2 id="feedback-title" className="text-lg font-semibold">
-            Feedback geben
+            Feedback zur App
           </h2>
+          {sent ? null : (
+            <p className="-mt-2 text-sm text-muted">
+              Fehler gefunden oder Wunsch an die App? Hier rein. Inhaltliches zur Krachparade gehört in die Notizen am
+              Element oder am AK.
+            </p>
+          )}
 
           {sent ? (
             <>

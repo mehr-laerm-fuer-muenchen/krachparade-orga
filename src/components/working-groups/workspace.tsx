@@ -26,6 +26,7 @@ import type { PlanViewElement } from "@/lib/gantt-layout";
 import { dateToDay, dayToDate } from "@/lib/plan-days";
 import { formatWeekdayShort } from "@/lib/plan-preview";
 import { isOverdue } from "@/lib/protocol-rules";
+import { formatTodoDue } from "@/lib/todo-due";
 import { ErrorMessage, useAction } from "./board";
 import { SituationPills } from "./overview";
 
@@ -337,7 +338,7 @@ function Attention({ items, cards, today, meetingTicks }: {
                   meta={joinParts([
                     todo.ownerName,
                     `an ${element.name}`,
-                    `war fällig ${formatWeekdayShort(dayToDate(item.due, cards.dDay))}`,
+                    formatTodoDue(todo.daysBefore, todo.anchor, item.due, cards.dDay, true),
                   ])}
                   late
                   onToggle={() => void cards.ticks.tickTodo(todo, !checked)}

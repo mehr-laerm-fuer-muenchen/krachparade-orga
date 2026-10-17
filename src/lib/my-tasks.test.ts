@@ -195,7 +195,7 @@ describe("myAgenda: weeks", () => {
       })
     );
     expect(agenda.weeks[0].entries.map((task) => [task.key, task.text])).toEqual([
-      ["plan_todo-t", "fällig Fr 19.02."],
+      ["plan_todo-t", "fällig 19.02. (10 Tage vor Start)"],
       ["meeting_todo-m", "fällig Fr 19.02."],
     ]);
   });
@@ -271,7 +271,7 @@ describe("myAgenda: overdue & late", () => {
     );
     expect(agenda.overdue.map((task) => [task.key, task.text])).toEqual([
       ["meeting_todo-m", "aus Treffen 03.02. · war fällig Mi 10.02."],
-      ["plan_todo-t", "für Route steht · war fällig Mo 15.02."],
+      ["plan_todo-t", "für Route steht · war fällig 15.02. (3 Tage vor Start)"],
       ["element-late", "Puffer negativ"],
     ]);
     expect(allKeys(agenda).filter((key) => key === "element-late")).toHaveLength(1);

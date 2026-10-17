@@ -62,7 +62,7 @@ test.describe("Begriff Krachparade", () => {
     await expect(banner.getByText(/^(Noch \d+ Tage? bis zur Krachparade|Heute ist Krachparade|Krachparade ist vorbei)$/)).toHaveCount(1);
 
     const logo = await box(banner.getByRole("img", { name: "Mehr Lärm für München" }));
-    const bug = await box(banner.getByRole("button", { name: /^Feedback geben/ }));
+    const bug = await box(banner.getByRole("button", { name: /^Feedback zur App geben/ }));
     const label = await box(countdown);
     // One row: the vertical ranges of logo, bug button and countdown overlap.
     for (const other of [bug, label]) {

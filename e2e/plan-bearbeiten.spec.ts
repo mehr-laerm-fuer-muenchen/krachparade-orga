@@ -270,7 +270,7 @@ test.describe("Plan bearbeiten", () => {
     await panel.getByRole("button", { name: "Hinzufügen" }).click();
     const todo = panel.getByRole("listitem").filter({ hasText: todoText });
     await expect(todo).toContainText("Alex Rauch");
-    await expect(todo).toContainText("2 T vor Start");
+    await expect(todo).toContainText("(2 Tage vor Start)");
     await todo.getByLabel(`Erledigt: ${todoText}`).check();
     await expect(todo.getByText(todoText)).toHaveClass(/line-through/);
     await todo.getByRole("button", { name: `To-do löschen: ${todoText}` }).click();

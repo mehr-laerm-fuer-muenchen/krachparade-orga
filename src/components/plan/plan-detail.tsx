@@ -37,7 +37,9 @@ import { dayToDate } from "@/lib/plan-days";
 import { D_DAY_NAME } from "@/lib/plan-edit";
 import { predecessorCandidates, reasonText, shiftText, successorCandidates } from "@/lib/plan-panel";
 import { formatWeekdayShort } from "@/lib/plan-preview";
-import { todoProgress } from "@/lib/todo-progress";
+import { todoDueDay } from "@/lib/plan-engine";
+import { formatTodoDue } from "@/lib/todo-due";
+import { formatProgress, todoProgress, type TodoProgress } from "@/lib/todo-progress";
 import { displayGroupName } from "@/lib/working-groups";
 import { ReachHint } from "./reach-hint";
 import { SAVE_ERROR } from "./use-plan-actions";
@@ -62,15 +64,19 @@ export function bufferLabel(element: Pick<PlanViewElement, "buffer" | "done">): 
   return "0 T Puffer";
 }
 
+/** "3/10 To-dos", "10/10 To-dos ✓" (spec 023); "3/10" and "✓" from formatProgress. */
+function progressLabel(progress: TodoProgress): string {
+  const [count, check] = formatProgress(progress).split(" ");
+  return check ? `${count} To-dos ${check}` : `${count} To-dos`;
+}
+
 function dateWithD(day: number, dDay: string): string {
   return `${formatWeekdayDate(day, dDay)} · ${formatRelativeDay(dayToDate(day, dDay), dDay)}`;
 }
 
-/** "Mi 17.02. · 2 T vor Start" */
+/** "fällig 18.12. (3 Tage vor Start)" (spec 023) */
 export function dueText(todo: Pick<PlanTodoView, "anchor" | "daysBefore" | "due">, dDay: string): string {
-  const anchor = todo.anchor === "start" ? "Start" : "Ende";
-  const when = todo.daysBefore === 0 ? `zum ${anchor}` : `${todo.daysBefore} T vor ${anchor}`;
-  return `${formatWeekdayShort(dayToDate(todo.due, dDay))} · ${when}`;
+  return formatTodoDue(todo.daysBefore, todo.anchor, todo.due, dDay);
 }
 
 /** Escape in a form field does not close the panel. */
@@ -146,7 +152,8 @@ export type PlanDetailProps = {
 export function PlanDetail(props: PlanDetailProps) {
   const { element, elements, links, groups, departments, members, today, dDay, onSelect, onClose, run, drag } =
     props;
-  const showHint = !element.done && !props.hintHidden && todoProgress(element.todos).complete;
+  const progress = todoProgress(element.todos);
+  const showHint = !element.done && !props.hintHidden && progress.complete;
   const seen = element.updatedAt;
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const { track, status, failed } = useSaveStatus();
@@ -221,6 +228,14 @@ export function PlanDetail(props: PlanDetailProps) {
               >
                 {bufferLabel(element)}
               </span>
+              {progress.total > 0 ? (
+                <span
+                  data-testid="detail-progress"
+                  className={`text-sm tabular-nums ${progress.complete ? "font-semibold text-progress-fill" : "text-muted"}`}
+                >
+                  {progressLabel(progress)}
+                </span>
+              ) : null}
             </div>
             <h2 className="text-lg leading-snug font-semibold break-words">{element.name}</h2>
             <p className="text-sm text-muted">{meta.join(" · ")}</p>
@@ -704,6 +719,15 @@ function TodoSection({
   errors: Record<string, string | null>;
 }) {
   const hintId = useId();
+  // Kept in state for the due date line below the fields (spec 023).
+  const [days, setDays] = useState("0");
+  const [anchor, setAnchor] = useState<"start" | "end">("start");
+  const daysBefore = toInt(days);
+  const previewDue =
+    Number.isInteger(daysBefore) && daysBefore >= 0 && daysBefore <= 365
+      ? todoDueDay({ anchor, daysBefore }, { plannedStart: element.start, plannedEnd: element.end })
+      : null;
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -716,7 +740,11 @@ function TodoSection({
         anchor: data.get("anchor") === "end" ? "end" : "start",
         daysBefore: toInt(String(data.get("days") ?? "")),
       });
-      if (result.ok) form.reset();
+      if (result.ok) {
+        form.reset();
+        setDays("0");
+        setAnchor("start");
+      }
       return result;
     });
   };
@@ -785,21 +813,34 @@ function TodoSection({
               </option>
             ))}
           </select>
-          <input
-            name="days"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={365}
-            defaultValue={0}
-            aria-label="Tage vorher"
-            className={`${INPUT} w-20`}
-          />
-          <select name="anchor" aria-label="Bezug" defaultValue="start" className={INPUT}>
-            <option value="start">vor Start</option>
-            <option value="end">vor Ende</option>
+          <span className="flex items-center gap-2">
+            <input
+              name="days"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={365}
+              value={days}
+              onChange={(event) => setDays(event.target.value)}
+              aria-label="Tage vorher"
+              className={`${INPUT} w-20`}
+            />
+            <span aria-hidden>Tage</span>
+          </span>
+          <select
+            name="anchor"
+            aria-label="Bezug"
+            value={anchor}
+            onChange={(event) => setAnchor(event.target.value === "end" ? "end" : "start")}
+            className={`${INPUT} min-w-0`}
+          >
+            <option value="start">vor Start des Elements</option>
+            <option value="end">vor Ende des Elements</option>
           </select>
         </div>
+        <p data-testid="todo-due-preview" aria-live="polite" className="text-sm text-muted tabular-nums">
+          {previewDue === null ? " " : `fällig am ${formatWeekdayShort(dayToDate(previewDue, dDay))}`}
+        </p>
         <button type="submit" className={`${PRIMARY_BUTTON} self-start`}>
           Hinzufügen
         </button>
