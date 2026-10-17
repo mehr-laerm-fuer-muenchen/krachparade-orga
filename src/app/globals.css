@@ -155,9 +155,11 @@ body {
   outline-offset: 2px;
 }
 
-/* News panel (spec 015, 021). Phones: a sheet fixed to the bottom that only
-   fades in. A keyframe animation always ends in the resting position, so the
-   sheet cannot get stuck offset, as it did with the slide-in on iOS Safari.
+/* News panel (spec 015, 021). Phones: a sheet anchored at the top and the
+   bottom, so its height never depends on the content. The dialog defaults
+   (inset, margin, height: fit-content, max-height) are overridden explicitly;
+   with them, iOS Safari sized the sheet from its content and left only the head.
+   It only fades in: a keyframe animation always ends in the resting position.
    Wide screens: slides in from the right as before. None with reduced motion. */
 @keyframes news-fade-in {
   from {
@@ -166,8 +168,14 @@ body {
 }
 @media (width < 901px) {
   .news-panel {
-    max-height: 85vh;
-    max-height: 85dvh;
+    position: fixed;
+    inset: auto 0 0 0;
+    top: calc(env(safe-area-inset-top, 0px) + 15vh);
+    top: calc(env(safe-area-inset-top, 0px) + 15dvh);
+    height: auto;
+    max-height: none;
+    max-width: none;
+    margin: 0;
   }
   .news-panel[open],
   .news-panel[open]::backdrop {
