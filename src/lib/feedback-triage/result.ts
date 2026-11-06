@@ -46,7 +46,8 @@ export const assessmentSchema = z.strictObject({
   statusvorschlag: z.enum(STATUS_PROPOSALS),
   antworttext: z.string().max(400),
   antwortJetzt: z.boolean(),
-  thema: topicRefSchema,
+  /** Required, except for `vorschlag: "verwerfen"`: then not allowed (checked in validateResult). */
+  thema: topicRefSchema.optional(),
 });
 export type Assessment = z.infer<typeof assessmentSchema>;
 
@@ -143,11 +144,25 @@ export function validateResult(
       if (!newKeys.has(ref.neu)) errors.push(`${where}: neues Thema ${ref.neu} fehlt in neueThemen`);
     }
   };
-  for (const assessment of data.meldungen) checkRef(assessment.thema, `meldungen ${assessment.shortId}`);
+  // Rejected entries get no topic; all others need one.
+  for (const assessment of data.meldungen) {
+    const where = `meldungen ${assessment.shortId}`;
+    if (assessment.vorschlag === "verwerfen") {
+      if (assessment.thema) errors.push(`${where}: bei Vorschlag verwerfen kein Thema`);
+      if (assessment.statusvorschlag !== "rejected") errors.push(`${where}: Vorschlag verwerfen braucht Statusvorschlag rejected`);
+      if (!assessment.antwortJetzt || assessment.antworttext.trim() === "") {
+        errors.push(`${where}: Vorschlag verwerfen braucht antwortJetzt und einen Antworttext`);
+      }
+    } else if (!assessment.thema) {
+      errors.push(`${where}: Thema fehlt`);
+    } else {
+      checkRef(assessment.thema, where);
+    }
+  }
   for (const draft of data.entwuerfe) checkRef(draft.thema, `entwuerfe ${draft.kurzname}`);
   for (const sketch of data.skizzen) checkRef(sketch.thema, `skizzen ${sketch.datei}`);
   for (const key of newKeys.keys()) {
-    if (!data.meldungen.some((a) => "neu" in a.thema && a.thema.neu === key)) {
+    if (!data.meldungen.some((a) => a.thema && "neu" in a.thema && a.thema.neu === key)) {
       errors.push(`neueThemen ${key}: keine Meldung gehört zu diesem Thema`);
     }
   }

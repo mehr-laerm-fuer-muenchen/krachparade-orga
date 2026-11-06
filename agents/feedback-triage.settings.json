@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "defaultMode": "dontAsk",
+    "allow": [
+      "Read(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Write(./triage-out/**)",
+      "Edit(./triage-out/**)"
+    ],
+    "deny": [
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env*)",
+      "Read(./.git/**)",
+      "Read(./node_modules/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.config/**)",
+      "Read(~/.claude/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.docker/**)",
+      "Read(~/.npmrc)",
+      "Read(~/.netrc)",
+      "Read(~/.gitconfig)",
+      "Read(~/.zshrc)",
+      "Read(~/.bashrc)",
+      "Read(~/.profile)",
+      "Read(//proc/**)",
+      "Read(//etc/**)",
+      "Read(//tmp/**)",
+      "Read(//var/**)",
+      "Read(//dev/**)",
+      "Read(//sys/**)",
+      "Write(./triage-out/input.json)",
+      "Write(./triage-out/themen.json)",
+      "Write(./triage-out/cursor.txt)",
+      "Edit(./triage-out/input.json)",
+      "Edit(./triage-out/themen.json)",
+      "Edit(./triage-out/cursor.txt)"
+    ]
+  }
+}

@@ -148,6 +148,52 @@ describe("validateResult", () => {
     expect(errors).toContain("liegengeblieben: Kurz-ID aaaaaaaa ist nicht liegengeblieben");
   });
 
+  describe("rejected entries get no topic", () => {
+    const rejected = (extra: Partial<Assessment> = {}): Assessment => {
+      const base = assessment("aaaaaaaa", {
+        kategorie: "missverstaendnis",
+        prioritaet: "keine",
+        vorschlag: "verwerfen",
+        statusvorschlag: "rejected",
+        antwortJetzt: true,
+        antworttext: "Danke, das schließen wir.",
+        ...extra,
+      });
+      delete base.thema;
+      return { ...base, ...("thema" in extra ? { thema: extra.thema } : {}) };
+    };
+    const withRejected = (entry: Assessment) =>
+      result({ meldungen: [entry, assessment("bbbbbbbb", { thema: { neu: "export-wunsch" } })] });
+
+    it("accepts verwerfen without topic", () => {
+      expect(validateResult(withRejected(rejected()), INPUT, TOPICS).errors).toEqual([]);
+    });
+
+    it("rejects verwerfen with a topic", () => {
+      expect(validateResult(withRejected(rejected({ thema: { issue: 12 } })), INPUT, TOPICS).errors).toEqual([
+        "meldungen aaaaaaaa: bei Vorschlag verwerfen kein Thema",
+      ]);
+    });
+
+    it("verwerfen needs status rejected, antwortJetzt and a reply", () => {
+      const { errors } = validateResult(
+        withRejected(rejected({ statusvorschlag: "new", antwortJetzt: false, antworttext: "" })),
+        INPUT,
+        TOPICS
+      );
+      expect(errors).toEqual([
+        "meldungen aaaaaaaa: Vorschlag verwerfen braucht Statusvorschlag rejected",
+        "meldungen aaaaaaaa: Vorschlag verwerfen braucht antwortJetzt und einen Antworttext",
+      ]);
+    });
+
+    it("every other proposal needs a topic", () => {
+      const noTopic = assessment("aaaaaaaa");
+      delete noTopic.thema;
+      expect(validateResult(withRejected(noTopic), INPUT, TOPICS).errors).toEqual(["meldungen aaaaaaaa: Thema fehlt"]);
+    });
+  });
+
   it("an empty run is valid", () => {
     const empty = { meldungen: [], neueThemen: [], liegengeblieben: [], fragenAnFranz: [], entwuerfe: [], skizzen: [] };
     expect(validateResult(empty, { fresh: [], stale: [] }, TOPICS).errors).toEqual([]);

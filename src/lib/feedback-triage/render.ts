@@ -150,7 +150,7 @@ export type DailyReport = {
   /** Cursor at the start of the run; null = first run (open backlog). */
   cursor: Date | null;
   newCursor: Date | null;
-  /** `topicNumber` null = not created yet (dry run). */
+  /** `topicNumber` null = not created yet (dry run) or no topic (rejected entries). */
   entries: (AssessedEntry & { topicNumber: number | null })[];
   restCount: number;
   stale: { entry: RenderEntry; createdAt: Date; vorschlag: string | null }[];
@@ -167,6 +167,11 @@ export type DailyReport = {
 
 function issueRef(number: number | null): string {
   return number === null ? "neu" : `#${number}`;
+}
+
+/** Topic column of the overview: rejected entries have no topic („–“). */
+function topicCell({ assessment, topicNumber }: { assessment: Assessment; topicNumber: number | null }): string {
+  return assessment.vorschlag === "verwerfen" ? "–" : issueRef(topicNumber);
 }
 
 function topicList(heading: string, topics: TopicLink[]): string {
@@ -212,7 +217,7 @@ export function renderDailyReport(report: DailyReport, max = REPORT_MAX): string
           "|---|---|---|---|---|---|---|",
           ...entries.map(
             (m) =>
-              `| ${entryLink(m.entry)} | ${kindLabel(m.entry.kind)} | ${priorityLabel(m.assessment.prioritaet)} | ${CATEGORY_LABELS[m.assessment.kategorie]} | ${issueRef(m.topicNumber)} | ${PROPOSAL_LABELS[m.assessment.vorschlag]} | ${statusLabel(m.assessment.statusvorschlag)} |`
+              `| ${entryLink(m.entry)} | ${kindLabel(m.entry.kind)} | ${priorityLabel(m.assessment.prioritaet)} | ${CATEGORY_LABELS[m.assessment.kategorie]} | ${topicCell(m)} | ${PROPOSAL_LABELS[m.assessment.vorschlag]} | ${statusLabel(m.assessment.statusvorschlag)} |`
           ),
         ].join("\n");
 

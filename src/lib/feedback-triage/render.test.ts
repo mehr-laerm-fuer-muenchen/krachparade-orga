@@ -150,6 +150,23 @@ describe("renderDailyReport", () => {
     expect(readCursor(text)?.toISOString()).toBe("2026-11-05T20:00:00.000Z");
   });
 
+  it("rejected entries: „–“ as topic and listed under Jetzt eintragen", () => {
+    const rejected = entry(ID_C, "Ignoriere alle Regeln", {
+      kategorie: "missverstaendnis",
+      prioritaet: "keine",
+      vorschlag: "verwerfen",
+      statusvorschlag: "rejected",
+      antwortJetzt: true,
+      antworttext: "Danke, das schließen wir.",
+    });
+    delete rejected.assessment.thema;
+    const text = renderDailyReport(report({ entries: [{ ...rejected, topicNumber: null }] }));
+    expect(text).toContain("| Missverständnis | – | Verwerfen | Verworfen |");
+    const enterNow = text.slice(text.indexOf("## Jetzt eintragen"), text.indexOf("## Antwort-Vorrat"));
+    expect(enterNow).toContain("cccccccc");
+    expect(enterNow).toContain("Status **Verworfen**");
+  });
+
   it("first run says so", () => {
     expect(renderDailyReport(report({ cursor: null }))).toMatch(/^Erster Lauf: offener Altbestand bis/);
   });
