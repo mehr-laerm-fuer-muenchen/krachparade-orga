@@ -1,5 +1,6 @@
 import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { check, date, index, integer, primaryKey, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgView } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 /** Key/value pairs about the app itself, e.g. `seed_version` (spec 001). */
@@ -401,3 +402,23 @@ export const feedback = pgTable(
 );
 
 export type Feedback = typeof feedback.$inferSelect;
+
+/**
+ * Spec 022: read-only view for the feedback triage, without `created_by` and
+ * `updated_by`. Created by hand (scripts/sql/022-feedback-triage.sql);
+ * `.existing()` makes `db:push` neither create nor drop it.
+ */
+export const feedbackTriage = pgView("feedback_triage", {
+  id: uuid("id").notNull(),
+  kind: text("kind").notNull(),
+  message: text("message").notNull(),
+  pagePath: text("page_path").notNull(),
+  pageTitle: text("page_title"),
+  context: text("context"),
+  device: text("device"),
+  viewport: text("viewport"),
+  status: text("status").notNull(),
+  reply: text("reply"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+}).existing();

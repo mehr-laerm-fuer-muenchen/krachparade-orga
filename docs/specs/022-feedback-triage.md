@@ -296,3 +296,14 @@ keiner
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+**Teil A**
+
+- A5 Schritt 3: Der Befehl heißt `pnpm exec tsx --env-file=.env.local scripts/feedback-triage/fetch.ts`, damit tsx `FEEDBACK_TRIAGE_DATABASE_URL` aus `.env.local` lädt (von Franz freigegeben).
+- A1: Datenbankname `neondb` in dev und production, von Franz bestätigt.
+- A3 `render.ts`: zusätzlich `extendTopicBody(alterText, meldungen)` für B3 Schritt 5 (neue Einträge vor der Marke, Marke aus alten und neuen IDs, schon enthaltene IDs nicht doppelt). Dazu `renderTopicEntry` als Baustein.
+- A3 `sanitize.ts`: zusätzlich `escapeHtml` (`<` → `&lt;`) und `sanitize` (alles in einem Schritt). So kann ein Meldungstext keine falsche Marke (`<!-- meldungen: … -->`, `<!-- triage-bis: … -->`) und kein HTML ins Issue bringen. `readCursor` und `readTopicMarker` nehmen zusätzlich die **letzte** Marke im Text.
+- A3 `sanitize.ts`: ISO-Daten wie `2027-05-08` gelten nicht als Telefonnummer.
+- A3 `select.ts`: Liegen am Schnitt bei 40 Meldungen mit genau demselben Zeitpunkt, bleiben sie zusammen für den nächsten Lauf (sonst würde `> cursor` sie überspringen). `fresh` hat dann weniger als 40 Einträge.
+- A3 `result.ts`: zusätzliche Prüfregeln: neue Themen ohne zugehörige Meldung, `verweisAuf` nur auf ein geschlossenes Thema aus `themen.json`, `liegengeblieben` nur mit Kurz-IDs aus `stale`, `datei` nur als `entwuerfe/<name>.md` bzw. `skizzen/<name>.md`, unbekannte Felder sind Fehler.
+- A3 `drafts.ts`: Format der Fragen in einer Skizze: nummerierte Zeile (`1. …`) oder `### …`, darunter die Optionen als Liste (`- …`). Skizzen dürfen gar keine Zeile `Freigabe Franz:` haben (Kriterium 10 „ohne Freigabe-Kopf“).
