@@ -76,3 +76,13 @@ keiner (keine sichtbare Änderung)
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+- Keine Abweichung von der Spec.
+- `next` und `eslint-config-next`: 16.4.0 → **16.4.5** (neueste 16.4.x). `react`/`react-dom` bleiben 19.3.0 (Peer-Bereich von Next.js `^18.2.0 || ^19.0.0` passt). In der Lock-Datei ändern sich nur `next`, `eslint-config-next` und die `@next/*`-Unterpakete.
+- Versionshinweise 16.4.1–16.4.5 nennen keine Änderung an `cacheComponents`, `partialPrefetching` oder `turbopack.rules`.
+- `pnpm install` meldet „unmet peer @types/node“ (Vitest 5.0.4 will `@types/node` ≥ 22, installiert 20.19.43). Kommt nicht von diesem Update, bleibt wie es ist.
+- `pnpm typecheck`, `pnpm lint` grün; `pnpm test`: 490 Unit-Tests in 42 Dateien grün.
+- `pnpm build` nach Löschen von `.next` beim ersten Lauf grün, ohne Sicherheits-Abbruch.
+- Klicktests gegen `pnpm dev`: 73 bestanden, 13 übersprungen. Gegen den Production-Build auf Port 3100: 73 bestanden, 13 übersprungen.
+- `_retryCache`: In beiden Läufen keine Konsolenfehler, alle Klicktests mit `expectPageReady` grün. Lokal ohne Server-Latenz nicht beobachtbar; React ist unverändert, der Umweg bleibt.
+- Sichtprüfung bei 375 × 812 und 1280 × 800 (Plan Gantt und Wochenliste, Panel, `/meine`, Protokoll-Leseansicht, `/arbeitskreise`, Käfer, Glocke): kein Querscrollen, Kopfleiste einzeilig (63 px), keine Warnungen oder Hydration-Fehler in der Konsole.
