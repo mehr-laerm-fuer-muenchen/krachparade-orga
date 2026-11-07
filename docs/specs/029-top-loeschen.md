@@ -1,6 +1,6 @@
 # SPEC 029 – TOP löschen
 
-Freigabe Franz: ☐
+Freigabe Franz: ☑
 Zweig: `spec/028-029-protokoll-fixes` · Risikoklasse B (Server Action, Komponenten, Tests) · **lokal**, nach 028 auf demselben Zweig · DB: nein
 
 Löst Thema #39 (Meldungen cbd33227, 88083c9a). Grundlage: Spec-Entwurf #45 aus der Triage, geprüft und ergänzt in Sitzung 18.
