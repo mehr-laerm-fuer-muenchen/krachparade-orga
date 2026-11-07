@@ -3,7 +3,9 @@
 // to happen before the database module is loaded, so import "./index" only
 // dynamically inside seed().
 import { parseAdminEmails } from "../lib/access";
+import { checkText, timeToMinutes, validateDayTemplate, type DayTemplate, type DayTemplatePerson } from "../lib/day-plan";
 import type { Placement } from "../lib/plan-engine";
+import { DAY_TEMPLATE } from "./day-template";
 import { KP27_PLAN, KP27_PLAN_NOTES, KP27_PLAN_TODOS } from "./kp27-template";
 
 const isProd = process.argv.includes("--prod");
@@ -15,7 +17,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "10";
+export const SEED_VERSION = "11";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -287,6 +289,82 @@ export const TEST_FEEDBACK = [
 ] as const;
 
 /**
+ * Made-up day plan (spec 030), never in production; only while the current
+ * edition has no day plan column.
+ */
+export const TEST_DAY: DayTemplate = {
+  tracks: ["Programm & Bühne", "Demozug & Wägen", "Orga & Logistik"],
+  entries: [
+    {
+      track: "Demozug & Wägen",
+      title: "Wägen treffen ein",
+      start: "10:00",
+      end: "11:00",
+      place: "Testplatz Nord",
+      group: "Demo & Route",
+      person: { email: "robin.tal@example.org" },
+      note: "Pufferplätze freihalten.",
+      checks: [
+        { text: "Stellplätze markiert", person: { email: "alex.rauch@example.org" } },
+        "Einfahrt besetzt",
+      ],
+    },
+    {
+      track: "Orga & Logistik",
+      title: "Pakete ausgeben",
+      start: "10:30",
+      end: "12:00",
+      place: "Infostand",
+      group: "Flächen & Technik",
+      person: { name: "Team Infostand" },
+      checks: ["Pakete gepackt", { text: "Liste bereit", person: { name: "Team Infostand" } }],
+    },
+    {
+      track: "Programm & Bühne",
+      title: "Auftakt",
+      start: "14:00",
+      end: "15:30",
+      place: "Testplatz Nord",
+      group: "Programm",
+      person: { email: "sascha.moeller@example.org" },
+      checks: ["Bühne steht", "Moderation steht", "Technik geprüft"],
+    },
+    {
+      track: "Demozug & Wägen",
+      title: "Musik aus am Ziel",
+      start: "19:00",
+      approx: true,
+      place: "Testplatz Süd",
+      group: "Demo & Route",
+    },
+    {
+      track: "Orga & Logistik",
+      title: "Abbau",
+      start: "21:00",
+      end: "22:30",
+      checks: ["Fläche sauber"],
+    },
+    { track: "Orga & Logistik", title: "Funkgeräte laden", start: null, note: "Am Vorabend." },
+  ],
+  roles: [
+    {
+      title: "Versammlungsleitung",
+      task: "Ansprechpartner für Polizei und Behörden.",
+      mark: "Weste lila",
+      group: "Demo & Route",
+      people: [{ email: "kim.brenner@example.org" }],
+    },
+    {
+      title: "Abschnittsleitungen",
+      task: "Kolonne halten, Lücken melden.",
+      mark: "Weste grün",
+      group: "Demo & Route",
+      people: [{ email: "robin.tal@example.org" }, { name: "Team Abschnitt 1" }],
+    },
+  ],
+};
+
+/**
  * Idempotent: a second run changes nothing. With `prod` only master data is
  * written, never test people (from spec 002 on, always with @example.org).
  */
@@ -417,8 +495,137 @@ export async function seed({ prod }: { prod: boolean }) {
     // After the plan: seedPlan only runs while the edition has no element at all.
     await seedTestOngoing();
     await seedTestFeedback();
+    await seedTestDay();
   } else {
     await seedKp27Template();
+    await seedDayTemplate();
+  }
+
+  /** Spec 030, never in production: the example day plan. */
+  async function seedTestDay() {
+    const result = await seedDay(TEST_DAY);
+    if (result === "no_edition") {
+      console.log("day_tracks: keine aktuelle Ausgabe");
+    } else if (result === "exists") {
+      console.log("day_tracks: schon vorhanden, nichts geändert");
+    } else {
+      console.log(
+        `Tagesplan: ${result.tracks} Spalten, ${result.entries} Einträge, ${result.checks} Checkpunkte, ${result.roles} Rollen`
+      );
+    }
+  }
+
+  /** Spec 030, only in production: the KP26 day plan without people. */
+  async function seedDayTemplate() {
+    const result = await seedDay(DAY_TEMPLATE);
+    if (result === "no_edition") {
+      console.log("Tagesplan-Vorlage: keine aktuelle Ausgabe");
+    } else if (result === "exists") {
+      console.log("Tagesplan-Vorlage übersprungen (Tagesplan existiert schon)");
+    } else {
+      console.log(
+        `Tagesplan-Vorlage: ${result.tracks} Spalten, ${result.entries} Einträge, ${result.checks} Checkpunkte, ${result.roles} Rollen`
+      );
+    }
+  }
+
+  /**
+   * Creates a day plan (spec 030) in the current edition, only while it has no
+   * day plan column. Working groups by name, a missing name leaves the field
+   * empty; people by e-mail only among the test members (none in production).
+   * Everything is written in one batch, so a failure leaves nothing behind.
+   */
+  async function seedDay(template: DayTemplate) {
+    const { dayChecks, dayEntries, dayRolePeople, dayRoles, dayTracks } = await import("./schema");
+    const problems = validateDayTemplate(template);
+    if (problems.length > 0) throw new Error(`Tagesplan-Vorlage ungültig: ${problems.join("; ")}`);
+
+    const [current] = await db.select().from(editions).where(eq(editions.isCurrent, true)).limit(1);
+    if (!current) return "no_edition" as const;
+    const [existingTrack] = await db
+      .select({ id: dayTracks.id })
+      .from(dayTracks)
+      .where(eq(dayTracks.editionId, current.id))
+      .limit(1);
+    if (existingTrack) return "exists" as const;
+
+    const groupIds = new Map(
+      (
+        await db
+          .select({ id: workingGroups.id, name: workingGroups.name })
+          .from(workingGroups)
+          .where(eq(workingGroups.editionId, current.id))
+      ).map((group) => [group.name, group.id])
+    );
+    const groupId = (name: string | undefined) => (name ? (groupIds.get(name) ?? null) : null);
+    const person = (value: DayTemplatePerson | undefined) => {
+      if (!value) return { memberId: null, name: null };
+      if ("name" in value) return { memberId: null, name: value.name };
+      return { memberId: memberIds.get(value.email) ?? null, name: null };
+    };
+
+    const trackIds = new Map(template.tracks.map((name) => [name, crypto.randomUUID()]));
+    const trackId = (name: string) => {
+      const id = trackIds.get(name);
+      if (!id) throw new Error(`Spalte fehlt: ${name}`);
+      return id;
+    };
+    const entries = template.entries.map((entry) => {
+      const owner = person(entry.person);
+      return {
+        id: crypto.randomUUID(),
+        editionId: current.id,
+        trackId: trackId(entry.track),
+        title: entry.title,
+        startMinute: entry.start === null ? null : timeToMinutes(entry.start),
+        endMinute: entry.end === undefined ? null : timeToMinutes(entry.end),
+        approx: entry.approx ?? false,
+        place: entry.place ?? null,
+        workingGroupId: groupId(entry.group),
+        personMemberId: owner.memberId,
+        personText: owner.name,
+        note: entry.note ?? null,
+      };
+    });
+    const checks = template.entries.flatMap((entry, entryIndex) =>
+      (entry.checks ?? []).map((check, index) => {
+        const owner = person(typeof check === "string" ? undefined : check.person);
+        return {
+          entryId: entries[entryIndex].id,
+          text: checkText(check),
+          memberId: owner.memberId,
+          nameText: owner.name,
+          position: index + 1,
+        };
+      })
+    );
+    const roles = template.roles.map((role, index) => ({
+      id: crypto.randomUUID(),
+      editionId: current.id,
+      title: role.title,
+      task: role.task ?? null,
+      mark: role.mark ?? null,
+      workingGroupId: groupId(role.group),
+      position: index + 1,
+    }));
+    const people = template.roles.flatMap((role, roleIndex) =>
+      (role.people ?? []).flatMap((value, index) => {
+        const owner = person(value);
+        if (!owner.memberId && !owner.name) return [];
+        return [{ roleId: roles[roleIndex].id, memberId: owner.memberId, nameText: owner.name, position: index + 1 }];
+      })
+    );
+
+    await db.batch([
+      db.insert(dayTracks).values(
+        template.tracks.map((name, index) => ({ id: trackId(name), editionId: current.id, name, position: index + 1 }))
+      ),
+      ...(entries.length > 0 ? [db.insert(dayEntries).values(entries)] : []),
+      ...(checks.length > 0 ? [db.insert(dayChecks).values(checks)] : []),
+      ...(roles.length > 0 ? [db.insert(dayRoles).values(roles)] : []),
+      ...(people.length > 0 ? [db.insert(dayRolePeople).values(people)] : []),
+    ]);
+    return { tracks: template.tracks.length, entries: entries.length, checks: checks.length, roles: roles.length };
   }
 
   /**

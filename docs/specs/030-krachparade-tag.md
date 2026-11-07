@@ -240,3 +240,17 @@ ID `030-krachparade-tag`, Datum = Tag des Baus.
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+Aus dem Abgleich mit dem Code:
+
+1. **Laptop-Navigation:** „Krachparade“ steht direkt nach „Plan“ (Plan · Krachparade · AKs · Protokolle · Meine Aufgaben · Kollektive (R3) · Einstellungen), nicht zwischen „Meine“ und „Einstellungen“. Am Handy der Link unter „Mehr“ wie in der Spec. (von Franz freigegeben)
+2. **Person** bei Einträgen, Checkpunkten und Rollen über den bestehenden `OwnerPicker` (Name tippen, Mitglied wählen oder „Ohne Account: …“) statt eigener Knöpfe „Niemand | Mitglied | Freitext“; Rollen: `OwnerPicker` + „Hinzufügen“. `OwnerPicker` selbst bleibt unverändert. Dafür hat `day_checks` zusätzlich die Spalte `name_text` (≤ 80, höchstens eines von `member_id` und `name_text`, wie `owner_id`/`owner_name` im Protokoll). (von Franz freigegeben)
+3. **iPhone-sichere Seitensperre** aus `news-button.tsx` wird in Teil B in einen kleinen gemeinsamen Baustein ausgelagert; die Neuigkeiten nutzen ihn unverändert weiter. (von Franz freigegeben)
+4. **Neu laden nach Änderungen** mit `refresh()` wie im Plan statt `revalidatePath`. (von Franz freigegeben)
+5. **Seed-Aufruf im `--prod`-Teil** von `src/db/seed.ts` ist gewollt, auch wenn das Skript dafür Klasse C meldet. (von Franz freigegeben)
+
+Beim Bau von Teil A:
+
+- `timelineRange` endet immer spätestens um 24:00, auch wenn ein Zeitpunkt kurz vor Mitternacht (zählt als 20 Minuten) darüber hinausreichen würde.
+- Die Vorlage nutzt Uhrzeiten als Text („11:15“) und wird beim Anlegen in Minuten umgerechnet; der Seed legt alles in einem `db.batch` an, damit ein Fehler keine halbe Vorlage hinterlässt.
+- Wird bei einem Eintrag die Uhrzeit entfernt, entfällt auch das Ende (ohne Beginn gibt es kein Ende).
