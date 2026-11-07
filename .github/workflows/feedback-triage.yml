@@ -1,0 +1,174 @@
+name: Feedback-Triage
+
+# Spec 022: reads the app feedback once a day (read-only), sorts it into topic
+# issues and writes a daily issue. The agent only writes structured data to
+# triage-out/; everything for GitHub is built by publish.ts.
+#
+# - Database secret only in step "DB lesen", from the environment
+#   `feedback-triage` (deployment branches: main only).
+# - The agent step has no database variable and no GitHub token, no Bash, no
+#   web, no MCP servers (scripts/feedback-triage/agent.sh).
+# - Feedback texts never reach a `run:` command line, only files.
+
+on:
+  schedule:
+    # 6:45 Berlin winter time (7:45 in summer time)
+    - cron: "45 5 * * *"
+  workflow_dispatch:
+    inputs:
+      trocken:
+        description: "Trocken: nichts anlegen, nichts schließen, nur Vorschau im Artefakt"
+        type: choice
+        options: [nein, ja]
+        default: nein
+
+permissions: {}
+
+# Never two runs at once; a running one is never cancelled.
+concurrency:
+  group: feedback-triage
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    name: Triage
+    # Only on main and only with both switches on.
+    if: github.ref == 'refs/heads/main' && vars.AUTOPILOT == 'an' && vars.AGENT_TRIAGE == 'an'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: feedback-triage
+    permissions:
+      contents: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      TROCKEN: ${{ inputs.trocken == 'ja' && '--trocken' || '' }}
+    steps:
+      - name: Bot-Token erzeugen
+        id: bot
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.KPORGA_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.KPORGA_BOT_PRIVATE_KEY }}
+          permission-issues: write
+
+      - name: main holen
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          # No token in .git/config: the agent can read files in the repo.
+          persist-credentials: false
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v4
+
+      - name: Node einrichten
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: "Schritt 1: GitHub lesen"
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+        run: pnpm exec tsx scripts/feedback-triage/github-read.ts
+
+      - name: "Schritt 2: DB lesen"
+        env:
+          FEEDBACK_TRIAGE_DATABASE_URL: ${{ secrets.FEEDBACK_TRIAGE_DATABASE_URL }}
+        run: pnpm exec tsx scripts/feedback-triage/fetch.ts --cursor "$(cat triage-out/cursor.txt)"
+
+      - name: Bericht nötig?
+        id: lage
+        run: echo "bericht=$(jq -r .shouldReport triage-out/input.json)" >> "$GITHUB_OUTPUT"
+
+      - name: "Schritt 3: Schließen"
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+        run: pnpm exec tsx scripts/feedback-triage/publish.ts --nur-schliessen $TROCKEN
+
+      - name: Claude Code installieren
+        if: steps.lage.outputs.bericht == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.319
+
+      # No database variable and no GitHub token in this step.
+      - name: "Schritt 4: Agent"
+        id: agent
+        if: steps.lage.outputs.bericht == 'true'
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PROTOKOLL: ${{ runner.temp }}/protokoll.jsonl
+        run: bash scripts/feedback-triage/agent.sh
+
+      - name: Agent nachprüfen
+        if: steps.lage.outputs.bericht == 'true'
+        env:
+          AGENT_ERGEBNIS: ${{ steps.agent.outcome }}
+          PROTOKOLL: ${{ runner.temp }}/protokoll.jsonl
+        run: |
+          set -euo pipefail
+          grund=""
+          art=""
+          if [ -f "$PROTOKOLL" ]; then
+            art=$(jq -r 'select(.type == "result") | .subtype' "$PROTOKOLL" 2>/dev/null | tail -n 1 || true)
+          fi
+          if [ -f triage-out/AGENT_STOPP.md ]; then
+            grund="Der Agent hat gestoppt (triage-out/AGENT_STOPP.md)."
+          elif [ "$art" = "error_max_turns" ]; then
+            grund="Der Agent hat das Zug-Limit (60) erreicht."
+          elif [ "$AGENT_ERGEBNIS" != "success" ]; then
+            grund="Der Agent ist nicht sauber fertig geworden (Fehler oder Abbruch, Ergebnis: ${art:-unbekannt})."
+          elif [ ! -f triage-out/ergebnis.json ]; then
+            grund="triage-out/ergebnis.json fehlt."
+          elif [ -n "$(git status --porcelain)" ]; then
+            grund="Der Agent hat Dateien außerhalb von triage-out/ geändert."
+          fi
+          if [ -n "$grund" ]; then
+            {
+              echo "### ❌ Feedback-Triage: Agent"
+              echo
+              echo "$grund Nichts veröffentlicht, Protokoll im Artefakt \`triage-protokoll\`."
+              if [ -f triage-out/AGENT_STOPP.md ]; then
+                echo
+                echo '```'
+                head -n 20 triage-out/AGENT_STOPP.md
+                echo '```'
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::$grund"
+            exit 1
+          fi
+
+      - name: "Schritt 5: Veröffentlichen"
+        if: steps.lage.outputs.bericht == 'true'
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+        run: pnpm exec tsx scripts/feedback-triage/publish.ts $TROCKEN
+
+      # Feedback texts stay in the issues of the private repo: input.json is
+      # not part of the artifact.
+      - name: Eingabe aus dem Artefakt nehmen
+        if: always()
+        run: rm -f triage-out/input.json
+
+      - name: triage-out sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage-out
+          path: triage-out/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # Only on failure: the log contains the feedback texts the agent read.
+      - name: Protokoll des Agenten sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage-protokoll
+          path: ${{ runner.temp }}/protokoll.jsonl
+          retention-days: 7
+          if-no-files-found: ignore

@@ -49,3 +49,6 @@ next-env.d.ts
 
 # claude code
 .claude/settings.local.json
+
+# feedback triage (spec 022): working files with feedback texts, never commit
+/triage-out/
