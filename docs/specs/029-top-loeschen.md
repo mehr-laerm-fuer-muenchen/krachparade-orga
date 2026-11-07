@@ -102,4 +102,7 @@ ID `029-top-loeschen`, Datum = Tag des Baus.
 
 ## Abweichungen beim Bau
 
-(von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+- **SVG statt Emoji (von Franz freigegeben):** Der Knopf zeigt statt „🗑“ ein kleines SVG-Symbol Papierkorb direkt im Code (`TrashIcon` in `meeting-editor.tsx`), mit `currentColor` und `aria-hidden`.
+- **Meldungen der Action (von Franz freigegeben):** Bei ungültiger `meetingId` bleibt die gemeinsame Meldung aus `loadMeetingContext` („Dieses Treffen gibt es nicht.“). `GENERIC_ERROR` kommt nur bei ungültigem `topic`.
+- **Rote Farbe über eine Variante:** `${ICON_BUTTON} text-status-late` wäre nicht rot geworden, weil `text-text` aus `SECONDARY_BUTTON` im erzeugten CSS nach `text-status-late` steht und gewinnt. Deshalb gibt es die neue Variante `DELETE_ICON_BUTTON` in `src/components/protocol/types.ts`, ohne `text-text`. Die vorhandenen Knöpfe „Treffen löschen“ und „Löschen“ (Punkt) haben dasselbe Problem und sind heute dunkel statt rot. Sie bleiben in dieser Spec unverändert.
+- **Neuigkeiten-Test:** `src/lib/news/news.test.ts` erwartet jetzt `029-top-loeschen` als neuesten Eintrag.

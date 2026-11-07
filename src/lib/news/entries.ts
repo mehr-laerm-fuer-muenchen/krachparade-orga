@@ -16,6 +16,17 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "029-top-loeschen",
+    date: "2026-11-07",
+    title: "TOPs löschen",
+    items: [
+      {
+        lead: "Papierkorb am TOP",
+        text: "Im Bearbeiten-Modus löschst du einen TOP jetzt samt seinen Punkten. Vorher fragt die App nach und sagt dir, wie viele Beschlüsse und To-dos dabei mit verschwinden.",
+      },
+    ],
+  },
+  {
     id: "028-punkt-mehrzeilig",
     date: "2026-11-07",
     title: "Längere Punkte im Protokoll",

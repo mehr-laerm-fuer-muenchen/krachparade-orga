@@ -69,6 +69,26 @@ export function groupByTopic<T extends { topic: string }>(items: readonly T[]): 
   return topics;
 }
 
+function countOf(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/**
+ * Question before deleting a saved TOP (spec 029), naming how many
+ * decisions and to-dos go with it.
+ */
+export function deleteTopicPrompt(
+  topic: string,
+  counts: { items: number; decisions: number; todos: number }
+): string {
+  const question = `TOP „${topic}“ mit ${countOf(counts.items, "Punkt", "Punkten")} löschen?`;
+  const among = [
+    counts.decisions > 0 ? countOf(counts.decisions, "Beschluss", "Beschlüsse") : null,
+    counts.todos > 0 ? countOf(counts.todos, "To-do", "To-dos") : null,
+  ].filter((part): part is string => part !== null);
+  return among.length > 0 ? `${question} Darunter ${among.join(" und ")}.` : question;
+}
+
 /** Person filter on the to-do list: a member id or everyone without an account. */
 export const WITHOUT_ACCOUNT = "ohne";
 

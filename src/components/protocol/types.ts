@@ -45,6 +45,8 @@ export const PRIMARY_BUTTON =
 export const SECONDARY_BUTTON =
   "min-h-11 shrink-0 rounded-md border border-line-strong bg-surface px-3 font-medium text-text hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface";
 export const ICON_BUTTON = `${SECONDARY_BUTTON} w-11 px-0`;
+/** Icon button in the red of deleting; without `text-text`, which would win over the red in the CSS. */
+export const DELETE_ICON_BUTTON = `${ICON_BUTTON.replace("text-text ", "")} text-status-late`;
 
 export function personLabel(person: Person): string {
   return person.active ? person.name : `${person.name} (deaktiviert)`;

@@ -434,6 +434,27 @@ export async function moveTopic(meetingId: string, topic: string, to: string): P
   return OK;
 }
 
+/**
+ * Deletes a TOP with all its items (spec 029). Same rights as deleting an
+ * item: every active member. A TOP without items is fine too.
+ */
+export async function deleteTopic(meetingId: string, topic: string): Promise<MeetingActionResult> {
+  const context = await loadMeetingContext(meetingId);
+  if (!("meeting" in context)) return context;
+  const parsed = z.string().min(1).max(200).safeParse(topic);
+  if (!parsed.success) return fail(GENERIC_ERROR);
+  await db.batch([
+    db
+      .delete(meetingItems)
+      .where(and(eq(meetingItems.meetingId, context.meeting.id), eq(meetingItems.topic, parsed.data))),
+    touchMeeting(context.meeting.id),
+  ]);
+  refresh();
+  // Its to-dos leave "Meine Aufgaben" and the AK workspace too.
+  revalidateMyTasks();
+  return OK;
+}
+
 /** Renames a TOP: changes `topic` of all its items in this meeting. */
 export async function renameTopic(meetingId: string, from: string, to: string): Promise<MeetingActionResult> {
   const context = await loadMeetingContext(meetingId);
