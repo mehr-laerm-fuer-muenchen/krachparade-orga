@@ -16,6 +16,32 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "029-top-loeschen",
+    date: "2026-11-07",
+    title: "TOPs löschen",
+    items: [
+      {
+        lead: "Papierkorb am TOP",
+        text: "Im Bearbeiten-Modus löschst du einen TOP jetzt samt seinen Punkten. Vorher fragt die App nach und sagt dir, wie viele Beschlüsse und To-dos dabei mit verschwinden.",
+      },
+    ],
+  },
+  {
+    id: "028-punkt-mehrzeilig",
+    date: "2026-11-07",
+    title: "Längere Punkte im Protokoll",
+    items: [
+      {
+        lead: "Mehrere Zeilen",
+        text: "Punkte im Protokoll dürfen jetzt mehrere Zeilen haben. Am Laptop geht das mit Umschalt+Enter, am Handy mit Enter. Gespeichert wird am Handy mit „Speichern“.",
+      },
+      {
+        lead: "Bleibt erhalten",
+        text: "Die Zeilen siehst du auch in der Leseansicht, in deinen Aufgaben und beim Kopieren als Text oder Markdown.",
+      },
+    ],
+  },
+  {
     id: "026-gantt-zeitfenster",
     date: "2026-10-17",
     title: "Zeitfenster im Gantt",

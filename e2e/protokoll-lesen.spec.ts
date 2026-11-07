@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { savePoint } from "./punkt-speichern";
 
 // Spec 017: read view and edit view of a meeting. Runs on the shared dev
 // database: every title and text is unique per run, every check is relative,
@@ -156,7 +157,7 @@ test.describe("Protokoll lesen", () => {
     for (const [index, [shortcut, value]] of quick.entries()) {
       await page.keyboard.press(shortcut);
       await page.keyboard.type(value);
-      await page.keyboard.press("Enter");
+      await savePoint(entry);
       await expect(items).toHaveCount(index + 1);
       await expect(text).toBeFocused();
     }
@@ -165,7 +166,7 @@ test.describe("Protokoll lesen", () => {
     await entry.getByRole("combobox", { name: "Wer" }).fill("Alex");
     await entry.getByRole("option", { name: "Alex Rauch" }).click();
     await entry.getByLabel("Bis wann").fill("2026-10-30");
-    await text.press("Enter");
+    await savePoint(entry);
     await expect(items).toHaveCount(4);
 
     // --- Summary and note --------------------------------------------------------

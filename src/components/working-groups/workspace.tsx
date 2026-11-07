@@ -173,7 +173,7 @@ function TodoRow({
       <div className="flex items-stretch">
         <TickBox checked={checked} label={`Erledigt: ${text}`} onToggle={onToggle} />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-2 pr-2">
-          <span className={`break-words [overflow-wrap:anywhere] ${checked ? "text-muted line-through" : ""}`}>{text}</span>
+          <span className={`whitespace-pre-line break-words [overflow-wrap:anywhere] ${checked ? "text-muted line-through" : ""}`}>{text}</span>
           {meta ? (
             <span className={`text-sm break-words ${late && !checked ? "font-semibold text-status-late" : "text-muted"}`}>
               {meta}
@@ -525,7 +525,7 @@ function Decisions({ group }: { group: AkGroup }) {
             <li key={decision.id} className="flex flex-col gap-1 rounded-md border border-line px-3 py-2">
               <span className="flex flex-wrap items-start gap-2">
                 <ItemKindBadge kind="entscheidung" />
-                <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{decision.text}</span>
+                <span className="min-w-0 flex-1 whitespace-pre-line break-words [overflow-wrap:anywhere]">{decision.text}</span>
               </span>
               <span className="text-sm">
                 <MeetingLink todo={decision} />

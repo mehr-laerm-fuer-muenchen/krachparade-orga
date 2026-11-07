@@ -51,6 +51,21 @@ function shortDate(date: string): string {
   return formatGermanDate(date).slice(0, 6);
 }
 
+/**
+ * Indents the following lines of a multi-line item by two spaces so they
+ * stay with their list point (spec 028). Several blank lines in a row
+ * become one; single-line texts stay as they are.
+ */
+export function indentFollowLines(text: string): string {
+  const lines: string[] = [];
+  for (const line of text.split(/\r\n?|\n/)) {
+    const blank = line.trim() === "";
+    if (blank && lines.at(-1) === "") continue;
+    lines.push(blank ? "" : line);
+  }
+  return lines.map((line, index) => (index === 0 || line === "" ? line : `  ${line}`)).join("\n");
+}
+
 function todoDetails(item: ExportItem, names: Names, formatDate: (date: string) => string): string {
   const parts = [ownerOf(item, names), item.dueDate ? `bis ${formatDate(item.dueDate)}` : null].filter(
     Boolean
@@ -72,7 +87,7 @@ export function toTelegramText(meeting: ExportMeeting, items: readonly ExportIte
 
   const decisions = items.filter((item) => item.kind === "entscheidung");
   if (decisions.length > 0) {
-    blocks.push(["Beschlüsse:", ...decisions.map((item) => `– ${item.text}`)].join("\n"));
+    blocks.push(["Beschlüsse:", ...decisions.map((item) => `– ${indentFollowLines(item.text)}`)].join("\n"));
   }
 
   const todos = items.filter((item) => item.kind === "todo");
@@ -81,7 +96,8 @@ export function toTelegramText(meeting: ExportMeeting, items: readonly ExportIte
       [
         "To-dos:",
         ...todos.map(
-          (item) => `– ${item.done ? "✓ " : ""}${item.text}${todoDetails(item, names, shortDate)}`
+          (item) =>
+            `– ${item.done ? "✓ " : ""}${indentFollowLines(item.text)}${todoDetails(item, names, shortDate)}`
         ),
       ].join("\n")
     );
@@ -90,7 +106,7 @@ export function toTelegramText(meeting: ExportMeeting, items: readonly ExportIte
   for (const { topic, items: topicItems } of groupByTopic(items)) {
     const notes = topicItems.filter((item) => item.kind === "info" || item.kind === "diskussion");
     if (notes.length > 0) {
-      blocks.push([`${topic}:`, ...notes.map((item) => `– ${item.text}`)].join("\n"));
+      blocks.push([`${topic}:`, ...notes.map((item) => `– ${indentFollowLines(item.text)}`)].join("\n"));
     }
   }
 
@@ -121,7 +137,7 @@ export function toMarkdown(meeting: ExportMeeting, items: readonly ExportItem[],
     for (const item of topicItems) {
       const details = item.kind === "todo" ? todoDetails(item, names, formatGermanDate) : "";
       const done = item.kind === "todo" && item.done ? " ✓" : "";
-      lines.push(`- **${ITEM_KIND_LABELS[item.kind]}:** ${item.text}${details}${done}`);
+      lines.push(`- **${ITEM_KIND_LABELS[item.kind]}:** ${indentFollowLines(item.text)}${details}${done}`);
     }
   }
 

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { toMarkdown, toTelegramText, type ExportItem, type ExportMeeting } from "./protocol-export";
+import {
+  indentFollowLines,
+  toMarkdown,
+  toTelegramText,
+  type ExportItem,
+  type ExportMeeting,
+} from "./protocol-export";
 
 const names = new Map([
   ["kim", "Kim Brenner"],
@@ -178,5 +184,53 @@ describe("toMarkdown", () => {
 
   it("stays unchanged with an empty summary", () => {
     expect(toMarkdown({ ...meeting, summary: " " }, items, names)).toBe(toMarkdown(meeting, items, names));
+  });
+});
+
+describe("multi-line items (spec 028)", () => {
+  const empty = { ...meeting, attendeeIds: [], guests: "" };
+
+  it("indents the following lines in the Telegram text", () => {
+    const text = toTelegramText(
+      empty,
+      [
+        item({ kind: "entscheidung", text: "Start am Odeonsplatz\nEnde am Königsplatz" }),
+        item({ kind: "todo", text: "Angebot einholen\nbei zwei Firmen", ownerId: "alex" }),
+        item({ topic: "Route", kind: "info", text: "Route steht\nnoch ohne Umweg" }),
+      ],
+      names
+    );
+    expect(text).toBe(
+      [
+        "Orga-Treffen – 14.10.2026",
+        "",
+        "Beschlüsse:",
+        "– Start am Odeonsplatz",
+        "  Ende am Königsplatz",
+        "",
+        "To-dos:",
+        "– Angebot einholen",
+        "  bei zwei Firmen (Alex Rauch)",
+        "",
+        "Route:",
+        "– Route steht",
+        "  noch ohne Umweg",
+      ].join("\n")
+    );
+  });
+
+  it("indents the following lines in Markdown", () => {
+    const text = toMarkdown(empty, [item({ kind: "entscheidung", text: "Start am Odeonsplatz\nEnde am Königsplatz" })], names);
+    expect(text.split("\n").slice(-2)).toEqual(["- **Beschluss:** Start am Odeonsplatz", "  Ende am Königsplatz"]);
+  });
+
+  it("leaves single-line items unchanged", () => {
+    expect(indentFollowLines("Start am Odeonsplatz")).toBe("Start am Odeonsplatz");
+    expect(toTelegramText(meeting, items, names)).not.toContain("\n  ");
+    expect(toMarkdown(meeting, items, names)).not.toContain("\n  ");
+  });
+
+  it("collapses several blank lines into one", () => {
+    expect(indentFollowLines("Eins\n\n\n  \nZwei\r\nDrei")).toBe("Eins\n\n  Zwei\n  Drei");
   });
 });

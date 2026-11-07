@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { savePoint } from "./punkt-speichern";
 
 // Spec 016: to-do progress in Gantt and week list, ticking off in the week
 // list, the "Als erreicht markieren?" hint, "Gespeichert ✓" and "Beschluss".
@@ -331,7 +332,7 @@ test.describe("Checklisten & Fortschritt", () => {
       await expect(entry.getByRole("radio", { name: /Beschluss/ })).toBeChecked();
       const decision = `E2E Beschluss ${run}`;
       await page.keyboard.type(decision);
-      await page.keyboard.press("Enter");
+      await savePoint(entry);
       const item = page.getByRole("list", { name: "Punkte zu E2E TOP" }).getByRole("listitem").filter({ hasText: decision });
       await expect(item.getByText("Beschluss", { exact: true })).toBeVisible();
 

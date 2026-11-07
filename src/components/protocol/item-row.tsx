@@ -8,10 +8,10 @@ import { formatGermanDate } from "@/lib/dday";
 import { departmentLabel } from "@/lib/department-groups";
 import { isOverdue, type ItemKind } from "@/lib/protocol-rules";
 import { ItemExtraFields, KindPicker, kindFromShortcut } from "./item-fields";
+import { ItemTextArea } from "./item-text-area";
 import { ownerFields, ownerFromItem } from "./owner-picker";
 import {
   ICON_BUTTON,
-  INPUT,
   PRIMARY_BUTTON,
   SECONDARY_BUTTON,
   personLabel,
@@ -99,7 +99,7 @@ export function ItemRow({
         >
           <span className="flex flex-wrap items-center gap-2">
             <ItemKindBadge kind={item.kind} />
-            <span className={`break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
+            <span className={`whitespace-pre-line break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
               {item.text}
             </span>
           </span>
@@ -199,16 +199,7 @@ function ItemEditor({
       <label htmlFor={`${id}-text`} className="sr-only">
         Text
       </label>
-      <input
-        id={`${id}-text`}
-        type="text"
-        value={text}
-        maxLength={2000}
-        autoFocus
-        autoComplete="off"
-        onChange={(event) => setText(event.target.value)}
-        className={INPUT}
-      />
+      <ItemTextArea id={`${id}-text`} value={text} onChange={setText} autoFocus />
       <ItemExtraFields
         kind={kind}
         people={people}

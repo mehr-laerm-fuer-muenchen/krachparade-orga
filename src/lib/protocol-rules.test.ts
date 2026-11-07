@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canDeleteMeeting,
+  deleteTopicPrompt,
   filterDecisions,
   filterTodos,
   groupByTopic,
@@ -142,5 +143,37 @@ describe("filterTodos", () => {
 
   it("filters by department", () => {
     expect(ids(filterTodos(items, { done: false, departmentId: "finanzen" }))).toEqual([1, 4]);
+  });
+});
+
+describe("deleteTopicPrompt", () => {
+  it("names one item in the singular", () => {
+    expect(deleteTopicPrompt("Finanzen", { items: 1, decisions: 0, todos: 0 })).toBe(
+      "TOP „Finanzen“ mit 1 Punkt löschen?"
+    );
+  });
+
+  it("names several items, decisions and to-dos", () => {
+    expect(deleteTopicPrompt("Finanzen", { items: 5, decisions: 1, todos: 2 })).toBe(
+      "TOP „Finanzen“ mit 5 Punkten löschen? Darunter 1 Beschluss und 2 To-dos."
+    );
+  });
+
+  it("names only decisions", () => {
+    expect(deleteTopicPrompt("Finanzen", { items: 3, decisions: 2, todos: 0 })).toBe(
+      "TOP „Finanzen“ mit 3 Punkten löschen? Darunter 2 Beschlüsse."
+    );
+  });
+
+  it("names only to-dos", () => {
+    expect(deleteTopicPrompt("Finanzen", { items: 2, decisions: 0, todos: 1 })).toBe(
+      "TOP „Finanzen“ mit 2 Punkten löschen? Darunter 1 To-do."
+    );
+  });
+
+  it("adds nothing without decisions and to-dos", () => {
+    expect(deleteTopicPrompt("Finanzen", { items: 4, decisions: 0, todos: 0 })).toBe(
+      "TOP „Finanzen“ mit 4 Punkten löschen?"
+    );
   });
 });

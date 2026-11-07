@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { savePoint } from "./punkt-speichern";
 
 // Spec 004: minutes. Runs on the shared dev database: every title and text is
 // unique per run, every check is relative, and the meetings created here are
@@ -125,7 +126,7 @@ test.describe("Protokoll", () => {
     for (const [index, [shortcut, value]] of quick.entries()) {
       await page.keyboard.press(shortcut);
       await page.keyboard.type(value);
-      await page.keyboard.press("Enter");
+      await savePoint(entry);
       await expect(items).toHaveCount(index + 1);
       await expect(text).toHaveValue("");
       await expect(text).toBeFocused();
@@ -138,7 +139,7 @@ test.describe("Protokoll", () => {
     await entry.getByRole("option", { name: "Alex Rauch" }).click();
     await entry.getByLabel("Bis wann").fill("2026-10-30");
     await entry.getByRole("combobox", { name: "Aufgabenbereich" }).selectOption({ label: "Finanzen" });
-    await text.press("Enter");
+    await savePoint(entry);
     await expect(items).toHaveCount(4);
     await expect(items.nth(3)).toContainText("Wer: Alex Rauch");
     await expect(items.nth(3)).toContainText("Aufgabenbereich: Finanzen");
@@ -146,7 +147,7 @@ test.describe("Protokoll", () => {
     await text.fill(todoGuest);
     await entry.getByRole("combobox", { name: "Wer" }).fill("Gast Test");
     await entry.getByRole("option", { name: "Ohne Account: Gast Test" }).click();
-    await text.press("Enter");
+    await savePoint(entry);
     await expect(items).toHaveCount(5);
     await expect(items.nth(4)).toContainText("Wer: Gast Test (ohne Account)");
 
@@ -217,7 +218,9 @@ test.describe("Protokoll", () => {
     await items.getByRole("button", { name: `Bearbeiten: E2E Info ${run}` }).click();
     const editor = page.getByRole("form", { name: "Punkt bearbeiten" });
     await editor.getByRole("textbox", { name: "Text" }).fill(`E2E Info final ${run}`);
-    await editor.getByRole("textbox", { name: "Text" }).press("Enter");
+    await savePoint(editor);
+    // The editor closes once the server has saved; the textarea itself already shows the new text.
+    await expect(editor).toHaveCount(0);
     await expect(items.filter({ hasText: `E2E Info final ${run}` })).toHaveCount(1);
     await page.reload();
     await expect(items.filter({ hasText: `E2E Info final ${run}` })).toHaveCount(1);

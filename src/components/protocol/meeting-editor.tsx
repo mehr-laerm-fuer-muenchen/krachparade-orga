@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useOptimistic, useRef, useState, useTransition } from "react";
 import {
   deleteMeeting,
+  deleteTopic,
   moveTopic,
   renameTopic,
   saveMeetingNotes,
@@ -15,11 +16,12 @@ import {
 } from "@/actions/meetings";
 import { useSaveStatus, type FieldStatus, type TrackSave } from "@/components/save-status";
 import { SUMMARY_MAX, summaryCounter } from "@/lib/protocol-read";
-import { groupByTopic, type MeetingStatus } from "@/lib/protocol-rules";
+import { deleteTopicPrompt, groupByTopic, type MeetingStatus } from "@/lib/protocol-rules";
 import { ExportButtons } from "./export-buttons";
 import { ItemRow } from "./item-row";
 import { QuickEntry } from "./quick-entry";
 import {
+  DELETE_ICON_BUTTON,
   ICON_BUTTON,
   INPUT,
   PRIMARY_BUTTON,
@@ -421,6 +423,30 @@ function DeleteMeetingButton({ meetingId, report }: { meetingId: string; report:
 
 // --- TOPs -------------------------------------------------------------------
 
+/** Bin icon in the text colour, so it takes the red of the delete buttons. */
+function TrashIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="mx-auto block"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  );
+}
+
 function Topics({
   meetingId,
   items,
@@ -491,6 +517,7 @@ function Topics({
             setDrafts((current) => current.map((draft) => (draft === entry.topic ? name : draft)));
             setFocusTopic(name);
           }}
+          onRemoveDraft={() => setDrafts((current) => current.filter((draft) => draft !== entry.topic))}
         />
       ))}
 
@@ -550,6 +577,7 @@ function TopicSection({
   track,
   status,
   onRenameDraft,
+  onRemoveDraft,
 }: {
   meetingId: string;
   topic: string;
@@ -566,6 +594,8 @@ function TopicSection({
   track: TrackSave;
   status: FieldStatus;
   onRenameDraft: (name: string) => void;
+  /** Drops this TOP from the drafts of this session (no-op if it is not one). */
+  onRemoveDraft: () => void;
 }) {
   const id = useId();
   const [renaming, setRenaming] = useState(false);
@@ -591,6 +621,26 @@ function TopicSection({
       const result = await renameTopic(meetingId, topic, next);
       if (result.ok) setRenaming(false);
       return result;
+    });
+  }
+
+  /** A draft without items goes at once; a saved TOP only after the question. */
+  function remove() {
+    if (isDraft) {
+      onRemoveDraft();
+      return;
+    }
+    const counts = {
+      items: items.length,
+      decisions: items.filter((item) => item.kind === "entscheidung").length,
+      todos: items.filter((item) => item.kind === "todo").length,
+    };
+    if (!window.confirm(deleteTopicPrompt(topic, counts))) return;
+    startTransition(async () => {
+      const result = await deleteTopic(meetingId, topic);
+      // Otherwise a TOP created as a draft in this session would come back empty.
+      if (result.ok) onRemoveDraft();
+      report(result, "Gelöscht");
     });
   }
 
@@ -663,6 +713,16 @@ function TopicSection({
               className={ICON_BUTTON}
             >
               ↓
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={remove}
+              aria-label={`${topic} löschen`}
+              title="TOP löschen"
+              className={DELETE_ICON_BUTTON}
+            >
+              <TrashIcon />
             </button>
           </div>
         )}

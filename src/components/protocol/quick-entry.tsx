@@ -6,11 +6,13 @@ import { useSaveStatus } from "@/components/save-status";
 import type { ItemKind } from "@/lib/protocol-rules";
 import { ItemExtraFields, KindPicker, kindFromShortcut } from "./item-fields";
 import { ownerFields } from "./owner-picker";
-import { INPUT, PRIMARY_BUTTON, type DepartmentOption, type Owner, type Person } from "./types";
+import { ItemTextArea } from "./item-text-area";
+import { PRIMARY_BUTTON, type DepartmentOption, type Owner, type Person } from "./types";
 
 /**
- * Entry at the end of a TOP: kind (Alt+1 … Alt+4), text, Enter saves. The
- * text field is emptied and keeps the focus; kind and department stay.
+ * Entry at the end of a TOP: kind (Alt+1 … Alt+4), text, Enter saves (on
+ * touch devices the button does). The text field is emptied and keeps the
+ * focus; kind and department stay.
  */
 export function QuickEntry({
   meetingId,
@@ -26,7 +28,7 @@ export function QuickEntry({
   autoFocus: boolean;
 }) {
   const id = useId();
-  const textRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const [kind, setKind] = useState<ItemKind>("info");
   const [text, setText] = useState("");
   const [owner, setOwner] = useState<Owner>(null);
@@ -81,20 +83,19 @@ export function QuickEntry({
       className="flex flex-col gap-2 rounded-md border border-dashed border-line-strong bg-surface-2/50 p-3"
     >
       <KindPicker value={kind} onChange={setKind} />
-      <div className="flex gap-2">
+      <div className="flex items-end gap-2">
         <label htmlFor={`${id}-text`} className="sr-only">
           Text
         </label>
-        <input
-          ref={textRef}
+        <ItemTextArea
+          textRef={textRef}
           id={`${id}-text`}
-          type="text"
           value={text}
-          maxLength={2000}
-          autoComplete="off"
-          placeholder="Punkt eingeben, Enter speichert"
-          onChange={(event) => setText(event.target.value)}
-          className={INPUT}
+          onChange={setText}
+          placeholder={{
+            fine: "Punkt eingeben – Enter speichert, Umschalt+Enter neue Zeile",
+            coarse: "Punkt eingeben",
+          }}
         />
         <button type="submit" className={PRIMARY_BUTTON}>
           Speichern
