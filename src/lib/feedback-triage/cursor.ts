@@ -12,6 +12,18 @@ export function parseMoment(value: string | null | undefined): Date | null {
 }
 
 /**
+ * Evaluates the `--cursor` argument of fetch.ts. Missing, empty or only
+ * whitespace → `null` (no cursor, first run: only open reports). A valid
+ * moment (surrounding whitespace ignored) → that date. Anything else →
+ * `"invalid"`.
+ */
+export function cursorFromArgument(value: string | null | undefined): Date | null | "invalid" {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed === "") return null;
+  return parseMoment(trimmed) ?? "invalid";
+}
+
+/**
  * Reads the cursor from an issue body. Missing or invalid → null. If the body
  * holds several markers, the last one counts (the report writes it at the end).
  */

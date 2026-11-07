@@ -7,14 +7,14 @@
 //   DATABASE_URL or DATABASE_URL_PROD.
 // - Exactly one query, only SELECT, only the view `feedback_triage`.
 // - Prints numbers only: no feedback texts, no connection details.
-// - `--cursor ""` (empty) counts as no cursor (first run).
+// - `--cursor ""` (empty or only whitespace) counts as no cursor (first run).
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { neon } from "@neondatabase/serverless";
 import { z } from "zod";
 import { FEEDBACK_KINDS } from "../../src/lib/feedback/kinds";
 import { FEEDBACK_STATUSES } from "../../src/lib/feedback/status";
-import { parseMoment } from "../../src/lib/feedback-triage/cursor";
+import { cursorFromArgument, parseMoment } from "../../src/lib/feedback-triage/cursor";
 import { selectForTriage, shortId, shouldReport, type TriageRow } from "../../src/lib/feedback-triage/select";
 
 const OUT_DIR = "triage-out";
@@ -97,9 +97,9 @@ async function main() {
   const url = process.env.FEEDBACK_TRIAGE_DATABASE_URL;
   if (!url) fail("FEEDBACK_TRIAGE_DATABASE_URL fehlt.");
 
-  const cursorArg = argument("--cursor");
-  const cursor = cursorArg ? parseMoment(cursorArg) : null;
-  if (cursorArg && !cursor) fail("--cursor ist kein Zeitpunkt (z. B. 2026-11-06T05:45:00.000Z).");
+  const cursorArg = cursorFromArgument(argument("--cursor"));
+  if (cursorArg === "invalid") fail("--cursor ist kein Zeitpunkt (z. B. 2026-11-06T05:45:00.000Z).");
+  const cursor = cursorArg;
 
   const nowArg = argument("--now");
   const now = nowArg ? parseMoment(nowArg) : new Date();

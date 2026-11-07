@@ -37,9 +37,11 @@
       "Write(./triage-out/input.json)",
       "Write(./triage-out/themen.json)",
       "Write(./triage-out/cursor.txt)",
+      "Write(./triage-out/geschlossen.json)",
       "Edit(./triage-out/input.json)",
       "Edit(./triage-out/themen.json)",
-      "Edit(./triage-out/cursor.txt)"
+      "Edit(./triage-out/cursor.txt)",
+      "Edit(./triage-out/geschlossen.json)"
     ]
   }
 }

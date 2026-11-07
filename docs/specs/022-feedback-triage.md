@@ -329,3 +329,7 @@ keiner
   - Anweisung, Vitest und `AGENTS.md` sind angepasst. Dafür ändert sich `result.ts` und `render.ts` aus Teil A.
 - `agents/feedback-triage.md`, Schritt 2 „Prüfen“: Bei Bedienfragen den aktuellen Stand aus `src/lib/news/entries.ts` (neueste zuerst) und den Specs ab 025 berücksichtigen, damit Antworten keine veralteten Abläufe beschreiben (von Franz freigegeben).
 - B4: Gibt es die Umgebung `feedback-triage` beim ersten Lauf noch nicht, legt GitHub sie ohne Zweig-Regel an. Deshalb Deploy-Schritt 6 **vor** dem ersten Lauf erledigen.
+- Nachbesserungen vor dem Deploy (von Franz freigegeben):
+  - Leerer Cursor: Beim ersten Lauf ruft der Workflow `fetch.ts --cursor ""` auf. Ein leerer oder nur aus Leerzeichen bestehender `--cursor` zählt genau wie „kein Cursor“ (erster Lauf: nur offene Meldungen). Ausgewertet wird das in der reinen Funktion `cursorFromArgument` in `src/lib/feedback-triage/cursor.ts`, mit Vitest-Test. Leerzeichen um einen gültigen Zeitpunkt werden ignoriert.
+  - `agents/feedback-triage.settings.json` sperrt zusätzlich Write und Edit auf `./triage-out/geschlossen.json`, weil diese Datei vor dem Agenten entsteht.
+  - `claude --version` ist lokal 2.1.319, genau die Version, die der Workflow installiert.

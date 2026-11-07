@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { parseMoment, readCursor, writeCursor } from "./cursor";
+import { cursorFromArgument, parseMoment, readCursor, writeCursor } from "./cursor";
+
+describe("cursorFromArgument", () => {
+  it("treats missing, empty and whitespace-only like no cursor", () => {
+    expect(cursorFromArgument(undefined)).toBeNull();
+    expect(cursorFromArgument(null)).toBeNull();
+    expect(cursorFromArgument("")).toBeNull();
+    expect(cursorFromArgument("   ")).toBeNull();
+    expect(cursorFromArgument(" \t\n ")).toBeNull();
+  });
+
+  it("accepts a valid moment, also with surrounding whitespace", () => {
+    expect(cursorFromArgument("2026-11-06T05:45:00.000Z")).toEqual(new Date("2026-11-06T05:45:00.000Z"));
+    expect(cursorFromArgument("  2026-11-06T05:45:00.000Z\n")).toEqual(new Date("2026-11-06T05:45:00.000Z"));
+  });
+
+  it("marks anything else as invalid", () => {
+    expect(cursorFromArgument("gestern")).toBe("invalid");
+    expect(cursorFromArgument("2026-11-06")).toBe("invalid");
+    expect(cursorFromArgument("2026-11-06T05:45:00+01:00")).toBe("invalid");
+  });
+});
 
 describe("readCursor / writeCursor", () => {
   it("round-trips a moment", () => {
