@@ -61,7 +61,7 @@ async function Decisions({ searchParams }: Pick<PageProps<"/protokolle/beschlues
         <ul aria-label="Beschlüsse" className="flex flex-col rounded-md border border-line bg-surface">
           {shown.map((item) => (
             <li key={item.id} aria-label={item.text} className="flex flex-col gap-1 border-b border-line px-4 py-3 last:border-b-0">
-              <span className="break-words [overflow-wrap:anywhere]">{item.text}</span>
+              <span className="whitespace-pre-line break-words [overflow-wrap:anywhere]">{item.text}</span>
               <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
                 <Link
                   href={`/protokolle/${item.meetingId}`}

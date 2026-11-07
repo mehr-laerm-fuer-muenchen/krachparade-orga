@@ -109,7 +109,7 @@ export function MeetingReader({
               >
                 <span className="flex flex-wrap items-baseline gap-2">
                   <ItemKindBadge kind="entscheidung" />
-                  <span className="min-w-0 break-words [overflow-wrap:anywhere]">{decision.text}</span>
+                  <span className="min-w-0 whitespace-pre-line break-words [overflow-wrap:anywhere]">{decision.text}</span>
                 </span>
                 <span className="text-xs text-muted break-words">
                   {[decision.topic, decision.department].filter(Boolean).join(" · ")}
@@ -206,7 +206,7 @@ function Todos({
             <li key={todo.id} aria-label={todo.text} className="flex items-stretch border-b border-line last:border-b-0">
               <TickBox checked={done} label={`${todo.text} erledigt`} onToggle={() => void toggle(todo, !done)} />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-3 pr-4">
-                <span className={`break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
+                <span className={`whitespace-pre-line break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
                   {todo.text}
                 </span>
                 <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
@@ -237,7 +237,7 @@ function NoteList({ notes, label }: { notes: readonly ReadNote[]; label: string 
   return (
     <ul aria-label={label} className="flex list-disc flex-col gap-1 pl-5">
       {notes.map((note) => (
-        <li key={note.id} className="break-words [overflow-wrap:anywhere]">
+        <li key={note.id} className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
           {note.text}
           {note.department ? <span className="text-xs text-muted"> · {note.department}</span> : null}
         </li>

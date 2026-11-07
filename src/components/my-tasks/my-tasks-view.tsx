@@ -128,7 +128,7 @@ function TaskCard({
   const body = (
     <>
       <span className="flex min-w-0 flex-1 flex-col justify-center py-2 pr-2">
-        <span className={`font-semibold break-words ${mode === "done" ? "text-muted line-through" : ""}`}>
+        <span className={`font-semibold whitespace-pre-line break-words ${mode === "done" ? "text-muted line-through" : ""}`}>
           {titleOf(task)}
         </span>
         <span className={`text-sm break-words ${mode === "open" && late ? "text-status-late" : "text-muted"}`}>

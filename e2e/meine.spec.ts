@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { savePoint } from "./punkt-speichern";
 
 // Spec 009: "Meine Aufgaben". Works only with its own elements and meetings,
 // named "E2E Meine … ‹run›" and unique per run; elements of the seed are only
@@ -140,7 +141,7 @@ async function createMeetingWithTodo(page: Page, title: string, todo: string): P
   await entry.getByRole("combobox", { name: "Wer" }).fill("Kim");
   await entry.getByRole("option", { name: "Kim Brenner" }).click();
   await entry.getByLabel("Bis wann").fill(berlinDay(-1));
-  await text.press("Enter");
+  await savePoint(entry);
   await expect(page.getByRole("list", { name: "Punkte zu E2E TOP" }).getByRole("listitem")).toHaveCount(1);
   return url;
 }

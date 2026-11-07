@@ -108,4 +108,10 @@ ID `028-punkt-mehrzeilig`, Datum = Tag des Baus.
 
 ## Abweichungen beim Bau
 
-(von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+- **Klicktests am Handy (von Franz freigegeben):** Im Playwright-Projekt „iphone“ (Touch) macht Enter jetzt eine neue Zeile. Die bestehenden Tests speichern deshalb über die Hilfsfunktion `savePoint` in `e2e/punkt-speichern.ts`: bei Touch Tipp auf „Speichern“, sonst Enter. Der neue Test `e2e/punkt-mehrzeilig.spec.ts` prüft am Handy ausdrücklich, dass Enter eine neue Zeile macht und nichts speichert.
+- **Kurzfassung unverändert (von Franz freigegeben).**
+- **Gemeinsamer Baustein:** `ItemTextArea` in `src/components/protocol/item-text-area.tsx` für Schnell-Eingabe und Bearbeiten. Das Gerät wird mit `useSyncExternalStore` erkannt statt mit `useEffect`. Server und erstes Rendern nutzen das Laptop-Verhalten, danach wechselt der Browser. So gibt es keinen Hydration-Fehler.
+- **Platzhalter einzeilig:** `field-sizing: content` richtet die Höhe auch nach dem Platzhalter. Der lange Laptop-Platzhalter brach bei 1280 px um und machte das leere Feld zwei Zeilen hoch. Mit `placeholder:truncate` bleibt er einzeilig, falls nötig mit „…“.
+- **Ersatz für das Wachsen:** greift nur, wenn der Browser `field-sizing` nicht kann. Die Testbrowser können es, den Ersatz prüft also nur der Live-Check am iPhone.
+- **`protokoll.spec.ts` strenger:** Nach dem Speichern im Editor wartet der Test, bis sich der Editor schließt. Grund: React schreibt den Wert einer `<textarea>` auch als Textinhalt, deshalb passte `hasText` schon vor der Antwort des Servers, und `reload()` brach das Speichern ab.
+- **Risikoklasse:** `src/app/(app)/protokolle/beschluesse/page.tsx` ist geändert (nur `whitespace-pre-line`). Das Skript stuft das vermutlich als B ein. Zusammen mit 029 ist der Zweig ohnehin B.

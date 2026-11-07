@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { savePoint } from "./punkt-speichern";
 
 // Spec 005: working groups ("AKs") and departments ("Aufgabenbereiche"). Runs
 // on the shared dev database: every name is unique per run, every check is
@@ -198,7 +199,7 @@ test.describe("Arbeitskreise", () => {
     await expect(select.locator('optgroup[label^="AK "]').first()).toBeAttached();
     await select.selectOption({ label: area });
     await entry.getByRole("textbox", { name: "Text" }).fill(`E2E Punkt ${run}`);
-    await entry.getByRole("textbox", { name: "Text" }).press("Enter");
+    await savePoint(entry);
     const items = page.getByRole("list", { name: "Punkte zu E2E TOP" }).getByRole("listitem");
     await expect(items).toHaveCount(1);
     await expect(items.first()).toContainText(`Aufgabenbereich: ${area} · ${testGroup}`);

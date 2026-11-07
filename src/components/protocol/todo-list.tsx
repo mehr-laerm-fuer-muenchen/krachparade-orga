@@ -54,7 +54,7 @@ function TodoRow({ todo }: { todo: TodoRowData }) {
         />
       </label>
       <div className="flex min-w-0 flex-1 flex-col gap-1 py-2">
-        <span className={`break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
+        <span className={`whitespace-pre-line break-words [overflow-wrap:anywhere] ${done ? "text-muted line-through" : ""}`}>
           {todo.text}
         </span>
         <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">

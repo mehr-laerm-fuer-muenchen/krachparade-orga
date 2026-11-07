@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { savePoint } from "./punkt-speichern";
 
 // Spec 018: AK overview and AK workspace. Runs on the shared dev database
 // and never changes seed data: it works with its own working group "E2E AK
@@ -366,13 +367,13 @@ test.describe("AK-Arbeitsbereich", () => {
     await page.keyboard.type(meetingTodo);
     await entry.getByLabel("Bis wann").fill(berlinDay(-1));
     await entry.getByRole("combobox", { name: "Aufgabenbereich" }).selectOption({ label: area });
-    await text.press("Enter");
+    await savePoint(entry);
     await expect(items).toHaveCount(1);
     await text.focus();
     await page.keyboard.press("Alt+Digit3");
     await page.keyboard.type(decision);
     await entry.getByRole("combobox", { name: "Aufgabenbereich" }).selectOption({ label: area });
-    await text.press("Enter");
+    await savePoint(entry);
     await expect(items).toHaveCount(2);
 
     // --- Workspace: to-do in "Braucht Aufmerksamkeit" and "Aus Protokollen" -----

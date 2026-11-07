@@ -45,8 +45,8 @@ describe("latestNewsId", () => {
     expect(latestNewsId([])).toBeNull();
   });
 
-  it("is the entry of spec 026", () => {
-    expect(latestNewsId(NEWS)).toBe("026-gantt-zeitfenster");
+  it("is the entry of spec 028", () => {
+    expect(latestNewsId(NEWS)).toBe("028-punkt-mehrzeilig");
   });
 });
 
