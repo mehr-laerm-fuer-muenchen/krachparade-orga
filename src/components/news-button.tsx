@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
+import { useScrollLock } from "@/components/use-scroll-lock";
 import { NEWS } from "@/lib/news/entries";
 import { NEWS_SEEN_KEY, formatNewsDate, hasUnread, latestNewsId } from "@/lib/news/news";
 
@@ -71,35 +72,8 @@ export function NewsButton({ className = "" }: { className?: string }) {
     return () => dialog.removeEventListener("keydown", stop);
   }, []);
 
-  // The page behind the panel does not scroll while it is open. iOS Safari
-  // ignores overflow: hidden for touch scrolling, so the body is pinned at the
-  // current position and the page jumps back there on close.
-  useEffect(() => {
-    if (!isOpen) return;
-    const root = document.documentElement;
-    const { body } = document;
-    const scrollY = window.scrollY;
-    const previous = {
-      overflow: root.style.overflow,
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-    };
-    root.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    return () => {
-      root.style.overflow = previous.overflow;
-      body.style.position = previous.position;
-      body.style.top = previous.top;
-      body.style.left = previous.left;
-      body.style.right = previous.right;
-      window.scrollTo(0, scrollY);
-    };
-  }, [isOpen]);
+  // The page behind the panel does not scroll while it is open.
+  useScrollLock(isOpen);
 
   const open = () => {
     if (latest) writeSeen(latest);

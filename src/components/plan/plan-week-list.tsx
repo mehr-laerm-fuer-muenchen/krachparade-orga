@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
+import { DayPlanLink } from "@/components/day/day-plan-link";
 import { TickBox } from "@/components/tick-box";
 import { weekAgenda, type AgendaEntry, type PlanTodoView, type PlanViewElement } from "@/lib/gantt-layout";
 import { windowText } from "@/lib/plan-status";
@@ -117,12 +118,15 @@ function Group({
   entries,
   empty,
   context,
+  dayLink = false,
 }: {
   title: string;
   range?: string;
   entries: AgendaEntry[];
   empty?: string;
   context: CardContext;
+  /** Spec 030: the week of the Krachparade links to the day plan. */
+  dayLink?: boolean;
 }) {
   const headingId = useId();
   return (
@@ -133,6 +137,7 @@ function Group({
         </h2>
         {range ? <span className="text-sm text-muted tabular-nums">{range}</span> : null}
       </div>
+      {dayLink ? <DayPlanLink className="self-start" /> : null}
       {entries.length === 0 ? (
         <p className="text-muted">{empty}</p>
       ) : (
@@ -159,6 +164,7 @@ export function PlanWeekList({
   onSelect,
   onCreate,
   ticks,
+  dayLink = false,
 }: {
   elements: readonly PlanViewElement[];
   today: number;
@@ -170,6 +176,8 @@ export function PlanWeekList({
   onCreate?: () => void;
   /** Ticking off elements and to-dos (spec 016). */
   ticks: PlanTicks;
+  /** Spec 030: show "Ablauf am Tag ansehen" in the week of the Krachparade (or on top). */
+  dayLink?: boolean;
 }) {
   const [mineOnly, setMineOnly] = useState(false);
   const [weeks, setWeeks] = useState(PAGE_WEEKS);
@@ -178,6 +186,9 @@ export function PlanWeekList({
   const [hintHidden, setHintHidden] = useState<ReadonlySet<string>>(() => new Set());
   const noGroups = mineOnly && myGroupIds.length === 0;
   const agenda = weekAgenda({ dDay, elements }, today, { weeks, myGroupIds: mineOnly ? myGroupIds : null });
+  // Day 0 is the Krachparade: the link sits in its week, or on top if that week is not shown.
+  const isDayWeek = (monday: number) => monday <= 0 && 0 <= monday + 6;
+  const dayWeekShown = agenda.weeks.some((week) => isDayWeek(week.monday));
   const context: CardContext = {
     byId: new Map(elements.map((element) => [element.id, element])),
     today,
@@ -226,6 +237,7 @@ export function PlanWeekList({
           </button>
         ) : null}
       </div>
+      {dayLink && (noGroups || !dayWeekShown) ? <DayPlanLink className="-mt-2 self-start" /> : null}
 
       {noGroups ? (
         <p className="rounded-md border border-line bg-surface px-4 py-3 text-muted">
@@ -248,6 +260,7 @@ export function PlanWeekList({
               entries={week.entries}
               empty="Nichts fällig."
               context={context}
+              dayLink={dayLink && isDayWeek(week.monday)}
             />
           ))}
           {agenda.hasMore ? (

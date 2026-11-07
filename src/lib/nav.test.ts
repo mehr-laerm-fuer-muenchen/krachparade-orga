@@ -24,6 +24,14 @@ describe("isActiveTab", () => {
     expect(isActiveTab("/meine", more)).toBe(false);
   });
 
+  it("marks Mehr and Krachparade on the Krachparade pages (spec 030)", () => {
+    const day = MAIN_NAV.find((item) => item.label === "Krachparade")!;
+    expect(isActiveTab("/krachparade", more)).toBe(true);
+    expect(isActiveTab("/krachparade/rollen", more)).toBe(true);
+    expect(isActiveTab("/krachparade/rollen", day)).toBe(true);
+    expect(isActiveTab("/", day)).toBe(false);
+  });
+
   it("marks Mehr and Einstellungen on the feedback pages", () => {
     const settings = MAIN_NAV.find((item) => item.label === "Einstellungen")!;
     expect(isActiveTab("/feedback", more)).toBe(true);
@@ -34,9 +42,10 @@ describe("isActiveTab", () => {
 });
 
 describe("navigation", () => {
-  it("has the six sections in the agreed order", () => {
+  it("has the seven sections in the agreed order", () => {
     expect(MAIN_NAV.map((item) => item.href)).toEqual([
       "/",
+      "/krachparade",
       "/arbeitskreise",
       "/protokolle",
       "/meine",

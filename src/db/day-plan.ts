@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { dayChecks, dayEntries, dayRolePeople, dayRoles, dayTracks, members, workingGroups } from "./schema";
 
@@ -43,6 +43,31 @@ export type DayRoleView = {
 };
 
 export type DayPlanView = { tracks: DayTrackView[]; entries: DayEntryView[]; roles: DayRoleView[] };
+
+/** Working groups of the edition and all members (names only) for the choices on the Krachparade pages. */
+export async function loadDayOptions(editionId: string) {
+  const [groups, people] = await Promise.all([
+    db
+      .select({ id: workingGroups.id, name: workingGroups.name })
+      .from(workingGroups)
+      .where(eq(workingGroups.editionId, editionId))
+      .orderBy(asc(workingGroups.sortOrder), asc(workingGroups.name)),
+    db
+      .select({ id: members.id, name: members.name, active: members.active })
+      .from(members)
+      .orderBy(desc(members.active), asc(members.name)),
+  ]);
+  return { groups, people };
+}
+
+/** Number of entries and roles of the day plan, for the link in the plan (spec 030). */
+export async function countDayPlan(editionId: string): Promise<{ entries: number; roles: number }> {
+  const [[entryRow], [roleRow]] = await Promise.all([
+    db.select({ total: count() }).from(dayEntries).where(eq(dayEntries.editionId, editionId)),
+    db.select({ total: count() }).from(dayRoles).where(eq(dayRoles.editionId, editionId)),
+  ]);
+  return { entries: entryRow?.total ?? 0, roles: roleRow?.total ?? 0 };
+}
 
 function personView(memberId: string | null, memberName: string | null, text: string | null): DayPersonView | null {
   if (memberId) return { memberId, name: null, label: memberName ?? "Unbekannt" };

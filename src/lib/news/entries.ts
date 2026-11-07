@@ -16,6 +16,26 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "030-krachparade-tag",
+    date: "2026-11-07",
+    title: "Der Tag der Krachparade",
+    items: [
+      {
+        lead: "Neue Seite „Krachparade“",
+        text: "Ablauf des Tages mit Spalten für Programm, Demozug und Orga. Am Laptop verschiebst du Blöcke per Drag & Drop, am Handy mit ±15 min.",
+      },
+      {
+        lead: "Checklisten am Ablauf",
+        text: "Jeder Eintrag hat eine Checkliste zum Abhaken, z. B. „Schild „Ab hier Sound AUS“ gestellt“.",
+      },
+      {
+        lead: "Rollen am Tag",
+        text: "Wer macht Versammlungsleitung, Demozentrale & Co.? Unbesetzte Rollen siehst du sofort.",
+      },
+      { lead: "Startet mit dem Ablauf von 2026", text: "Passt ihn gemeinsam an." },
+    ],
+  },
+  {
     id: "029-top-loeschen",
     date: "2026-11-07",
     title: "TOPs löschen",

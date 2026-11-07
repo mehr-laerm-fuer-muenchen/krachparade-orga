@@ -254,3 +254,13 @@ Beim Bau von Teil A:
 - `timelineRange` endet immer spätestens um 24:00, auch wenn ein Zeitpunkt kurz vor Mitternacht (zählt als 20 Minuten) darüber hinausreichen würde.
 - Die Vorlage nutzt Uhrzeiten als Text („11:15“) und wird beim Anlegen in Minuten umgerechnet; der Seed legt alles in einem `db.batch` an, damit ein Fehler keine halbe Vorlage hinterlässt.
 - Wird bei einem Eintrag die Uhrzeit entfernt, entfällt auch das Ende (ohne Beginn gibt es kein Ende).
+
+Beim Bau von Teil B:
+
+- **Teil A ergänzt (für B nötig):** `src/db/day-plan.ts` hat zusätzlich `loadDayOptions` (AKs und Namen für die Auswahl) und `countDayPlan` (Zahlen für das Fenster im Plan). Die Übergangs-Liste aus A5 ist durch den Tagesplan ersetzt.
+- **Kopfleiste am Laptop:** Mit „Krachparade“ passen die sieben Navigationspunkte bei 1280 px nicht mehr neben Logo und Countdown. Die Navigation steht deshalb bis 1536 px in einer eigenen Zeile darunter (wie bisher schon zwischen 901 und 1279 px), statt umzubrechen.
+- **Handy-Liste:** Unter der Liste gibt es zusätzlich den Abschnitt „Spalten“ mit „+ Spalte“ und je Spalte einem Knopf zum Bearbeiten, damit B5 auch am Handy erreichbar ist.
+- **Neue Einträge, Spalten und Rollen** werden sofort mit einem Platzhalter angelegt („Neuer Eintrag“ 12:00–13:00, „Neue Spalte“, „Neue Rolle“); der Name ist danach markiert und wird überschrieben.
+- **Uhrzeit-Felder** speichern beim Verlassen und zusätzlich 0,8 s nach einer Änderung, weil die Auswahlräder am Handy das Feld nicht immer verlassen.
+- **Nach dem Ziehen** bleibt der Block an der neuen Stelle stehen, bis die Daten vom Server da sind (kein kurzes Zurückspringen).
+- **Fenster am Krachparade-Schild** öffnet nach links, weil das Schild am rechten Rand des Gantt steht.

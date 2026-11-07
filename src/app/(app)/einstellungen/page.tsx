@@ -28,6 +28,16 @@ export default function SettingsPage() {
 
       {/* "Mehr" on narrow screens: what the header holds on wide screens. */}
       <section aria-label="Mehr" className="flex flex-col gap-3 desk:hidden">
+        {/* Spec 030: the bottom bar is full, so the Krachparade page sits here. */}
+        <Link
+          href="/krachparade"
+          className="flex min-h-11 items-center justify-between rounded-md border border-line bg-surface px-4 text-base font-medium"
+        >
+          Krachparade – Ablauf &amp; Rollen
+          <span aria-hidden className="text-muted">
+            ›
+          </span>
+        </Link>
         <Link
           href="/kollektive"
           className="flex min-h-11 items-center justify-between rounded-md border border-line bg-surface px-4 text-base font-medium"

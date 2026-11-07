@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
 import { PlanView } from "@/components/plan/plan-view";
+import { countDayPlan } from "@/db/day-plan";
 import { getCurrentEdition } from "@/db/editions";
 import { loadPlanView } from "@/db/plan-view";
 import { todayInBerlin } from "@/lib/dday";
@@ -43,7 +44,10 @@ async function Plan() {
   }
 
   const title = `Plan ${shortEditionName(edition.name)}`;
-  const view = await loadPlanView(edition, member.id, todayInBerlin(new Date()));
+  const [view, dayPlan] = await Promise.all([
+    loadPlanView(edition, member.id, todayInBerlin(new Date())),
+    countDayPlan(edition.id),
+  ]);
   if (view.status === "empty") {
     return (
       <>
@@ -63,5 +67,5 @@ async function Plan() {
     );
   }
 
-  return <PlanView data={view.data} />;
+  return <PlanView data={view.data} dayPlan={dayPlan} />;
 }

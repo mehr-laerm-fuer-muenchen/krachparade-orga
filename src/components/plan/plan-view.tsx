@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { DayPlanCounts } from "@/components/day/day-plan-link";
 import { PageTitle } from "@/components/placeholder";
 import {
   NO_GROUP_KEY,
@@ -205,7 +206,7 @@ function Legend() {
  * selected element. Shows the result from the server; only while dragging
  * the browser computes a preview with the same engine.
  */
-export function PlanView({ data }: { data: PlanViewData }) {
+export function PlanView({ data, dayPlan }: { data: PlanViewData; dayPlan?: DayPlanCounts }) {
   const { elements, groups, links, counts, today, dDay } = data;
   const [view, setView] = useState<View>("gantt");
   const [zoom, setZoom] = useState<Zoom>("month");
@@ -402,6 +403,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
                 edit={ganttEdit}
                 progress={progress}
                 windows={windows}
+                dayPlan={dayPlan}
               />
               <p className="text-sm text-muted">
                 Antippen zeigt Abhängigkeiten und Details. Ziehen legt den Termin selbst fest (Lage „Frei im
@@ -418,6 +420,7 @@ export function PlanView({ data }: { data: PlanViewData }) {
               onSelect={setSelectedId}
               onCreate={() => setCreating(true)}
               ticks={ticks}
+              dayLink={dayPlan !== undefined}
             />
             <p className="text-sm text-muted desk:hidden">Antippen öffnet Details und Lage.</p>
           </div>
