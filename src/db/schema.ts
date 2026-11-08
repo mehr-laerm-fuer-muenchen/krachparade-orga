@@ -404,6 +404,150 @@ export const feedback = pgTable(
 export type Feedback = typeof feedback.$inferSelect;
 
 /**
+ * Spec 030: columns of the day plan of the Krachparade ("Programm & Bühne",
+ * …), in the order of `position`. Times of the day plan are minutes since
+ * 0:00 of the edition's D-Day, so there is no date and no time zone.
+ */
+export const dayTracks = pgTable(
+  "day_tracks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    editionId: uuid("edition_id")
+      .notNull()
+      .references(() => editions.id),
+    name: text("name").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check("day_tracks_name", sql`char_length(${table.name}) between 1 and 40`)]
+);
+
+export type DayTrack = typeof dayTracks.$inferSelect;
+
+/**
+ * Spec 030: one entry of the day plan. Without `start_minute` it has no time,
+ * without `end_minute` it is a point in time. The person is a member or
+ * (`person_text`) a name without an account.
+ */
+export const dayEntries = pgTable(
+  "day_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    editionId: uuid("edition_id")
+      .notNull()
+      .references(() => editions.id),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => dayTracks.id, { onDelete: "restrict" }),
+    title: text("title").notNull(),
+    startMinute: integer("start_minute"),
+    endMinute: integer("end_minute"),
+    approx: boolean("approx").notNull().default(false),
+    place: text("place"),
+    workingGroupId: uuid("working_group_id").references(() => workingGroups.id, { onDelete: "set null" }),
+    personMemberId: uuid("person_member_id").references(() => members.id),
+    personText: text("person_text"),
+    note: text("note"),
+    createdBy: uuid("created_by").references(() => members.id),
+    updatedBy: uuid("updated_by").references(() => members.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("day_entries_title", sql`char_length(${table.title}) between 1 and 120`),
+    check("day_entries_start_minute", sql`${table.startMinute} between 0 and 1439`),
+    check(
+      "day_entries_end_minute",
+      sql`${table.endMinute} is null or (${table.startMinute} is not null and ${table.endMinute} > ${table.startMinute} and ${table.endMinute} <= 1439)`
+    ),
+    check("day_entries_place", sql`char_length(${table.place}) <= 120`),
+    check("day_entries_person_text", sql`char_length(${table.personText}) <= 80`),
+    check("day_entries_person_one", sql`${table.personMemberId} is null or ${table.personText} is null`),
+    check("day_entries_note", sql`char_length(${table.note}) <= 2000`),
+    index("day_entries_edition_track").on(table.editionId, table.trackId),
+  ]
+);
+
+export type DayEntry = typeof dayEntries.$inferSelect;
+
+/**
+ * Spec 030: checklist of a day plan entry; the person is a member or
+ * (`name_text`) a name without an account.
+ */
+export const dayChecks = pgTable(
+  "day_checks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => dayEntries.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    done: boolean("done").notNull().default(false),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    memberId: uuid("member_id").references(() => members.id),
+    nameText: text("name_text"),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("day_checks_text", sql`char_length(${table.text}) between 1 and 200`),
+    check("day_checks_name_text", sql`char_length(${table.nameText}) <= 80`),
+    check("day_checks_person_one", sql`${table.memberId} is null or ${table.nameText} is null`),
+    index("day_checks_entry").on(table.entryId),
+  ]
+);
+
+export type DayCheck = typeof dayChecks.$inferSelect;
+
+/** Spec 030: roles on the D-Day ("Versammlungsleitung", …). */
+export const dayRoles = pgTable(
+  "day_roles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    editionId: uuid("edition_id")
+      .notNull()
+      .references(() => editions.id),
+    title: text("title").notNull(),
+    task: text("task"),
+    /** How to recognise the role, e.g. "Weste lila". */
+    mark: text("mark"),
+    workingGroupId: uuid("working_group_id").references(() => workingGroups.id, { onDelete: "set null" }),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("day_roles_title", sql`char_length(${table.title}) between 1 and 80`),
+    check("day_roles_task", sql`char_length(${table.task}) <= 500`),
+    check("day_roles_mark", sql`char_length(${table.mark}) <= 40`),
+  ]
+);
+
+export type DayRole = typeof dayRoles.$inferSelect;
+
+/** Spec 030: people of a role, each a member or (`name_text`) a name without an account. */
+export const dayRolePeople = pgTable(
+  "day_role_people",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => dayRoles.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id").references(() => members.id),
+    nameText: text("name_text"),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    check("day_role_people_name_text", sql`char_length(${table.nameText}) <= 80`),
+    check("day_role_people_person_one", sql`(${table.memberId} is null) <> (${table.nameText} is null)`),
+    index("day_role_people_role").on(table.roleId),
+  ]
+);
+
+export type DayRolePerson = typeof dayRolePeople.$inferSelect;
+
+/**
  * Spec 022: read-only view for the feedback triage, without `created_by` and
  * `updated_by`. Created by hand (scripts/sql/022-feedback-triage.sql);
  * `.existing()` makes `db:push` neither create nor drop it.

@@ -37,9 +37,10 @@ export function AppHeader({ badges }: { badges?: NavBadges }) {
           </span>
         </Link>
 
+        {/* Own row below logo and countdown; inline only where all seven items fit (spec 030). */}
         <MainNav
           badges={badges}
-          className="order-last hidden w-full desk:block xl:order-none xl:w-auto xl:flex-1"
+          className="order-last hidden w-full desk:block 2xl:order-none 2xl:w-auto 2xl:flex-1"
         />
 
         <div className="ml-auto flex shrink-0 items-center desk:gap-4">

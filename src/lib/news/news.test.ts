@@ -45,8 +45,8 @@ describe("latestNewsId", () => {
     expect(latestNewsId([])).toBeNull();
   });
 
-  it("is the entry of spec 029", () => {
-    expect(latestNewsId(NEWS)).toBe("029-top-loeschen");
+  it("is the entry of spec 030", () => {
+    expect(latestNewsId(NEWS)).toBe("030-krachparade-tag");
   });
 });
 

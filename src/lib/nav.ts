@@ -10,6 +10,8 @@ export type NavItem = {
 /** Main navigation in the header (wide screens), in this order. */
 export const MAIN_NAV: readonly NavItem[] = [
   { href: "/", label: "Plan" },
+  // Spec 030 (Franz): right after "Plan".
+  { href: "/krachparade", label: "Krachparade" },
   { href: "/arbeitskreise", label: "AKs" },
   { href: "/protokolle", label: "Protokolle" },
   { href: "/meine", label: "Meine Aufgaben" },
@@ -24,13 +26,13 @@ export type TabItem = {
   alsoActiveFor?: readonly string[];
 };
 
-/** Bottom tab bar (narrow screens). "Mehr" holds Kollektive and Abmelden. */
+/** Bottom tab bar (narrow screens). "Mehr" holds Krachparade, Kollektive and Abmelden. */
 export const TAB_NAV: readonly TabItem[] = [
   { href: "/", label: "Plan" },
   { href: "/arbeitskreise", label: "AKs" },
   { href: "/protokolle", label: "Protokolle" },
   { href: "/meine", label: "Meine" },
-  { href: "/einstellungen", label: "Mehr", alsoActiveFor: ["/kollektive", "/feedback"] },
+  { href: "/einstellungen", label: "Mehr", alsoActiveFor: ["/krachparade", "/kollektive", "/feedback"] },
 ];
 
 /** True if `pathname` is `href` or one of its sub pages ("/" only matches itself). */

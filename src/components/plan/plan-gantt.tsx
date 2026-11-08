@@ -27,6 +27,7 @@ import { D_DAY_NAME } from "../../lib/plan-edit";
 import type { PlanInput } from "../../lib/plan-engine";
 import { barLabel } from "../../lib/plan-status";
 import { formatProgress, type TodoProgress } from "../../lib/todo-progress";
+import { DayPlanPopover, type DayPlanCounts } from "../day/day-plan-link";
 import { PIN_PATH } from "./pin-icon";
 
 type GanttElement = GanttWindowElement;
@@ -106,6 +107,8 @@ export type PlanGanttProps = {
   progress?: ReadonlyMap<string, TodoProgress>;
   /** Time window bands (spec 026, switch "Fenster"); on by default. */
   windows?: boolean;
+  /** Spec 030: the Krachparade label opens a window with the link to the day plan. */
+  dayPlan?: DayPlanCounts;
 };
 
 const NO_TODOS: TodoProgress = { done: 0, total: 0, complete: false };
@@ -134,6 +137,7 @@ export function PlanGantt({
   edit,
   progress,
   windows = true,
+  dayPlan,
 }: PlanGanttProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -262,7 +266,16 @@ export function PlanGantt({
         ))}
       </div>
 
-      <div ref={scrollRef} className="min-w-0 flex-1 overflow-x-auto">
+      <div ref={scrollRef} className="relative min-w-0 flex-1 overflow-x-auto">
+        {dayPlan ? (
+          <DayPlanPopover
+            left={dayLabels[1].left}
+            width={dayLabels[1].right - dayLabels[1].left}
+            dDay={dDay}
+            today={today}
+            counts={dayPlan}
+          />
+        ) : null}
         <svg
           role="img"
           aria-label="Gantt-Plan"
