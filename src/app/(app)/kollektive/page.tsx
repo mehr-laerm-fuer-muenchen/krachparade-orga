@@ -21,6 +21,7 @@ import {
   VEHICLE_SHORT_LABELS,
   VEST_SIZES,
 } from "@/lib/collectives/options";
+import { isConfirmationMissing } from "@/lib/collectives/mail-status";
 import { isPastRetention, retentionEnd } from "@/lib/collectives/retention";
 import { summarizeRegistrations } from "@/lib/collectives/summary";
 import { registrationState } from "@/lib/collectives/window";
@@ -64,7 +65,8 @@ async function Overview() {
   if (!edition) {
     return <p className="rounded-md border border-line bg-surface px-4 py-3 text-muted">Es gibt keine aktuelle Ausgabe.</p>;
   }
-  const today = todayInBerlin(new Date());
+  const now = new Date();
+  const today = todayInBerlin(now);
   const registrations = await listRegistrations(edition.id);
   const summary = summarizeRegistrations(registrations);
   const state = registrationState(
@@ -84,6 +86,7 @@ async function Overview() {
     homeBase: entry.homeBase,
     genres: entry.genres,
     createdLabel: berlinDay.format(entry.createdAt),
+    mailMissing: isConfirmationMissing(entry.confirmationSentAt, entry.createdAt, now),
   }));
 
   const windowText =

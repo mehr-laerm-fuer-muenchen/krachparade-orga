@@ -20,6 +20,8 @@ import {
 /** One stored registration as the CSV export needs it (spec 031). */
 export type CsvRegistration = {
   createdAt: Date;
+  /** Spec 032. */
+  confirmationSentAt: Date | null;
   status: RegistrationStatus;
   internalNote: string | null;
   contactFirstName: string;
@@ -78,6 +80,7 @@ function formatDateTime(moment: Date): string {
 const COLUMNS: [header: string, value: (entry: CsvRegistration) => string | number | null][] = [
   ["Eingegangen", (entry) => formatDateTime(entry.createdAt)],
   ["Status", (entry) => REGISTRATION_STATUS_LABELS[entry.status]],
+  ["Bestätigung verschickt", (entry) => (entry.confirmationSentAt ? formatDateTime(entry.confirmationSentAt) : "nein")],
   ["Interne Notiz", (entry) => entry.internalNote],
   ["Vorname Hauptansprechpartner/in", (entry) => entry.contactFirstName],
   ["Nachname Hauptansprechpartner/in", (entry) => entry.contactLastName],

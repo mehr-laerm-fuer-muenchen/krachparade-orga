@@ -42,6 +42,23 @@ BASE_URL=http://localhost:3031 pnpm exec playwright test --ui              # Kli
 
 Port 3031, damit es nicht mit deinem `pnpm dev` auf 3000 (Neon `dev`) kollidiert.
 
+## Mails ansehen (Spec 032)
+
+Mailpit fängt alle Mails ab, die die App lokal verschickt, z. B. die Bestätigung nach einer Anmeldung. Nichts davon verlässt deinen Rechner.
+
+- Postfach im Browser: **http://localhost:8026**
+- Die App schickt an `localhost:1026` (steht in `docker/local.env`). Die Ports sind absichtlich nicht die Mailpit-Standards 8025/1025, damit sie nicht mit einem anderen Mailpit auf deinem Rechner kollidieren.
+- Der Klicktest `e2e/kollektiv-anmeldung.spec.ts` prüft die Mail über die Mailpit-API und löscht sie danach wieder. Läuft Mailpit nicht, überspringt er diesen Teil.
+
+Hast du die Docker-Umgebung schon vor Spec 032 eingerichtet? Dann reicht:
+
+```bash
+docker compose -f docker/compose.yaml up -d
+docker compose -f docker/compose.yaml exec -T postgres psql -U postgres -d main -c "alter table collective_registrations add column if not exists confirmation_sent_at timestamp with time zone"
+```
+
+Danach die App neu starten, damit sie die neuen Werte aus `docker/local.env` liest.
+
 ## Stoppen und neu aufsetzen
 
 ```bash

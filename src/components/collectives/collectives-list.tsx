@@ -27,7 +27,17 @@ export type CollectiveListEntry = {
   genres: string[];
   /** "18.11.2026" */
   createdLabel: string;
+  /** Spec 032: no confirmation mail after ten minutes. */
+  mailMissing: boolean;
 };
+
+function MailMissing() {
+  return (
+    <span className="inline-flex items-center whitespace-nowrap rounded-full border border-status-late px-2.5 py-0.5 text-xs font-semibold text-status-late">
+      Mail fehlt
+    </span>
+  );
+}
 
 type YesNoFilter = "" | "yes" | "no";
 
@@ -154,6 +164,7 @@ export function CollectivesList({ entries }: { entries: CollectiveListEntry[] })
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold break-words">{entry.collectiveName}</span>
                     <RegistrationStatusPill status={entry.status} />
+                    {entry.mailMissing ? <MailMissing /> : null}
                   </span>
                   <span className="text-sm text-muted">
                     {VEHICLE_SHORT_LABELS[entry.vehicle]} · TÜV {yesNo(entry.tuev)} · Soundkopplung{" "}
@@ -190,7 +201,10 @@ export function CollectivesList({ entries }: { entries: CollectiveListEntry[] })
                     <td className="px-4 py-2">{yesNo(entry.soundCoupling)}</td>
                     <td className="px-4 py-2">{HOME_BASE_LABELS[entry.homeBase]}</td>
                     <td className="px-4 py-2">
-                      <RegistrationStatusPill status={entry.status} />
+                      <span className="flex flex-wrap gap-1">
+                        <RegistrationStatusPill status={entry.status} />
+                        {entry.mailMissing ? <MailMissing /> : null}
+                      </span>
                     </td>
                     <td className="px-4 py-2 tabular-nums">{entry.createdLabel}</td>
                   </tr>

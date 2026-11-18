@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 
 // Spec 031: public registration of the collectives and their evaluation.
 // The admin (seed "Kim Brenner") opens the registration window, a visitor
@@ -64,8 +64,57 @@ function choose(page: Page, name: string, option: string | RegExp) {
     .check();
 }
 
+// Spec 032: local Mailpit of docker/compose.yaml; not reachable in CI against
+// the Vercel preview, where the mail part is skipped.
+const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8026";
+
+type MailpitAddress = { Address: string };
+type MailpitSummary = { ID: string; Subject: string; To: MailpitAddress[]; Cc: MailpitAddress[] | null };
+
+async function mailpitReachable(request: APIRequestContext): Promise<boolean> {
+  try {
+    return (await request.get(`${MAILPIT_URL}/api/v1/messages`, { timeout: 2000 })).ok();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks the confirmation mail of `name` and deletes it again. Returns false
+ * (with a note in the report) when Mailpit is not running.
+ */
+async function expectConfirmationMail(request: APIRequestContext, name: string): Promise<boolean> {
+  if (!(await mailpitReachable(request))) {
+    test.info().annotations.push({ type: "hinweis", description: "Mailpit läuft nicht – Mail nicht geprüft." });
+    return false;
+  }
+  const find = async () => {
+    const response = await request.get(`${MAILPIT_URL}/api/v1/messages?limit=200`);
+    const { messages } = (await response.json()) as { messages: MailpitSummary[] };
+    return messages.filter((message) => message.Subject.includes(name));
+  };
+  await expect.poll(async () => (await find()).length, { timeout: 15_000 }).toBe(1);
+  const [summary] = await find();
+  try {
+    expect(summary.Subject).toBe(`Eure Anmeldung zur Krachparade 08.05.2027: ${name}`);
+    expect(summary.To.map((to) => to.Address)).toEqual(["robin.beispiel@example.org"]);
+    expect((summary.Cc ?? []).map((cc) => cc.Address)).toEqual(["kai.probe@example.org"]);
+    const message = (await (await request.get(`${MAILPIT_URL}/api/v1/message/${summary.ID}`)).json()) as {
+      Text: string;
+    };
+    expect(message.Text).toContain("Hallo Robin,");
+    expect(message.Text).toContain("Summe: 310 €");
+    expect(message.Text).not.toContain("0000099");
+    expect(message.Text).not.toContain("0000098");
+    expect(message.Text).not.toContain("E2E Awareness-Team");
+  } finally {
+    await request.delete(`${MAILPIT_URL}/api/v1/messages`, { data: { IDs: [summary.ID] } });
+  }
+  return true;
+}
+
 test.describe("Kollektiv-Anmeldung", () => {
-  test("ohne Login anmelden, Orga sieht, sagt zu und löscht", async ({ page, browser }, testInfo) => {
+  test("ohne Login anmelden, Orga sieht, sagt zu und löscht", async ({ page, browser, request }, testInfo) => {
     const name = `E2E Testkollektiv ${testInfo.project.name} ${Date.now()}`;
 
     await devLogin(page, "Kim Brenner");
@@ -151,10 +200,16 @@ test.describe("Kollektiv-Anmeldung", () => {
 
       expect(errors, "Konsolen-Fehler auf der Anmeldung").toEqual([]);
 
+      // Spec 032: exactly one confirmation mail, checked in the local Mailpit.
+      const mailSent = await expectConfirmationMail(request, name);
+
       // The core team sees, accepts and deletes the registration.
       await page.goto("/kollektive");
       await page.getByRole("link", { name }).filter({ visible: true }).click();
       await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+      if (mailSent) {
+        await expect(page.getByTestId("bestaetigung")).toContainText("verschickt am");
+      }
       await expect(page.getByRole("link", { name: "+49 000 0000099" })).toBeVisible();
       await page.getByRole("group", { name: "Status" }).getByRole("button", { name: "Zugesagt" }).click();
       await expect(page.getByText("Status: Zugesagt.")).toBeVisible();

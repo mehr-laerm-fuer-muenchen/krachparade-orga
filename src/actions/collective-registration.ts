@@ -1,13 +1,17 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { countRegistrations, registrationExists, registrationRow } from "@/db/collectives";
 import { getCurrentEdition } from "@/db/editions";
 import { db } from "@/db/index";
 import { collectiveRegistrations } from "@/db/schema";
+import { confirmationMail, type ConfirmationMail } from "@/lib/collectives/confirmation-mail";
 import { MAX_REGISTRATIONS, MIN_FILL_SECONDS } from "@/lib/collectives/limits";
+import { sendMail } from "@/lib/mail/send";
 import { ORGA_EMAIL } from "@/lib/collectives/options";
 import { registrationFieldErrors, registrationInput } from "@/lib/collectives/registration-schema";
 import { registrationState } from "@/lib/collectives/window";
@@ -35,6 +39,19 @@ const meta = z.object({
   /** Date.now() in the browser after the form has loaded. */
   startedAt: z.number().int().nonnegative(),
 });
+
+/** Sends the mail and notes the time; a failure leaves the registration as it is. */
+async function sendConfirmation(registrationId: string, mail: ConfirmationMail) {
+  try {
+    if (!(await sendMail(mail))) return;
+    await db
+      .update(collectiveRegistrations)
+      .set({ confirmationSentAt: new Date() })
+      .where(eq(collectiveRegistrations.id, registrationId));
+  } catch (error) {
+    console.error(`[anmeldung] Bestätigung: ${error instanceof Error ? error.name : "Fehler"}`);
+  }
+}
 
 export async function submitRegistration(input: unknown, metaInput: unknown): Promise<SubmitRegistrationResult> {
   const parsedMeta = meta.safeParse(metaInput);
@@ -77,6 +94,10 @@ export async function submitRegistration(input: unknown, metaInput: unknown): Pr
       .returning({ id: collectiveRegistrations.id });
     if (!row) return { ok: false, message: ERROR_DUPLICATE };
     revalidatePath("/kollektive");
+    // Spec 032: exactly one confirmation mail per stored registration, sent
+    // after the response so the form does not wait for the mail server.
+    const mail = confirmationMail(data, edition.dDay);
+    after(() => sendConfirmation(row.id, mail));
     return { ok: true, id: row.id };
   } catch (error) {
     console.error(`[anmeldung] ${error instanceof Error ? error.name : "Fehler"}`);

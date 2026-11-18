@@ -113,6 +113,14 @@ async function Detail({ params }: Pick<PageProps<"/kollektive/[id]">, "params">)
           <RegistrationStatusPill status={entry.status} />
           <span>Eingegangen {formatGermanDateTime(entry.createdAt)}</span>
         </p>
+        <p className="text-muted" data-testid="bestaetigung">
+          Bestätigungs-Mail:{" "}
+          {entry.confirmationSentAt ? (
+            `verschickt am ${formatGermanDateTime(entry.confirmationSentAt)}`
+          ) : (
+            <span className="font-medium text-status-late">nicht verschickt</span>
+          )}
+        </p>
       </div>
 
       <RegistrationReview id={entry.id} status={entry.status} note={entry.internalNote ?? ""} />

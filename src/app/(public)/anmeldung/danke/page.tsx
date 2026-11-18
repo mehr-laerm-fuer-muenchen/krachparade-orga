@@ -28,7 +28,11 @@ export default function ThanksPage({ searchParams }: PageProps<"/anmeldung/danke
           Die Anmeldung ist <strong>verbindlich</strong>, sobald wir sie bestätigt haben. Überweist erst nach unserer
           Bestätigung.
         </p>
-        <p>Macht euch am besten einen Screenshot dieser Seite.</p>
+        <p>
+          Ihr bekommt gleich eine Bestätigung per E-Mail an die angegebene Adresse, die oder der Wagenverantwortliche
+          in Kopie. Schaut auch im Spam-Ordner nach.
+        </p>
+        <p>Macht euch am besten trotzdem einen Screenshot dieser Seite.</p>
         <p className="text-muted">Fragen oder Änderungen? Schreibt uns an {ORGA_EMAIL}.</p>
       </div>
     </div>

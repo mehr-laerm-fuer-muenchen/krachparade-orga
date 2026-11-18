@@ -483,7 +483,7 @@ export function RegistrationForm({ retentionEndLabel }: { retentionEndLabel: str
         >
           Wir sind einverstanden, dass die Orga der Krachparade diese Angaben zur Planung der Krachparade 2027
           speichert. Alle Angaben, auch die Telefonnummern, löschen wir drei Monate nach der Krachparade (am{" "}
-          {retentionEndLabel}).
+          {retentionEndLabel}). Eine Bestätigung schicken wir per E-Mail.
         </Confirm>
       </Section>
 

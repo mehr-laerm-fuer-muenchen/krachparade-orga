@@ -609,6 +609,8 @@ export const collectiveRegistrations = pgTable(
 
     stewardsConfirmedAt: timestamp("stewards_confirmed_at", { withTimezone: true }).notNull(),
     privacyConfirmedAt: timestamp("privacy_confirmed_at", { withTimezone: true }).notNull(),
+    /** Spec 032: when the confirmation mail went out; null = not (yet) sent. */
+    confirmationSentAt: timestamp("confirmation_sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

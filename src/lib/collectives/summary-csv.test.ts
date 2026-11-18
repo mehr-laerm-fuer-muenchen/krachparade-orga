@@ -10,6 +10,7 @@ function stored(overrides: Partial<CsvRegistration> = {}): CsvRegistration {
   return {
     ...data,
     createdAt: new Date("2027-01-20T10:15:00Z"),
+    confirmationSentAt: null,
     status: "new",
     internalNote: null,
     ...overrides,
@@ -73,11 +74,15 @@ describe("csv", () => {
   });
 
   it("starts with a BOM and has one line per registration", () => {
-    const csv = registrationsCsv([stored(), stored({ collectiveName: "Zweites" })]);
-    expect(csv.startsWith("﻿Eingegangen;Status;")).toBe(true);
+    const csv = registrationsCsv([
+      stored(),
+      stored({ collectiveName: "Zweites", confirmationSentAt: new Date("2027-01-20T10:16:00Z") }),
+    ]);
+    expect(csv.startsWith("﻿Eingegangen;Status;Bestätigung verschickt;")).toBe(true);
     const lines = csv.trimEnd().split("\r\n");
     expect(lines).toHaveLength(3);
-    expect(lines[1]).toContain("20.01.2027, 11:15");
+    expect(lines[1]).toContain("20.01.2027, 11:15;Neu;nein;");
+    expect(lines[2]).toContain(";Neu;20.01.2027, 11:16;");
     expect(lines[1]).toContain("Testkollektiv Lautstark");
     expect(lines[1]).toContain(";Ja;");
     expect(lines[1].endsWith(";250")).toBe(true);

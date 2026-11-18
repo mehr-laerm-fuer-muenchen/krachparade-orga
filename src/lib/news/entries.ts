@@ -16,6 +16,21 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "032-bestaetigungs-mail",
+    date: "2026-11-18",
+    title: "Bestätigungs-Mail für Kollektive",
+    items: [
+      {
+        lead: "Mail nach der Anmeldung",
+        text: "Kollektive bekommen nach dem Absenden eine Bestätigung mit Kosten, die oder der Wagenverantwortliche in Kopie.",
+      },
+      {
+        lead: "Siehst du unter „Kollektive“",
+        text: "An jeder Anmeldung steht, ob die Mail rausging.",
+      },
+    ],
+  },
+  {
     id: "031-kollektiv-anmeldung",
     date: "2026-11-18",
     title: "Anmeldung der Kollektive",
