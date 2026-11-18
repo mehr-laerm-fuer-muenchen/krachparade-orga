@@ -6,6 +6,7 @@ import { logout } from "@/actions/auth";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
 import { DDayForm, InviteForm, MemberActionButton } from "@/components/settings/forms";
+import { ThemeSwitch } from "@/components/settings/theme-switch";
 import { BugIcon } from "@/components/feedback-button";
 import { getCurrentEdition } from "@/db/editions";
 import { countNewFeedback } from "@/db/feedback";
@@ -58,6 +59,13 @@ export default function SettingsPage() {
       </section>
 
       <PageTitle>Einstellungen</PageTitle>
+      {/* Spec 034: per device, for everyone. */}
+      <section aria-labelledby="darstellung" className={SECTION}>
+        <h2 id="darstellung" className="text-lg font-semibold">
+          Darstellung
+        </h2>
+        <ThemeSwitch />
+      </section>
       <Suspense fallback={<p className="text-muted">Lade Einstellungen …</p>}>
         <SettingsSections />
       </Suspense>

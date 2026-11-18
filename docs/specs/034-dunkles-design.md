@@ -86,3 +86,7 @@ Die App hat schon ein dunkles Design, aber es kommt nur, wenn das Handy oder der
 Keine Datenbank-Änderung → `deploy`. Danach Live-Check durch Franz am iPhone und Laptop: Einstellungen → Darstellung umschalten, neu laden, „Wie das Gerät“.
 
 ## Abweichungen beim Bau
+
+- **`data-theme` immer gesetzt (B1, B2, B4):** Das Inline-Skript setzt `data-theme` immer auf `light` oder `dark`, also auf die eigene Wahl, sonst auf das, was das Gerät nutzt. So stehen die dunklen Farben nur einmal in `globals.css` (`:root[data-theme="dark"]`), ohne Media-Query und ohne Kopie. „Wie das Gerät“ löscht nur `kp-theme`, `data-theme` springt dann auf den Wert des Geräts. Der Klicktest prüft das entsprechend.
+- **`src/components/theme-sync.tsx`** im Root-Layout: folgt live dem Gerät, übernimmt Änderungen aus anderen Tabs und setzt `data-theme` nach dem Dev-Remount von React erneut (laut `node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md`). Das Skript steht als `<script dangerouslySetInnerHTML>` direkt im `<head>`, wie es diese Anleitung empfiehlt.
+- **`@custom-variant dark`** weggelassen: Kein eigener Baustein braucht `dark:`. Die Dev-Login-Seite (Klasse C) behält ihre `dark:`-Klassen und richtet sich weiter nach dem Gerät.

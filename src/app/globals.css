@@ -54,51 +54,52 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111614;
-    --surface: #191f1c;
-    --surface-2: #212925;
-    --text: #e7ece9;
-    --muted: #9aa6a0;
-    --line: #2b3430;
-    --line-strong: #3a4540;
-    --primary: #9fd3a8;
-    --on-primary: #0e1a14;
+/* Dark colours (spec 034). The inline script in the root layout always sets
+   data-theme on <html>: the own choice from the settings, otherwise what the
+   device uses. So the dark values live in this one place. */
+:root[data-theme="dark"] {
+  --bg: #111614;
+  --surface: #191f1c;
+  --surface-2: #212925;
+  --text: #e7ece9;
+  --muted: #9aa6a0;
+  --line: #2b3430;
+  --line-strong: #3a4540;
+  --primary: #9fd3a8;
+  --on-primary: #0e1a14;
 
-    --header-bg: #0b2b21;
+  --header-bg: #0b2b21;
 
-    --status-done: #2e7d4f;
-    --on-status-done: #ffffff;
-    --status-ok: #3f6b45;
-    --on-status-ok: #ddf3dd;
-    --status-warn: #b9832e;
-    --on-status-warn: #1e1200;
-    --status-late: #b23a51;
-    --on-status-late: #ffffff;
+  --status-done: #2e7d4f;
+  --on-status-done: #ffffff;
+  --status-ok: #3f6b45;
+  --on-status-ok: #ddf3dd;
+  --status-warn: #b9832e;
+  --on-status-warn: #1e1200;
+  --status-late: #b23a51;
+  --on-status-late: #ffffff;
 
-    --kind-info: #1e2636;
-    --on-kind-info: #b9c8e8;
-    --kind-discussion: #2a2236;
-    --on-kind-discussion: #d3c2ea;
-    --kind-decision: #2e7d4f;
-    --on-kind-decision: #ffffff;
-    --kind-todo: #3a2b15;
-    --on-kind-todo: #f2c27e;
+  --kind-info: #1e2636;
+  --on-kind-info: #b9c8e8;
+  --kind-discussion: #2a2236;
+  --on-kind-discussion: #d3c2ea;
+  --kind-decision: #2e7d4f;
+  --on-kind-decision: #ffffff;
+  --kind-todo: #3a2b15;
+  --on-kind-todo: #f2c27e;
 
-    --gantt-buffer: #5c7266;
-    --gantt-late: #5a2531;
-    --gantt-lane: #1e2622;
-    --window: #1f3326;
-    --window-edge: #4f7d57;
+  --gantt-buffer: #5c7266;
+  --gantt-late: #5a2531;
+  --gantt-lane: #1e2622;
+  --window: #1f3326;
+  --window-edge: #4f7d57;
 
-    --progress-track: #36423c;
-    --progress-fill: #7cc98f;
-    --hint-bg: #34202a;
-    --hint-border: #e0679a;
+  --progress-track: #36423c;
+  --progress-fill: #7cc98f;
+  --hint-bg: #34202a;
+  --hint-border: #e0679a;
 
-    color-scheme: dark;
-  }
+  color-scheme: dark;
 }
 
 @theme inline {
