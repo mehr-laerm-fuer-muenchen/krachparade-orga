@@ -1,7 +1,9 @@
 # SPEC 031 – Anmeldung der Kollektive
 
 Freigabe Franz: ☑
-Zweig: `spec/031-kollektiv-anmeldung` · Risikoklasse **C** (öffentliche Seite ohne Login: `src/proxy.ts`, `AGENTS.md`, `agents/risikoklassen.json`) · **lokal, Teil A/B/C** · DB: ja (1 neue Tabelle, 2 neue Spalten an `editions`)
+Zweig: `spec/031-kollektiv-anmeldung` · Risikoklasse **C** (öffentliche Seite ohne Login: `src/proxy.ts`, `AGENTS.md`, `agents/risikoklassen.json`; neue Abhängigkeit `nodemailer`, `package.json`, `.env.example`, `docker/`) · **lokal, Teil A–F** · DB: ja (1 neue Tabelle, 2 neue Spalten an `editions`)
+
+Enthält seit 18.11.2026 auch die früheren Specs **032 (Bestätigungs-Mail, Teil E)** und **033 (T-Shirt-Übersicht, Teil F)**. Beide waren einzeln freigegeben und gebaut und wurden auf Wunsch in diese Spec zusammengeführt.
 
 Ersetzt das Google-Formular „Finale Anmeldung Krachparade 16.05.2026“ (KP26) durch ein Formular in der App. Grundlage: Fragen und Logik des Google-Formulars (Screenshots von Franz, 18.11.2026). Entscheidungen von Franz vom 18.11.2026:
 
@@ -13,15 +15,23 @@ Ersetzt das Google-Formular „Finale Anmeldung Krachparade 16.05.2026“ (KP26)
 - **Pfand:** 150 € für **alle** Kollektive, auch ohne Motor.
 - **TÜV-Frage:** entfällt bei „nicht motorisiert“.
 - **Westen-Größen:** S, L, XXL (wie im alten Formular).
+- **Bestätigungs-Mail** (vormals 032): Versand per SMTP über das bestehende Gmail-Postfach `mehr.laerm.fuer.muenchen@gmail.com` mit App-Passwort, kein neuer Anbieter. Die Mail geht an die Hauptansprechperson, die oder der Wagenverantwortliche steht in CC.
+- **T-Shirt-Übersicht** (vormals 033): Sie zeigt den Umsatz, keinen Gewinn, weil der Einkaufspreis noch fehlt. Es gibt zwei Zahlen: „zugesagt“ und „erwartet“ (alle außer abgesagt).
 
 ## Ziel
 
 Kollektive melden sich für die Krachparade 2027 (08.05.2027) über **`/anmeldung`** an, **ohne Google-Konto** und ohne Login. Die Kern-Orga sieht unter **`/kollektive`** (nur mit Login) alle Anmeldungen. Dort kann sie filtern und eine Anmeldung zusagen, auf die Warteliste setzen oder absagen. Sie sieht Kennzahlen (Fahrzeuge, TÜV, Soundkopplung, Westen, T-Shirts, erwartete Zahlungen) und kann alles als CSV exportieren. Das Formular ist nur in einem Zeitfenster offen, das Admins in der App einstellen. Laut Plan liegt „Anmeldung offen“ ab D-111, also um den 17.01.2027.
 
+Nach dem Absenden bekommt das Kollektiv eine **Bestätigungs-Mail** mit Zusammenfassung und Kosten (Teil E). Unter `/kollektive` zeigt ein eigener Bereich **„T-Shirts“** alle Shirt-Bestellungen: gesamt, je Kollektiv und mit dem Umsatz (Teil F).
+
 ## Nicht in dieser Spec
 
 - **Voranmeldung** (Plan-Element „Voranmeldung geöffnet“, D-138). Das wird eine eigene Spec, wenn gewünscht.
-- **Bestätigungs-Mail.** Dafür bräuchten wir einen externen Mail-Dienst. Stattdessen zeigt die Danke-Seite eine Zusammenfassung mit Kosten.
+- **Zusage-Mail** mit Zahlungsinfos und Frist (eigene Spec)
+- **Bestätigungs-Mail erneut senden** aus `/kollektive`. Bei Bedarf schreibt die Orga von Hand.
+- **Info-Mail an das Orga-Postfach** bei neuer Anmeldung
+- **HTML-Design, Logo und Anhänge in der Mail.** Die Mail ist schlichter Text.
+- **Einkaufspreis und Gewinn der T-Shirts,** eigener CSV-Export für die Druckerei, Bezahlt-Haken je Kollektiv
 - **Datei-Uploads** (siehe oben)
 - **Status-Häkchen je Kollektiv:** Zahlung, TÜV, Telegram, Briefing, Paket, Pfand (eigene Spec)
 - **Ordner-Bedarf aus dem Fahrzeugmix.** Die Formel steht noch nicht fest.
@@ -67,6 +77,7 @@ Weicht der Code grundlegend ab, z. B. wenn eine Seite ohne Sitzung nicht ohne Um
   - **Wagenverantwortliche/r:** `vehicle_lead_first_name`, `vehicle_lead_last_name`, `vehicle_lead_email`, `vehicle_lead_size` (Check: `S`, `L`, `XXL`), `vehicle_lead_phone`
   - **T-Shirts:** `shirts` (`jsonb`, Form `{ standard: {S,M,L,XL,XXL}, soli: {S,M,L,XL,XXL} }`, je 0–100)
   - **Bestätigungen:** `stewards_confirmed_at` (timestamptz, Pflicht) und `privacy_confirmed_at` (timestamptz, Pflicht)
+  - **Bestätigungs-Mail:** `confirmation_sent_at` (timestamptz, nullable), siehe Teil E
   - **Zeitstempel:** `created_at`, `updated_at`
   - Index auf `(edition_id, created_at)`; eindeutig pro Ausgabe: `lower(collective_name)` + `contact_email`
 
@@ -157,7 +168,7 @@ Weicht der Code grundlegend ab, z. B. wenn eine Seite ohne Sitzung nicht ohne Um
      - Checkbox*: „Ich habe die Auflagen für die Ordner gelesen und verstanden. Mir ist bewusst, dass fehlende Ordner zu einem Ausschluss am Tag der Parade führen.“
      - Ohne Haken erscheint der Hinweis aus Abschnitt 10 des alten Formulars: „Ohne Ordner geht es nicht. Meldet euch bei uns per Mail oder Telegram, Kontakte auf www.krachparade.de.“
   9. **Datenschutz:**
-     - Checkbox*: „Wir sind einverstanden, dass die Orga der Krachparade diese Angaben zur Planung der Krachparade 2027 speichert. Alle Angaben, auch die Telefonnummern, löschen wir drei Monate nach der Krachparade (am 08.08.2027).“ Das Datum kommt aus `retentionEnd`.
+     - Checkbox*: „Wir sind einverstanden, dass die Orga der Krachparade diese Angaben zur Planung der Krachparade 2027 speichert. Alle Angaben, auch die Telefonnummern, löschen wir drei Monate nach der Krachparade (am 08.08.2027). Eine Bestätigung schicken wir per E-Mail.“ Das Datum kommt aus `retentionEnd`.
   10. **Kostenübersicht** (live aus `registrationCosts`) und Knopf „Verbindlich anmelden“.
 - Felder mit 16 px Schrift, Tippflächen mindestens 44 px, `autocomplete`-Attribute (`given-name`, `family-name`, `email`, `tel`).
 - Fehler stehen am Feld (`FieldError`). Beim Absenden mit Fehlern springt die Seite zum ersten Fehler.
@@ -168,7 +179,8 @@ Weicht der Code grundlegend ab, z. B. wenn eine Seite ohne Sitzung nicht ohne Um
 
 - Zeigt „Danke, eure Anmeldung ist da!“, den Namen des Kollektivs, die Kostenübersicht und:
   - „Die Anmeldung ist verbindlich, sobald wir sie bestätigt haben. Überweist erst nach unserer Bestätigung.“
-  - „Macht euch am besten einen Screenshot.“
+  - „Ihr bekommt gleich eine Bestätigung per E-Mail an die angegebene Adresse, die oder der Wagenverantwortliche in Kopie. Schaut auch im Spam-Ordner nach.“ (Teil E)
+  - „Macht euch am besten trotzdem einen Screenshot dieser Seite.“
 - Die Seite zeigt nur Name und Kosten. Sie lädt die Anmeldung nur, wenn sie jünger als 1 Stunde ist, sonst gibt es nur den Danke-Text. **Keine** Kontaktdaten.
 
 ### Teil C · Auswertung `/kollektive` und Regeln
@@ -182,8 +194,8 @@ Weicht der Code grundlegend ab, z. B. wenn eine Seite ohne Sitzung nicht ohne Um
 
 **C2 · Liste `/kollektive`** (ersetzt den Platzhalter)
 
-- Oben Kennzahlen als ruhige Kacheln: Anmeldungen (je Status), Fahrzeuge, TÜV, Soundkopplung, Abschnittsleitungen, erwartete Zahlungen. Darunter klappbar: Westen je Größe, Shirts je Art und Größe.
-- Darunter die Anmeldungen.
+- Oben Kennzahlen als ruhige Kacheln: Anmeldungen (je Status), Fahrzeuge, TÜV, Soundkopplung, Abschnittsleitungen, erwartete Zahlungen. Darunter klappbar: „Westen“ je Größe. Die Shirts stehen im eigenen Bereich, siehe Teil F.
+- Darunter die Anmeldungen, danach der Bereich „T-Shirts“ (Teil F).
   - Am Laptop als Tabelle: Name, Fahrzeug, TÜV, Soundkopplung, Homebase, Status, Datum.
   - Am Handy als Karten.
   - Suche nach Name. Filter: Status, Fahrzeug, TÜV, Soundkopplung, Genre.
@@ -216,9 +228,15 @@ Weicht der Code grundlegend ab, z. B. wenn eine Seite ohne Sitzung nicht ohne Um
    - Die Mindestzeit wird im Test per `page.clock` vorgespult.
    - Die Kostenübersicht zeigt 150 + 100 + 60 = **310 €**. Absenden → Danke-Seite mit 310 €.
 3. Ohne Login `/kollektive` öffnen → Weiterleitung auf `/login`.
-4. Als Admin: In `/kollektive` steht „E2E Testkollektiv“. Detail öffnen, Status „zugesagt“ setzen, Anmeldung löschen, altes Zeitfenster wiederherstellen.
-5. „Nicht motorisiert“ blendet Abschnittsleitung und TÜV aus.
-6. Bei 375 × 812 kein horizontales Scrollen auf `/anmeldung`.
+4. **Bestätigungs-Mail (Teil E):** Der Test fragt die Mailpit-API ab. Es gibt genau eine Mail:
+   - an `robin.beispiel@example.org`, CC `kai.probe@example.org`,
+   - im Betreff der Name,
+   - im Text „Summe: 310 €“ und keine Telefonnummer.
+   Danach wird die Mail gelöscht. Läuft Mailpit nicht (CI gegen die Vercel-Vorschau), wird dieser Teil mit Hinweis übersprungen.
+5. **T-Shirts (Teil F):** In `/kollektive` zeigt der Bereich „T-Shirts“ das E2E-Kollektiv mit „2 × M“ und „60 €“. Die Gesamtsummen werden nicht exakt geprüft, wegen der Seed-Daten.
+6. Als Admin: In `/kollektive` steht „E2E Testkollektiv“. Detail öffnen, „Bestätigungs-Mail: verschickt am …“ prüfen (nur mit Mailpit), Status „zugesagt“ setzen, Anmeldung löschen, altes Zeitfenster wiederherstellen.
+7. „Nicht motorisiert“ blendet Abschnittsleitung und TÜV aus.
+8. Bei 375 × 812 kein horizontales Scrollen auf `/anmeldung` und `/kollektive`.
 
 Unit-Tests für alle Funktionen aus A2, besonders:
 - die Logik bei `non_motorized`,
@@ -235,14 +253,113 @@ Unit-Tests für alle Funktionen aus A2, besonders:
 - `src/db/index.ts` (Klasse C): Ist `LOCAL_NEON_HTTP_ENDPOINT` gesetzt, zeigt es auf `localhost` und läuft die App nicht bei Vercel, gehen die Anfragen an den Proxy (`src/lib/local-db.ts` mit Test).
 - `AGENTS.md` und `agents/risikoklassen.json`: `docker/**` und `src/lib/local-db.*` sind Klasse C. Gegen die Docker-Datenbank darf der Agent die App selbst starten.
 
+### Teil E · Bestätigungs-Mail nach der Anmeldung (vormals Spec 032)
+
+Nach dem Absenden bekommt das Kollektiv eine Bestätigungs-Mail. Absender und Antwort-Adresse ist das Orga-Postfach. Klappt der Versand nicht, bleibt die Anmeldung trotzdem gespeichert. Lokal fängt Mailpit in Docker alle Mails ab, es geht nie eine echte Mail raus.
+
+**E1 · Versand-Baustein**
+
+- **Abhängigkeit:** `nodemailer` 10.3.1 (vom 29.10.2026, also mindestens 2 Wochen alt). Begründung: Ein Standard-SMTP-Client ist sicherer als ein eigener.
+  - `@types/nodemailer` gibt es nur für Version 8 und passt nicht zu v10. Die Typen kommen über `allowJs` direkt aus dem Paket.
+- **Umgebungsvariablen** (Namen in `.env.example`, Werte setzt Franz bei Vercel):
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `MAIL_ENABLED`
+  - Production: `smtp.gmail.com`, Port `465`, `SMTP_USER` = Gmail-Postfach, `SMTP_PASSWORD` = Gmail-App-Passwort, `MAIL_FROM` = `Krachparade Orga <mehr.laerm.fuer.muenchen@gmail.com>`
+- **`src/lib/mail/config.ts`:** reine Funktion `mailConfig(env)`, mit Tests.
+  - Fehlt eine Variable, wird nichts verschickt, Log „[mail] nicht eingerichtet“.
+  - Bei Vercel außerhalb von Production (Vorschau) wird nur mit `MAIL_ENABLED=1` verschickt, damit keine Mails aus Klicktests ins echte Postfach gehen.
+  - Leerzeichen im App-Passwort werden entfernt. Benutzer und Passwort gibt es nur zusammen, die lokale Mailpit-Instanz braucht keins von beiden.
+- **`src/lib/mail/send.ts`:** `sendMail({ to, cc, subject, text })` mit `nodemailer`.
+  - Timeout 10 s, Reply-To ist die Absender-Adresse.
+  - Bei Fehlern wird nur der Fehlername geloggt, nie Adressen, Inhalt oder Einstellungen.
+  - Rückgabe `true` oder `false`.
+
+**E2 · Inhalt der Mail**
+
+- **Reine Funktion `confirmationMail(registration, dDay)`** in `src/lib/collectives/confirmation-mail.ts`, mit Tests. Sie gibt `{ to, cc, subject, text }` zurück.
+- **Betreff:** „Eure Anmeldung zur Krachparade 08.05.2027: ‹Name›“
+- **Text** in der Ihr-Form:
+  - Begrüßung: „Hallo ‹Vorname›,“ und Dank für die Anmeldung
+  - Hinweis: Die Anmeldung ist verbindlich, sobald wir sie bestätigt haben. Überweist erst danach.
+  - Angaben:
+    - Kollektiv und Schreibweise
+    - Fahrzeug
+    - TÜV (nur motorisiert)
+    - Soundkopplung
+    - Wagenverantwortliche/r (Name)
+    - Abschnittsleitung ja/nein (nur motorisiert)
+    - T-Shirts je Art und Größe
+  - Kosten: Pfand, TÜV, Shirts Standard, Shirts Soli, Summe
+  - Abschluss: „Änderungen oder Fragen? Antwortet einfach auf diese Mail …“, Gruß „Eure Krachparade-Orga – Mehr Lärm für München“
+- **Keine** Telefonnummern, keine Forderungen und keine Freitexte. Damit kann das Formular nicht genutzt werden, um fremde Inhalte an Dritte zu schicken.
+- **`to` und `cc`** kommen nur aus der mit Zod geprüften Anmeldung. Zeilenumbrüche und Steuerzeichen werden entfernt, damit niemand Kopfzeilen einschleusen kann. Sind beide Adressen gleich, gibt es kein CC.
+
+**E3 · Versand nach dem Speichern**
+
+- **`submitRegistration`:** Nach dem Speichern läuft der Versand über `after()` aus `next/server`. Das Formular wartet also nicht auf Gmail.
+  - Klappt der Versand, wird `confirmation_sent_at` gesetzt.
+  - Höchstens eine Mail pro Anmeldung. Bei Honeypot, Fehler oder Duplikat wird nichts verschickt.
+- **Danke-Seite und Datenschutz-Text:** siehe B3 und B2 (Abschnitt 9). Die Adresse selbst wird nicht angezeigt.
+
+**E4 · Sichtbar in `/kollektive`**
+
+- **Detailseite:** Zeile „Bestätigungs-Mail: verschickt am ‹Datum, Uhrzeit›“ oder „nicht verschickt“.
+- **Liste:** kein Kennzeichen. „Mail fehlt“ war gebaut und wurde am 18.11.2026 auf Wunsch wieder entfernt. Der Mail-Status steht nur auf der Detailseite und in der CSV.
+- **CSV:** Spalte „Bestätigung verschickt“ (Datum oder „nein“).
+
+**E5 · Lokal: Mailpit in Docker**
+
+- **`docker/compose.yaml`:** Dienst `mailpit` (`axllent/mailpit:v1.33.0`).
+  - SMTP auf `127.0.0.1:1026`, Weboberfläche auf `http://localhost:8026`
+  - Die Ports sind absichtlich nicht 1025/8025, damit sie nicht mit einem anderen Mailpit kollidieren.
+- **`docker/local.env`:** `SMTP_HOST=localhost`, `SMTP_PORT=1026`, Fantasie-Absender `orga@example.org`, ohne Passwort.
+- **`docker/README.md`:** Abschnitt „Mails ansehen“.
+
+### Teil F · T-Shirt-Übersicht unter `/kollektive` (vormals Spec 033)
+
+Ein eigener Bereich „T-Shirts“ zeigt alle Bestellungen: gesamt, je Kollektiv und mit dem Umsatz. Damit kann die Orga die Bestellung bei der Druckerei planen.
+
+**F1 · Reine Funktion `shirtOverview`** (`src/lib/collectives/shirts.ts`, mit Tests)
+
+- Eingabe: Anmeldungen mit `id`, `collectiveName`, `status`, `shirts`.
+- **`confirmed`** (nur „Zugesagt“) und **`expected`** (alle außer „Abgesagt“), jeweils mit:
+  - Stückzahl je Art und Größe
+  - Summe je Art und gesamt
+  - Umsatz je Art und gesamt
+  - Soli-Anteil (Soli-Shirts × 10 €)
+- **`byCollective`:** nur Kollektive mit mindestens einem Shirt, ohne Abgesagte, nach Name sortiert, mit Stückzahlen, Summe und Betrag.
+- Die Preise kommen nur aus `costs.ts` (`SHIRT_PRICE_EUR`). So stimmen sie mit der Danke-Seite und der Mail überein.
+- `shirtSizesLabel` gibt die Kurzform „2 × M, 1 × L“ zurück, ohne Bestellung „–“.
+
+**F2 · Bereich „T-Shirts“** (`src/components/collectives/shirt-overview.tsx`)
+
+- Er steht auf `/kollektive` **unter der Liste der Anmeldungen**. Der Klappbereich bei den Kennzahlen heißt nur noch „Westen“.
+- **Gesamt:** Tabelle mit den Zeilen Standard, Soli, Gesamt und den Spalten S bis XXL und Summe, für „erwartet“. Darunter „davon zugesagt: ‹n› Shirts“.
+- **Geld:** drei Kacheln:
+  - „Umsatz Shirts (erwartet)“
+  - „Umsatz Shirts (zugesagt)“
+  - „davon Soli-Anteil (erwartet)“
+  Darunter die Preise pro Shirt.
+- **Wer hat was bestellt:**
+  - Laptop (`desk:`): Tabelle mit Kollektiv (Link), Status, Standard, Soli, Summe, Betrag und Gesamt-Zeile
+  - Handy: eine Karte je Kollektiv
+  - ohne Bestellungen: „Noch keine T-Shirts bestellt.“
+
 ## Neuigkeiten
 
-ID `031-kollektiv-anmeldung`, Datum = Tag des Baus, Titel „Anmeldung der Kollektive“:
+Drei Einträge, so wie sie gebaut wurden (Datum 2026-11-18):
 
-- **Eigenes Formular statt Google:** Kollektive melden sich unter /anmeldung an, ohne Google-Konto.
-- **Alles unter „Kollektive“:** Du siehst alle Anmeldungen mit Fahrzeugen, TÜV, Soundkopplung, Westen und Shirts.
-- **Zusagen und Warteliste:** Setze den Status direkt an der Anmeldung und schreib interne Notizen.
-- **CSV-Export:** Für die Auswahlkommission mit einem Klick.
+- `031-kollektiv-anmeldung`, „Anmeldung der Kollektive“:
+  - **Eigenes Formular statt Google:** Kollektive melden sich unter /anmeldung an, ohne Google-Konto.
+  - **Alles unter „Kollektive“:** Du siehst alle Anmeldungen mit Fahrzeugen, TÜV, Soundkopplung, Westen und Shirts.
+  - **Zusagen und Warteliste:** Setze den Status direkt an der Anmeldung und schreib interne Notizen.
+  - **CSV-Export:** Für die Auswahlkommission mit einem Klick.
+- `032-bestaetigungs-mail`, „Bestätigungs-Mail für Kollektive“:
+  - **Mail nach der Anmeldung:** Kollektive bekommen eine Bestätigung mit Kosten, die oder der Wagenverantwortliche in Kopie.
+  - **Siehst du unter „Kollektive“:** An jeder Anmeldung steht, ob die Mail rausging.
+- `033-tshirt-uebersicht`, „T-Shirt-Übersicht“:
+  - **Alle Shirts auf einen Blick:** Unter „Kollektive“ siehst du, wie viele Shirts je Art und Größe bestellt sind.
+  - **Wer hat was bestellt:** Je Kollektiv Anzahl, Größen und Betrag.
+  - **Umsatz:** Was die Shirts einbringen, zugesagt und erwartet, mit dem Soli-Anteil.
 
 ## Akzeptanzkriterien
 
@@ -258,16 +375,29 @@ ID `031-kollektiv-anmeldung`, Datum = Tag des Baus, Titel „Anmeldung der Kolle
 6. Löschen, Zeitfenster und „Alle Anmeldungen löschen“ gehen nur für Admins, und der Server prüft das. „Alle Anmeldungen löschen“ geht erst ab D-Day + 3 Monate.
 7. Keine Kontaktdaten auf der Danke-Seite, keine Inhalte im Log.
 8. `AGENTS.md` und `agents/risikoklassen.json` sind wie in C1 angepasst.
-9. Mindestens ein Klicktest in `e2e/` deckt Anmeldung und Auswertung ab und ist grün.
+9. Mindestens ein Klicktest in `e2e/` deckt Anmeldung, Mail und Auswertung ab und ist grün.
 10. `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` grün; „Prüfungen“ und „Klicktests“ im PR grün.
 11. `/anmeldung`, `/anmeldung/danke`, `/kollektive` und `/kollektive/[id]` bei 375 × 812 und 1280 × 800 geprüft.
+12. **Mail (Teil E):**
+    - Nach einer Anmeldung geht genau eine Mail an die Hauptansprechperson, die oder der Wagenverantwortliche steht in CC.
+    - Sie enthält Zusammenfassung und Kosten, aber keine Telefonnummern und keine Freitexte.
+    - Scheitert der Versand, ist die Anmeldung trotzdem gespeichert, und `/kollektive` zeigt „nicht verschickt“.
+    - Ohne SMTP-Variablen und in der Vorschau ohne `MAIL_ENABLED=1` geht nichts raus.
+    - Geheimnisse und Adressen stehen nie im Log.
+13. **T-Shirts (Teil F):**
+    - Der Bereich „T-Shirts“ zeigt Gesamttabelle, Umsatz (erwartet, zugesagt, Soli-Anteil) und die Liste je Kollektiv.
+    - Abgesagte zählen nirgends mit.
+    - Die Beträge stimmen mit der Danke-Seite und der Mail überein.
 
 ## Deploy
 
 Datenbank-Änderung ja (Klasse C, kein Auto-Merge):
 
-1. Neon-Backup-Zweig `backup-vor-031` von production anlegen.
-2. `pnpm db:push:prod` vom PR-Zweig ausführen (durch Franz).
-3. Mergen.
-4. `deploy --db-erledigt`
-5. Danach in der App unter `/kollektive` das Zeitfenster setzen, Vorschlag 17.01.–07.02.2027 (D-111 bis D-90).
+1. **In Gmail** (Konto mehr.laerm.fuer.muenchen@gmail.com) die Bestätigung in zwei Schritten einschalten und ein **App-Passwort** anlegen (Google-Konto → Sicherheit → App-Passwörter).
+2. **Bei Vercel** (Production) setzen: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`. In der Vorschau **kein** `MAIL_ENABLED`.
+3. Neon-Backup-Zweig `backup-vor-031` von production anlegen.
+4. `pnpm db:push:prod` vom PR-Zweig ausführen (durch Franz).
+5. Mergen.
+6. `deploy --db-erledigt`
+7. Danach in der App unter `/kollektive` das Zeitfenster setzen, Vorschlag 17.01.–07.02.2027 (D-111 bis D-90).
+8. Einmal testen: Probe-Anmeldung mit eigener Adresse, Mail prüfen, danach in `/kollektive` löschen.
