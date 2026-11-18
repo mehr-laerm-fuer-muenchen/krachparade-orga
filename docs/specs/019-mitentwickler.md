@@ -92,3 +92,9 @@ keiner
 ## Abweichungen beim Bau
 
 (von Claude Code zu ergänzen; nie den Freigabe-Haken hier eintragen, stattdessen „(von Franz freigegeben)“)
+
+- **Bot-Erkennung** (von Franz freigegeben): Vorschau-Weg, wenn der Login des HEAD-Commit-Autors `dellingerfranz-dev` ist oder GitHub den Autor als Bot führt (`author.type == "Bot"`). Alles andere, auch ein Commit ohne GitHub-Konto, nimmt den Selbstbau-Weg. Kein fester Bot-Name, weil der Name der App erst im Lauf bekannt ist.
+- **`require_extra_approval_for_unattributed_changes: true`** (von Franz freigegeben): steht im Ruleset `main` und bleibt unverändert in `scripts/github/ruleset-main.json`.
+- `ADMIN_EMAILS` wird im Selbstbau nicht gesetzt: Eine fehlende Variable ergibt eine leere Liste (`parseAdminEmails`), die Klicktests melden sich über den Dev-Login an.
+- `AGENTS.md`: „Mitentwickeln“ ist neuer Abschnitt 13, damit sich die Nummern der bestehenden Abschnitte nicht verschieben.
+- `actionlint` ist lokal nicht installiert, der Workflow wurde von Hand gegengelesen.
