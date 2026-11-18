@@ -25,6 +25,8 @@
     ".github/**",
     ".claude/**",
     ".mcp.json",
+    "renovate.json",
+    ".coderabbit.yaml",
     "AGENTS.md",
     "CLAUDE.md",
     "agents/**",

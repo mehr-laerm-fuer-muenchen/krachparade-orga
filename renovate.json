@@ -1,0 +1,106 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate updates the npm packages (pnpm-lock.yaml) and .node-version. GitHub Actions are left to Dependabot (.github/dependabot.yml) so no PR comes twice. package.json and pnpm-lock.yaml are class C (AGENTS.md section 5): nothing auto-merges, Franz or Tiago decide.",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommitTypeAll(deps)"
+  ],
+  "enabledManagers": [
+    "npm",
+    "nodenv"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "labels": [
+    "abhängigkeiten"
+  ],
+  "automerge": false,
+  "rangeStrategy": "auto",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "before 6am on the first day of the month"
+    ]
+  },
+  "vulnerabilityAlerts": {
+    "labels": [
+      "sicherheit"
+    ],
+    "schedule": [
+      "at any time"
+    ],
+    "minimumReleaseAge": null
+  },
+  "packageRules": [
+    {
+      "groupName": "entwicklung",
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ]
+    },
+    {
+      "description": "next-auth is excluded: every new v5 beta needs its own PR and a manual login test.",
+      "groupName": "laufzeit",
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchPackageNames": [
+        "!next-auth"
+      ]
+    },
+    {
+      "description": "Next.js and React only work in matching versions.",
+      "groupName": "next-react",
+      "matchPackageNames": [
+        "next",
+        "eslint-config-next",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ]
+    },
+    {
+      "description": "Database driver, ORM and migration tool belong together.",
+      "groupName": "datenbank",
+      "matchPackageNames": [
+        "drizzle-orm",
+        "drizzle-kit",
+        "@neondatabase/serverless"
+      ]
+    },
+    {
+      "matchPackageNames": [
+        "next-auth"
+      ],
+      "labels": [
+        "abhängigkeiten",
+        "login-testen"
+      ]
+    },
+    {
+      "description": "@types/node follows the Node major in .node-version, not the newest Node.",
+      "matchPackageNames": [
+        "@types/node"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
+  ]
+}
