@@ -99,10 +99,6 @@ Befehle (`package.json`):
 **Was Agenten nie tun**
 
 - `.env`, `.env.local` oder andere Dateien mit Geheimnissen lesen, ausgeben oder in Code kopieren.
-- `git push`, `git push --force`, `git reset --hard`, `git clean`, `rm -rf`, Tabellen löschen, `drizzle-kit drop`.
-- Daten in der Datenbank löschen, außer über eine Löschfunktion, die eine Spec verlangt, oder `pnpm db:reset:dev` gegen die Dev-Datenbank, wenn die Spec es verlangt.
-- `pnpm dev` starten, `pnpm db:push:prod` oder `pnpm db:seed:prod` ausführen.
-- Den Freigabe-Haken in einer Spec setzen.
 - Auf `main` committen.
 
 ## 4. Rollen
@@ -250,17 +246,6 @@ Labels: `feedback-triage` (Tages-Issue mit Cursor), `feedback-thema` (ein Issue 
 ## 12. Kommunikation
 
 Deutsch, locker, kurz. Franz ist Einsteiger: Fachbegriffe kurz erklären, Befehle vollständig angeben, kurze Erklärungen zu Dateien und Befehlen sind erwünscht.
-
-## 13. Mitentwickeln
-
-Gilt für Mitentwickelnde (Collaborator mit Schreibrecht, Zweige im selben Repo) und ihre Agenten (Spec 019).
-
-- Specs nur bauen, wenn die Kopfzeile `Freigabe Franz: ☑` enthält. Den Haken setzt nur Franz.
-- Keine `:prod`-Skripte, keine fremden Datenbank-Adressen, keine Secrets in Code, Logs oder Issues.
-- Lokal nur mit eigener Datenbank (eigenes Neon-Projekt). Seed, Tests und Vorschau nur mit ausgedachten Daten.
-- Kein Selbst-Merge. Franz merged per Merge-Commit.
-- Heikle Dateien nur nach Absprache mit Franz: `.github/`, `.claude/`, `agents/`, `scripts/`, Login (Abschnitt 5, Klasse C), Configs, `package.json`, `src/db/schema.ts`.
-- Für PRs von Autoren außerhalb des Vercel-Teams gibt es keine Vercel-Vorschau. „Klicktests“ baut die App dann selbst und testet auf Port 3100 (`.github/workflows/klicktests.yml`, Zusammenfassung „Selbstbau, Autor nicht im Vercel-Team“).
 
 ---
 
