@@ -98,3 +98,4 @@ keiner
 - `ADMIN_EMAILS` wird im Selbstbau nicht gesetzt: Eine fehlende Variable ergibt eine leere Liste (`parseAdminEmails`), die Klicktests melden sich über den Dev-Login an.
 - `AGENTS.md`: „Mitentwickeln“ ist neuer Abschnitt 13, damit sich die Nummern der bestehenden Abschnitte nicht verschieben.
 - `actionlint` ist lokal nicht installiert, der Workflow wurde von Hand gegengelesen.
+- **`timeout-minutes` des Jobs „Klicktests“ von 20 auf 35** (von Franz freigegeben): Der Selbstbau-Weg braucht Build und Start zusätzlich zu ca. 16 Minuten Klicktests. Das Warte-Limit für die Vercel-Vorschau (600 s) bleibt.

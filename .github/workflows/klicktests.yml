@@ -27,7 +27,7 @@ jobs:
   klicktests:
     name: Klicktests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     # All previews and self-builds share the Neon branch `dev`: never two
     # runs at once.
     concurrency:
