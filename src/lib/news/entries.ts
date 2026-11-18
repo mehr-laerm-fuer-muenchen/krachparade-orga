@@ -16,6 +16,21 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "034-dunkles-design",
+    date: "2026-11-18",
+    title: "Hell oder dunkel – du entscheidest",
+    items: [
+      {
+        lead: "Neuer Schalter unter Einstellungen → Darstellung",
+        text: "Mit Sonne und Mond wechselst du zwischen hellem und dunklem Design.",
+      },
+      {
+        lead: "Gilt pro Gerät",
+        text: "Die Wahl bleibt auf diesem Handy oder Laptop gespeichert. Mit „Wie das Gerät“ folgt die App wieder deiner Systemeinstellung.",
+      },
+    ],
+  },
+  {
     id: "033-tshirt-uebersicht",
     date: "2026-11-18",
     title: "T-Shirt-Übersicht",
