@@ -1,161 +1,93 @@
-# SPEC 019 – Mitentwickler
+# SPEC 019 – Mitentwickler (Fassung 2, schlank)
 
 Freigabe Franz: ☑
-Zweig: `spec/019-mitentwickler` · Risikoklasse **C** (`.github/`, `CODEOWNERS`, `AGENTS.md`, README, Workflows, Secrets) · **lokal, Auto-Modus aus** · DB: nein
+Zweig: `spec/019-mitentwickler` · Risikoklasse **C** (`.github/workflows/`, `AGENTS.md`) · **lokal, Auto-Modus aus** · DB: nein
+
+Fassung 2 ersetzt Fassung 1. Begründung (Franz, Sitzung 18): Tiago (GitHub `TiagoKocevar`, schon Collaborator mit Schreibrecht) ist voll vertrauenswürdig. Schutzmaßnahmen gegen einen böswilligen Mitentwickler entfallen: Code Owners, Rulesets für `agent/**`, Umgebung `agenten`, Härtung der Agenten. Übrig bleibt, was die Zusammenarbeit technisch braucht.
 
 ## Ziel
 
-Thiago (und später weitere) können am Repo `dellingerfranz-dev/krachparade-orga` mitentwickeln, ohne dass sie an Franz' Geheimnisse kommen oder ungeprüft heikle Dateien ändern. Entscheidungen Sitzung 18 (Franz, 08.11.2026):
-
-1. **Zugang:** Thiago wird Collaborator im persönlichen Repo. Er hat damit immer Schreibrecht, eine Rolle „Read“ gibt es dort nicht.
-2. **Vorschau:** Vercel Hobby blockiert Deployments von Commits fremder Autoren. Bei PRs **ohne Vercel-Vorschau** bauen die Klicktests in GitHub die App selbst und testen dagegen, wie lokal auf Port 3100.
-3. **Review:** Für normale Dateien reichen die Pflicht-Checks. Für **heikle Dateien** ist die Freigabe von Franz als Code Owner nötig. Franz darf die Regel als Admin umgehen (eigene Klasse-C-PRs).
-4. **Secrets:** Claude-Token und Bot-Schlüssel ziehen in eine GitHub-Umgebung `agenten`, die nur Workflows auf `main` sehen. `DEV_DATABASE_URL` (ausgedachte Daten) und `VERCEL_AUTOMATION_BYPASS_SECRET` bleiben Repo-Secrets für die Klicktests auf PRs. `FEEDBACK_TRIAGE_DATABASE_URL` liegt schon in der Umgebung `feedback-triage`.
-5. **Arbeitsweise:** Thiago arbeitet wie Franz nach Specs in `docs/specs/`. Den Haken „Freigabe“ setzt nur Franz. Kleinkram (Fehler, Texte, Tests) darf er ohne Spec per PR machen.
-6. **Lokale Datenbank:** Thiago nimmt ein eigenes kostenloses Neon-Projekt und bekommt keine Adressen von Franz.
-7. **Merge:** Im Repo sind nur Merge-Commits erlaubt. Thiagos PRs merged Franz, dann ist er Autor des Merge-Commits und Vercel deployed `main`.
+1. **Klicktests ohne Vercel-Vorschau:** Vercel Hobby blockiert Deployments von Commits, deren Autor nicht im Vercel-Team ist. Für Tiagos Zweige gibt es deshalb keine Vorschau, und der Pflicht-Check „Klicktests“ würde nach 10 Minuten rot. Künftig baut der Workflow die App in diesem Fall selbst und testet dagegen, wie lokal auf Port 3100.
+2. **Nur Merge-Commits, Franz mergt:** Merged Franz einen PR per Merge-Commit, ist er Autor des Commits auf `main`, und Vercel deployed live. Squash und Rebase werden abgeschaltet.
+3. **Dokumentation:** Das README stellt klar, wie Tiago mitarbeitet. `AGENTS.md` bekommt den Abschnitt „Mitentwickeln“.
 
 ## Nicht in dieser Spec
 
-- Umzug in eine GitHub-Organisation, Vercel Pro
-- Pflicht-Freigaben für Umgebungen (gibt es bei GitHub Pro nur für öffentliche Repos)
-- Änderungen an App-Code in `src/` (außer wenn der Abgleich zeigt, dass die App lokal ohne Google-Werte nicht startet – dann nur berichten)
-- Anleitung in der App (020)
-- Build-Agent-Limit, Actions Node 24, `requireMember()` (Wartungspaket)
-- `~/.zshrc` (`freigabe`/`deploy`) – nur Hinweise für Franz in „Deploy“
+- Code Owners, zusätzliche Rulesets, Umgebung `agenten`, Prüfungen in Fix- oder Build-Agent (bewusst weggelassen, siehe oben). Als Backlog: Claude-Token und Bot-Schlüssel in eine Umgebung nur für `main` ziehen, falls später weitere Personen dazukommen.
+- Vercel Pro, GitHub-Organisation
+- Änderungen an App-Code in `src/`
+- `~/.zshrc` (`freigabe`/`deploy`)
 
 ## Vorab: Abgleich mit dem Code
 
-Prüfe zuerst und berichte im Chat. **Erst nach „Weiter“ von Franz** etwas ändern. Nur lesen: Dateien und `gh api` mit GET.
+Kurz, der erste Abgleich (Fassung 1) ist bekannt. Prüfe nur, ob sich seitdem etwas geändert hat, und berichte. **Erst nach „Weiter“ von Franz** etwas ändern. Nur lesen, `gh api` nur mit GET.
 
-- **Workflows** in `.github/workflows/`: welche es gibt, welche Secrets jeder Job nutzt und in welchem Kontext er läuft (`pull_request`, `issues`, `workflow_run`, `push` auf `main`, `schedule` …, mit welchem `ref`). Für jeden Job mit `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID` oder `KPORGA_BOT_PRIVATE_KEY`: Läuft er immer mit `ref` `main`? Würde eine Umgebung, die nur `main` zulässt, ihn blockieren (z. B. ein Fix-Agent auf einem PR-Zweig)?
-- **Klicktests-Workflow:** Wie wartet er heute auf die Vercel-Vorschau, mit welchem Secret und welchem Zeitlimit? Was passiert, wenn es keine Vorschau gibt?
-- **Branch-Schutz `main`:**
-  - Was ist eingestellt (`gh api repos/dellingerfranz-dev/krachparade-orga/branches/main/protection`)?
-  - Gibt es Rulesets (`gh api repos/dellingerfranz-dev/krachparade-orga/rulesets`)?
-  - Welche Merge-Methoden sind erlaubt (`gh api repos/dellingerfranz-dev/krachparade-orga --jq '{allow_merge_commit,allow_squash_merge,allow_rebase_merge,allow_auto_merge,delete_branch_on_merge}'`)?
-- **Code Owners und Admin-Umgehung:** Recherche in der GitHub-Doku, mit Quelle im Bericht:
-  - Lässt sich „Code-Owner-Review erforderlich“ mit **0** Pflicht-Freigaben für sonstige Dateien kombinieren?
-  - Wie verhält sich `gh pr merge --auto` bei einem Admin, der umgehen darf?
-  - Merged `gh pr merge --merge --admin` nach grünen Checks?
-- **Bestehende Dokumente:** `README.md` (noch create-next-app?), `AGENTS.md` (gibt es einen Abschnitt für Mitentwickler?), `.env.example` (welche Namen?), `docs/specs/_vorlage.md`.
-- **Lokal ohne Franz' Werte:** Startet die App lokal mit eigenem Neon, eigenem `AUTH_SECRET` und Dev-Login, aber **ohne** `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`? Nur am Code ablesen, nichts ausführen, was Werte ausgibt.
-- **Build-Agent:** Wo wird geprüft, dass `go` nur von `dellingerfranz-dev` kommt? Gilt das auch für `spec`-Issues von anderen?
-- **Risiko-Skript:** Stehen `CODEOWNERS` und `README.md` in `agents/risikoklassen.json`? Welche Klasse bekommen sie?
-
-Weicht etwas grundlegend ab, z. B. weil die Admin-Umgehung mit `--auto` nicht funktioniert: **nichts umbauen**, Unterschied mit Vorschlag berichten und anhalten.
+- `klicktests.yml`: Ist das Warten auf die Vorschau noch so (Deployments-API, `^preview`, 600 s, `timeout-minutes: 20`, Job-Lock `dev-datenbank`)? Welche Variablen braucht `pnpm e2e` (`BASE_URL`, `VERCEL_AUTOMATION_BYPASS_SECRET` …)?
+- Wie verhält sich `next build` bzw. Auth.js ohne `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`? Muss für den Selbstbau etwas gesetzt werden? Nur am Code und in der Doku ablesen.
+- Ruleset `main` (id 25068852): erlaubte Merge-Methoden. Repo-Einstellungen `allow_squash_merge`, `allow_rebase_merge`.
+- `README.md` Zeilen zu Fork, Merge-Rechten und Rolle „Read“. Wo steht in `AGENTS.md` der Ablauf für `braucht-db` (Schritt 7)?
 
 ## Umsetzung
 
-**1 · Klicktests ohne Vercel-Vorschau**
+**1 · Klicktests: Vorschau oder Selbstbau**
 
-- Im Klicktests-Workflow entscheidet ein früher Schritt, ob für den PR eine Vercel-Vorschau zu erwarten ist. Regel: Ist der **Autor des HEAD-Commits** `dellingerfranz-dev` oder die Bot-App, wird wie heute auf die Vorschau gewartet. Sonst wird selbst gebaut. Die Erkennung läuft über die GitHub-API (Login des Commit-Autors), **nicht** über E-Mail-Adressen.
-- **Selbst bauen:**
+- Ein früher Schritt entscheidet über die GitHub-API anhand des **Logins des Autors des HEAD-Commits**:
+  - `dellingerfranz-dev` oder die Bot-App → **Vorschau-Weg** wie heute
+  - jeder andere → **Selbstbau-Weg**
+  - Keine E-Mail-Adressen verwenden. Das Ergebnis steht in der Job-Zusammenfassung („Vorschau“ / „Selbstbau, Autor nicht im Vercel-Team“).
+- **Selbstbau-Weg**, im selben Job (Job-Lock `dev-datenbank` bleibt):
   - `pnpm install --frozen-lockfile`
-  - `VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm build` mit `DATABASE_URL` = `DEV_DATABASE_URL` und einem nur für den Lauf erzeugten `AUTH_SECRET` (zufällig, nie ausgegeben)
-  - `AUTH_TRUST_HOST=1 VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm start -p 3100` im Hintergrund, warten bis erreichbar
+  - `DATABASE_URL` aus `DEV_DATABASE_URL`, `AUTH_SECRET` für den Lauf zufällig erzeugt (`openssl rand -base64 32`, nie ausgegeben, als maskierte Variable)
+  - `ADMIN_EMAILS` mit einer ausgedachten `@example.org`-Adresse, falls nötig
+  - `VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm build`
+  - `AUTH_TRUST_HOST=1 VERCEL_ENV=preview ENABLE_DEV_LOGIN=1 pnpm start -p 3100` im Hintergrund, warten bis `http://localhost:3100` antwortet (max. 60 s)
   - `BASE_URL=http://localhost:3100 pnpm e2e`
-  - Werden für den Build weitere Variablen gebraucht (z. B. `ADMIN_EMAILS`), nur ausgedachte `@example.org`-Werte direkt im Workflow, keine neuen Secrets.
-- Wartet der Workflow auf eine Vorschau, die nie kommt (Zeitlimit wie heute), schlägt er mit einem klaren Grund in der Job-Zusammenfassung fehl: „Keine Vercel-Vorschau – Autor nicht im Vercel-Team?“
-- Der Name des Pflicht-Checks „Klicktests“ bleibt gleich.
+  - Server am Ende beenden
+- Der Vorschau-Weg bleibt unverändert. Der Name des Pflicht-Checks „Klicktests“ bleibt. Keine neuen Secrets.
+- Bricht der Vorschau-Weg nach dem Zeitlimit ab, nennt die Fehlermeldung den Grund: „Keine Vercel-Vorschau – Autor nicht im Vercel-Team? Dann sollte der Selbstbau-Weg greifen.“
 
-**2 · `concurrency`**
+**2 · README.md korrigieren** (nur die betroffenen Stellen):
 
-- „Prüfungen“ und „Klicktests“ bekommen eine `concurrency`-Gruppe je PR (`${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}`) mit `cancel-in-progress: true`. Alte Läufe brechen ab, wenn neue Commits kommen.
-- Agenten-Workflows nur, wenn der Abgleich zeigt, dass es passt (nicht abbrechen, was schon schreibt).
+- Mitentwickelnde sind **Collaborator mit Schreibrecht** und arbeiten mit Zweigen im selben Repo. Kein Fork, keine Rolle „Read“.
+- Ablauf: Spec in `docs/specs/` → Freigabe nur durch Franz → Bau → PR → Pflicht-Checks → **Merge durch Franz, nur Merge-Commit** → live
+- Kleinkram ohne Spec erlaubt: Fehler, Texte, Tests, kein neues Datenmodell
+- Für eigene PRs gibt es keine Vercel-Vorschau, die Klicktests bauen selbst. Lokal starten wie beschrieben, mit eigenem Neon-Projekt.
 
-**3 · Umgebung `agenten` in den Workflows**
-
-- Alle Jobs, die `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID` oder `KPORGA_BOT_PRIVATE_KEY` brauchen, bekommen `environment: agenten`. Die Secrets selbst legt Franz an (siehe Deploy). Claude Code fasst keine Secrets an.
-- Läuft ein solcher Job laut Abgleich nicht auf `main`: anhalten und mit Vorschlag berichten, statt ihn umzubauen.
-- `permissions` je Job so knapp wie heute oder knapper, `persist-credentials: false` wo möglich.
-
-**4 · `.github/CODEOWNERS`**
-
-Code Owner für alle heiklen Pfade ist der Benutzer `dellingerfranz-dev` (in der Datei mit vorangestelltem At-Zeichen):
-
-- `/.github/`, `/.claude/`, `/agents/`, `/scripts/`, `/AGENTS.md`, `/CLAUDE.md`
-- `/src/proxy.ts`, Login- und Zugangsdateien (laut Abgleich, z. B. `src/auth*`, `src/app/dev/`, `src/app/login/`)
-- `/package.json`, `/pnpm-lock.yaml`, `/next.config.*`, `/drizzle.config.*`, `/tsconfig.json`, `/eslint.config.*`, `/playwright.config.*`, `/vitest.config.*`, `/.env.example`, `/.node-version`
-- `/src/db/schema.ts`
-- `/.github/CODEOWNERS` selbst
-
-Kein Eintrag für `*` (normale Dateien brauchen keine Freigabe).
-
-**5 · README.md** (ersetzt create-next-app)
-
-Grundlage ist der Entwurf `014-readme` (Projekt), mit diesen Korrekturen: Collaborator mit Schreibrecht statt „Read“, PRs im selben Repo statt Fork, Merge durch Franz.
-
-Inhalt in dieser Reihenfolge, alles am Code belegt:
-
-1. Zweck
-2. Stack (Versionen aus `package.json`)
-3. Ordner
-4. **Lokal starten** mit eigenem Neon-Projekt, eigenem `AUTH_SECRET` und Dev-Login, Befehle vollständig. Wenn Google-Werte nötig sind, ehrlich angeben, was zu tun ist.
-5. Befehle aus `package.json` als Tabelle, `:prod`-Skripte mit „nur Franz“
-6. Daten-Regel: nur ausgedachte Daten auf `@example.org`, in Production keine Telefonnummern, Adressen oder Kontodaten
-7. Wie gebaut wird:
-   - Spec → Freigabe nur Franz → Bau → PR → Pflicht-Checks → Merge durch Franz (nur Merge-Commit) → live
-   - Risikoklassen, Code Owners, Kleinkram ohne Spec
-8. Beitragen:
-   - Ideen und Fehler am besten über den Käfer in der App oder als Issue
-   - Das Label `go` setzt nur Franz
-   - Für Thiagos PRs gibt es keine Vercel-Vorschau, die Klicktests bauen selbst
-9. Weiterlesen
-
-Keine echten Namen außer dem GitHub-Konto von Franz. Keine Werte. Die öffentliche App-URL darf rein.
-
-Ungenutzte Vorlagen-SVGs in `public/` (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`) löschen, nur wenn sie nirgends referenziert sind.
-
-**6 · AGENTS.md** – neuer kurzer Abschnitt **„Mitentwickeln“**:
+**3 · AGENTS.md – Abschnitt „Mitentwickeln“** (kurz):
 
 - Specs nur mit „Freigabe Franz: ☑“ bauen, den Haken setzt nur Franz
-- Kein Zugriff auf `:prod`-Skripte, keine fremden Datenbank-Adressen, keine Secrets in Code, Logs oder Issues
-- Heikle Pfade nur mit Freigabe von Franz (Code Owners)
-- Merge nur durch Franz, nur Merge-Commit
-- Kleinkram ohne Spec erlaubt: Fehler, Texte, Tests, kein neues Datenmodell
+- Keine `:prod`-Skripte, keine fremden Datenbank-Adressen, keine Secrets in Code, Logs oder Issues
+- Eigene Datenbank für lokale Arbeit (eigenes Neon-Projekt). Seed, Tests und Vorschau nur mit ausgedachten Daten.
+- Kein Selbst-Merge. Franz merged per Merge-Commit.
+- Heikle Dateien (`.github/`, `.claude/`, `agents/`, `scripts/`, Login, Configs, `package.json`, Schema) nur nach Absprache mit Franz
 
-**7 · Risiko-Skript:** `CODEOWNERS` ist Klasse C, `README.md` Klasse A, sofern das nicht schon so eingestuft ist. Mit Test.
+**4 · Hilfsdatei** `scripts/github/LIESMICH.md` mit den vollständigen `gh`-Befehlen, die Franz einmal ausführt:
 
-**8 · Hilfsdateien für die Repo-Einstellungen** (keine Wirkung, bis Franz sie anwendet): `scripts/github/branch-schutz-main.json` mit der Branch-Schutz-Konfiguration laut Abgleich:
-
-- bestehende Pflicht-Checks „Prüfungen“ und „Klicktests“
-- „PR erforderlich“
-- Code-Owner-Review
-- 0 sonstige Freigaben, wenn möglich
-- Admins dürfen umgehen
-- keine Force-Pushes
-
-Dazu eine kurze Anleitung `scripts/github/LIESMICH.md` mit den genauen `gh api`-Befehlen (PUT), die Franz ausführt.
+- Repo: `allow_squash_merge=false`, `allow_rebase_merge=false`
+- Ruleset `main`: `allowed_merge_methods` nur `merge`. Den Ruleset-Inhalt per GET lesen und nur dieses Feld ändern. Als Datei `scripts/github/ruleset-main.json`, aus dem aktuellen Stand erzeugt.
 
 ## Akzeptanzkriterien
 
-1. Bei einem PR, dessen HEAD-Commit nicht von Franz oder dem Bot stammt, bauen die Klicktests selbst auf Port 3100 und laufen grün. Bei Franz' PRs warten sie wie bisher auf die Vercel-Vorschau. Geprüft wird mit einem Test-PR von Franz (Vorschau-Weg) und, nach dem Merge, mit einem kleinen Test-PR von Thiago (Selbstbau-Weg).
-2. „Prüfungen“ und „Klicktests“ brechen alte Läufe desselben PR ab.
-3. Alle Jobs mit Claude-Token oder Bot-Schlüssel nutzen `environment: agenten`. Kein Workflow liest diese Secrets mehr als Repo-Secrets.
-4. `.github/CODEOWNERS` deckt alle heiklen Pfade aus Punkt 4 ab, ohne `*`.
-5. `README.md` und der Abschnitt in `AGENTS.md` nach Punkt 5 und 6, alle Befehle am Code belegt, keine Werte.
-6. Das Risiko-Skript stuft `CODEOWNERS` als C ein, Test grün.
-7. `scripts/github/branch-schutz-main.json` und `LIESMICH.md` sind vorhanden. Die Befehle sind vollständig und haben keine Platzhalter außer Thiagos GitHub-Namen.
-8. `pnpm typecheck`, `lint`, `test`, `build` grün. Workflows sind syntaktisch gültig (`actionlint`, falls vorhanden, sonst sorgfältig gegenlesen). Keine App-Änderung, also kein neuer Klicktest. Bestehende Klicktests laufen in GitHub über den Vorschau-Weg grün.
-9. Kein Secret-Wert in Dateien, Logs, Artefakten oder Issues.
+1. Bei Franz' PRs laufen die Klicktests wie bisher über die Vercel-Vorschau. Geprüft am PR dieser Spec.
+2. Bei einem PR, dessen HEAD-Commit von Tiago stammt, bauen die Klicktests selbst und laufen grün. Geprüft nach dem Merge mit einem kleinen Test-PR von Tiago, z. B. einem Tippfehler im README.
+3. Die Job-Zusammenfassung zeigt den gewählten Weg. Kein Secret-Wert in Logs.
+4. README und `AGENTS.md` nach Punkt 2 und 3, alle Befehle am Code belegt.
+5. `scripts/github/LIESMICH.md` und `ruleset-main.json` sind vorhanden. Die Befehle sind vollständig und haben keine Platzhalter.
+6. `pnpm typecheck`, `lint`, `test`, `build` grün. Workflow gegengelesen (`actionlint`, falls vorhanden). Keine App-Änderung, also kein neuer Klicktest.
 
 ## Deploy
 
-Klasse C, durch Franz, **in dieser Reihenfolge** (sonst brechen die Agenten zwischendurch):
+Klasse C ohne DB, durch Franz:
 
-1. Diffs selbst prüfen: `.github/workflows/*`, `.github/CODEOWNERS`, `scripts/github/*` (per `pbcopy < datei` in den Chat zur Durchsicht).
-2. **Umgebung `agenten` anlegen**, nur Zweig `main` (per `gh api`, wie bei `feedback-triage`).
-3. **Secrets in die Umgebung** – 🔐 Bitwarden, Werte von dort, nie anzeigen: `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID`, `KPORGA_BOT_PRIVATE_KEY` mit `gh secret set … --env agenten`.
-4. `deploy` → Prüfungen grün. Meldet GitHub, dass das Code-Owner-Review fehlt (Franz' eigener PR), merged Franz als Admin: `gh pr merge spec/019-mitentwickler --merge --admin`.
-5. Erst nach dem Merge: die drei **Repo-Secrets löschen** (`gh secret delete …`), Build-Agent einmal mit einem kleinen Test-Issue prüfen.
-6. **Repo-Einstellungen:** nur Merge-Commits (`allow_squash_merge=false`, `allow_rebase_merge=false`), Branch-Schutz nach `scripts/github/LIESMICH.md`.
-7. **Thiago einladen** (Collaborator, `push`) mit seinem GitHub-Namen. Danach ein kleiner Test-PR von Thiago (z. B. Tippfehler), um den Selbstbau-Weg der Klicktests zu prüfen.
-8. Hinweis für die Übergabe: Eigene PRs, die heikle Dateien ändern, merged Franz nach grünen Checks mit `--admin`, falls `deploy` „Noch nicht gemergt“ meldet.
+1. Diff selbst prüfen: `git --no-pager diff main -- .github/workflows/klicktests.yml` (per `pbcopy` in den Chat zur Durchsicht).
+2. `deploy` → Prüfungen grün → Auto-Merge.
+3. Repo-Einstellungen nach `scripts/github/LIESMICH.md`.
+4. Tiago macht einen kleinen Test-PR. Die Klicktests müssen den Selbstbau-Weg nehmen und grün werden. Franz merged per Merge-Commit, Vercel deployed live.
+5. Danach ist `deploy` für Franz unverändert nutzbar.
 
 ## Neuigkeiten
 
-keiner (keine sichtbare Änderung in der App)
+keiner
 
 ## Abweichungen beim Bau
 
