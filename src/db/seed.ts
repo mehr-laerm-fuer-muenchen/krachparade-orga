@@ -7,6 +7,7 @@ import { checkText, timeToMinutes, validateDayTemplate, type DayTemplate, type D
 import type { Placement } from "../lib/plan-engine";
 import { DAY_TEMPLATE } from "./day-template";
 import { KP27_PLAN, KP27_PLAN_NOTES, KP27_PLAN_TODOS } from "./kp27-template";
+import { TEST_COLLECTIVES } from "./collectives-test-data";
 
 const isProd = process.argv.includes("--prod");
 if (isProd) {
@@ -17,7 +18,7 @@ if (isProd) {
   process.env.DATABASE_URL = prodUrl;
 }
 
-export const SEED_VERSION = "11";
+export const SEED_VERSION = "12";
 
 /** Made-up test members (spec 002), never in production. */
 export const TEST_MEMBERS = [
@@ -496,9 +497,38 @@ export async function seed({ prod }: { prod: boolean }) {
     await seedTestOngoing();
     await seedTestFeedback();
     await seedTestDay();
+    await seedTestCollectives();
   } else {
     await seedKp27Template();
     await seedDayTemplate();
+  }
+
+  /**
+   * Spec 031, never in production: removes "E2E …" registrations and adds the
+   * made-up collectives once. The registration window stays as it is.
+   */
+  async function seedTestCollectives() {
+    const { collectiveRegistrations } = await import("./schema");
+    const { like } = await import("drizzle-orm");
+    const { registrationInput } = await import("../lib/collectives/registration-schema");
+    const { registrationRow } = await import("./collectives");
+    const removed = await db
+      .delete(collectiveRegistrations)
+      .where(like(collectiveRegistrations.collectiveName, "E2E %"))
+      .returning({ id: collectiveRegistrations.id });
+    let created = 0;
+    for (const entry of TEST_COLLECTIVES) {
+      const row = registrationRow(registrationInput.parse(entry.input), edition.id, new Date());
+      const inserted = await db
+        .insert(collectiveRegistrations)
+        .values({ ...row, status: entry.status })
+        .onConflictDoNothing()
+        .returning({ id: collectiveRegistrations.id });
+      created += inserted.length;
+    }
+    console.log(
+      `collective_registrations: ${removed.length} E2E-Anmeldungen entfernt, ${created} angelegt, ${TEST_COLLECTIVES.length - created} schon vorhanden`
+    );
   }
 
   /** Spec 030, never in production: the example day plan. */

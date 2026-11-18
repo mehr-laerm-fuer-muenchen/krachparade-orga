@@ -8,6 +8,7 @@ Diese Datei ist die einzige Quelle für Agenten-Regeln (Claude Code lokal und in
 - Nutzer: die Kern-Orga. Handy und Laptop sind gleichwertig.
 - Oberfläche auf Deutsch. Ruhiger Arbeits-Stil: helle Flächen, Forest-Kopfleiste mit Logo, Farbe nur für Status und Primär-Aktionen; **keine Plakat-Optik**. Code (Bezeichner, Kommentare) auf Englisch.
 - **Daten:** In Production stehen echte Daten der Kern-Orga (Namen, E-Mail für den Login, Protokolle), aber **keine Telefonnummern, Postadressen oder Kontodaten**. Seed, Tests und Vorschau nutzen nur ausgedachte Daten mit `@example.org`-Adressen.
+  - **Ausnahme (Spec 031):** Handynummern von Ansprechpersonen der Kollektive in `collective_registrations`. Alle Anmeldungen werden 3 Monate nach der Krachparade gelöscht (Admin-Knopf unter `/kollektive`).
 - **Datumslogik:** reine Kalendertage ohne Uhrzeit. Berechnungen als reine Funktionen in `src/lib/`, „heute“ kommt als Parameter.
 
 ## 2. Stack & Befehle
@@ -36,6 +37,7 @@ e2e/              Klicktests (Playwright)
 docs/specs/       Specs; Vorlage docs/specs/_vorlage.md
 agents/           risikoklassen.json: Risikoklassen maschinenlesbar
 scripts/          risikoklasse.ts: stuft geänderte Dateien ein (für die Workflows)
+docker/           lokale Test-Datenbank (Postgres + Neon-HTTP-Proxy), Anleitung in docker/README.md
 ```
 
 Befehle (`package.json`):
@@ -68,7 +70,8 @@ Befehle (`package.json`):
 
 7. Geheimnisse (`DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_SECRET` …) nur über `process.env` lesen, nie loggen, nie an den Browser schicken. Alle Seiten tragen `robots: noindex`.
 8. Jede Server Action prüft zuerst die Anmeldung (ab Spec 002) und die Eingaben mit Zod. IDs aus dem Browser validieren und gegen die Datenbank prüfen. Grenzen und Rechte prüft immer der Server, nie nur die Oberfläche.
-9. Daten-Regel aus Abschnitt 1: keine Telefonnummern, Postadressen oder Kontodaten speichern; Test- und Seed-Daten nur ausgedacht, E-Mails nur `@example.org`.
+   - **Ausnahme (Spec 031):** `submitRegistration` (`src/actions/collective-registration.ts`) ist ohne Anmeldung erreichbar und schützt sich durch Honeypot, Mindestzeit, Zeitfenster und Obergrenze. Weitere Seiten oder Actions ohne Anmeldung nur mit eigener Spec.
+9. Daten-Regel aus Abschnitt 1: keine Telefonnummern, Postadressen oder Kontodaten speichern (Ausnahme: Handynummern der Kollektiv-Anmeldung, Abschnitt 1); Test- und Seed-Daten nur ausgedacht, E-Mails nur `@example.org`, Telefonnummern nur offensichtlich falsch (`+49 000 …`).
 10. Datum: reine Kalendertage (`YYYY-MM-DD`) ohne Uhrzeit; Rechenfunktionen bekommen „heute“ als Parameter. Anzeige in `Europe/Berlin`.
 
 **Oberfläche & Design**
@@ -87,7 +90,7 @@ Befehle (`package.json`):
 
 - Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die Vercel-Vorschau) sind Pflicht für `main`.
 - Jede Spec bringt mindestens einen Klicktest in `e2e/` mit. Test-Daten mit Präfix „E2E “ anlegen und am Ende wieder löschen.
-- Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`.
+- Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`. Alternativ (Spec 031): App gegen die lokale Docker-Datenbank starten und `BASE_URL` setzen, siehe `docker/README.md`. Dort darf der Agent die App selbst starten, weil nur ausgedachte Daten drin sind.
 
 **Definition of Done pro Spec**
 
@@ -128,7 +131,8 @@ Maschinenlesbare Fassung: `agents/risikoklassen.json`, ausgewertet von `scripts/
 - `src/proxy.ts`
 - Login und Dev-Login: `src/auth*.ts`, `src/app/api/auth/**`, `src/app/dev/**`, `src/lib/dev-login.ts`, `src/lib/env.ts`, `src/db/index.ts` samt zugehöriger Tests – und jede andere Stelle, die Sitzungen, Cookies oder Geheimnisse berührt.
 - Dev-Datenbank leeren: `src/db/reset-dev.ts`, `src/lib/db-reset.ts`
-- Ohne Anmeldung erreichbar oder Indexierung: `opengraph-image`, `robots`, `sitemap` unter `src/app/`, der `robots`-Eintrag in `src/app/layout.tsx`.
+- Ohne Anmeldung erreichbar oder Indexierung: `opengraph-image`, `robots`, `sitemap` unter `src/app/`, der `robots`-Eintrag in `src/app/layout.tsx`, die öffentliche Anmeldung `src/app/(public)/**` und `src/actions/collective-registration.ts` (Spec 031).
+- Lokale Docker-Datenbank: `docker/**`, `src/lib/local-db.ts` samt Test (Spec 031).
 - `.github/**`, `.claude/**`, `.mcp.json`
 - `AGENTS.md`, `CLAUDE.md`, `agents/**`, `scripts/**`
 - `drizzle.config.ts`, `drizzle.prod.config.ts` (Muster `drizzle*.config.*`)

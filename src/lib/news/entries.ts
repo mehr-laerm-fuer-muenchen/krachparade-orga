@@ -16,6 +16,29 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "031-kollektiv-anmeldung",
+    date: "2026-11-18",
+    title: "Anmeldung der Kollektive",
+    items: [
+      {
+        lead: "Eigenes Formular statt Google",
+        text: "Kollektive melden sich unter /anmeldung an, ohne Google-Konto.",
+      },
+      {
+        lead: "Alles unter „Kollektive“",
+        text: "Du siehst alle Anmeldungen mit Fahrzeugen, TÜV, Soundkopplung, Westen und Shirts.",
+      },
+      {
+        lead: "Zusagen und Warteliste",
+        text: "Setze den Status direkt an der Anmeldung und schreib interne Notizen.",
+      },
+      {
+        lead: "CSV-Export",
+        text: "Für die Auswahlkommission mit einem Klick.",
+      },
+    ],
+  },
+  {
     id: "030-krachparade-tag",
     date: "2026-11-07",
     title: "Der Tag der Krachparade",

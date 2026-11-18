@@ -42,12 +42,7 @@ export default function SettingsPage() {
           href="/kollektive"
           className="flex min-h-11 items-center justify-between rounded-md border border-line bg-surface px-4 text-base font-medium"
         >
-          <span className="flex items-center gap-2">
-            Kollektive
-            <span className="rounded-sm border border-line-strong px-1 text-[11px] leading-4 font-semibold text-muted">
-              R3
-            </span>
-          </span>
+          Kollektive – Anmeldungen
           <span aria-hidden className="text-muted">
             ›
           </span>

@@ -1,7 +1,8 @@
 import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { check, date, index, integer, primaryKey, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, date, index, integer, jsonb, primaryKey, unique, uniqueIndex } from "drizzle-orm/pg-core";
 import { pgView } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { ShirtOrder } from "../lib/collectives/options";
 
 /** Key/value pairs about the app itself, e.g. `seed_version` (spec 001). */
 export const appMeta = pgTable("app_meta", {
@@ -32,6 +33,9 @@ export const editions = pgTable(
     isCurrent: boolean("is_current").notNull().default(false),
     /** False while the working groups are only a proposal (spec 005). */
     workingGroupsFinal: boolean("working_groups_final").notNull().default(false),
+    /** Spec 031: window of the public registration form; both empty = closed. */
+    registrationOpensOn: date("registration_opens_on", { mode: "string" }),
+    registrationClosesOn: date("registration_closes_on", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("editions_one_current").on(table.isCurrent).where(sql`${table.isCurrent}`)]
@@ -546,6 +550,101 @@ export const dayRolePeople = pgTable(
 );
 
 export type DayRolePerson = typeof dayRolePeople.$inferSelect;
+
+/**
+ * Spec 031: registrations of collectives from the public form /anmeldung.
+ * Holds phone numbers (exception in AGENTS.md); all rows of an edition are
+ * deleted three months after its D-Day. Lengths are checked with Zod
+ * (src/lib/collectives/registration-schema.ts).
+ */
+export const collectiveRegistrations = pgTable(
+  "collective_registrations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    editionId: uuid("edition_id")
+      .notNull()
+      .references(() => editions.id),
+    status: text("status").notNull().default("new"),
+    internalNote: text("internal_note"),
+
+    contactFirstName: text("contact_first_name").notNull(),
+    contactLastName: text("contact_last_name").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    contactPhone: text("contact_phone").notNull(),
+
+    collectiveName: text("collective_name").notNull(),
+    displayName: text("display_name").notNull(),
+    demands: text("demands").notNull(),
+    instagram: text("instagram"),
+    tiktok: text("tiktok"),
+    filesLink: text("files_link"),
+    participatedBefore: boolean("participated_before").notNull(),
+    musicType: text("music_type").notNull(),
+    genres: text("genres").array().notNull().default(sql`'{}'::text[]`),
+    homeBase: text("home_base").notNull(),
+    eventSize: text("event_size").notNull(),
+
+    vehicle: text("vehicle").notNull(),
+    tuev: boolean("tuev"),
+    awareness: text("awareness").notNull(),
+    soundCoupling: boolean("sound_coupling").notNull(),
+    atmosphere: text("atmosphere").notNull(),
+    orderPreference: text("order_preference"),
+    jointWith: text("joint_with"),
+    vehicleFilesLink: text("vehicle_files_link"),
+
+    sectionLeadFirstName: text("section_lead_first_name"),
+    sectionLeadLastName: text("section_lead_last_name"),
+    sectionLeadEmail: text("section_lead_email"),
+    sectionLeadPhone: text("section_lead_phone"),
+    sectionLeadNote: text("section_lead_note"),
+
+    vehicleLeadFirstName: text("vehicle_lead_first_name").notNull(),
+    vehicleLeadLastName: text("vehicle_lead_last_name").notNull(),
+    vehicleLeadEmail: text("vehicle_lead_email").notNull(),
+    vehicleLeadSize: text("vehicle_lead_size").notNull(),
+    vehicleLeadPhone: text("vehicle_lead_phone").notNull(),
+
+    shirts: jsonb("shirts").$type<ShirtOrder>().notNull(),
+
+    stewardsConfirmedAt: timestamp("stewards_confirmed_at", { withTimezone: true }).notNull(),
+    privacyConfirmedAt: timestamp("privacy_confirmed_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "collective_registrations_status",
+      sql`${table.status} in ('new', 'accepted', 'waitlist', 'rejected')`
+    ),
+    check("collective_registrations_music_type", sql`${table.musicType} in ('live', 'dj', 'both', 'none')`),
+    check(
+      "collective_registrations_home_base",
+      sql`${table.homeBase} in ('munich', 'munich_area', 'bavaria', 'germany', 'abroad')`
+    ),
+    check(
+      "collective_registrations_event_size",
+      sql`${table.eventSize} in ('0', '1-50', '50-200', '200-500', '500-1000', '1000+')`
+    ),
+    check(
+      "collective_registrations_vehicle",
+      sql`${table.vehicle} in ('non_motorized', 'car', 'car_trailer', 'truck_small', 'truck_large')`
+    ),
+    check("collective_registrations_vest_size", sql`${table.vehicleLeadSize} in ('S', 'L', 'XXL')`),
+    check(
+      "collective_registrations_tuev_motor",
+      sql`(${table.vehicle} = 'non_motorized') = (${table.tuev} is null)`
+    ),
+    index("collective_registrations_edition_created").on(table.editionId, table.createdAt),
+    uniqueIndex("collective_registrations_edition_name_email").on(
+      table.editionId,
+      sql`lower(${table.collectiveName})`,
+      table.contactEmail
+    ),
+  ]
+);
+
+export type CollectiveRegistration = typeof collectiveRegistrations.$inferSelect;
 
 /**
  * Spec 022: read-only view for the feedback triage, without `created_by` and
