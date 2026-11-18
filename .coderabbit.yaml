@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit reviews every PR to main. It only comments, it never blocks or
+# merges (AGENTS.md section 6). AGENTS.md and CLAUDE.md are read as code
+# guidelines automatically.
+
+language: de-DE
+tone_instructions: "Kurz, freundlich und konkret. Das Team sind teils Einsteiger: erkläre bei Problemen in einem Satz warum, und schlage den Fix direkt vor."
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords: ["WIP"]
+  path_filters:
+    - "!pnpm-lock.yaml"
+    - "!**/*.snap"
+    - "!public/**"
+  path_instructions:
+    - path: "src/actions/**"
+      instructions: >-
+        Jede Server Action muss zuerst die Anmeldung prüfen und alle Eingaben
+        mit Zod validieren. IDs aus dem Browser gegen die Datenbank prüfen.
+        Rechte und Grenzen prüft der Server, nie nur die Oberfläche.
+    - path: "src/db/schema.ts"
+      instructions: >-
+        Melde deutlich jede Änderung, die Spalten oder Tabellen löscht oder
+        umbenennt, Typen ändert oder NOT NULL ohne Default setzt – das ist
+        Risikoklasse C und braucht Freigabe von Franz oder Tiago.
+    - path: "src/**/*.{ts,tsx}"
+      instructions: >-
+        Bezeichner und Kommentare auf Englisch, Texte in der Oberfläche auf
+        Deutsch. Geheimnisse nur über process.env, nie loggen, nie an den
+        Browser schicken. Bewegung muss prefers-reduced-motion respektieren.
+    - path: "{src/db/seed.ts,e2e/**,**/*.test.ts,**/*.test.tsx}"
+      instructions: >-
+        Nur ausgedachte Daten mit @example.org-Adressen. Keine echten Namen,
+        Telefonnummern, Postadressen oder Kontodaten. E2E-Testdaten mit
+        Präfix "E2E " anlegen und am Ende löschen.
+    - path: "{.github/**,package.json,renovate.json,.coderabbit.yaml,agents/**,AGENTS.md}"
+      instructions: >-
+        Risikoklasse C (AGENTS.md Abschnitt 5). Weise im Review darauf hin,
+        dass Franz oder Tiago diese Änderung freigeben müssen.
+  tools:
+    eslint:
+      enabled: true
+    gitleaks:
+      enabled: true
+
+chat:
+  auto_reply: true

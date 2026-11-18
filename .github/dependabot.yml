@@ -1,0 +1,26 @@
+# Dependabot: weekly update PRs for the GitHub Actions in .github/workflows.
+# npm packages are handled by Renovate (renovate.json) so no PR comes twice.
+# .github/** is class C (AGENTS.md section 5): these PRs never auto-merge,
+# Franz or Tiago decide. Dependabot security *alerts* stay on in the repo
+# settings; Renovate reads them and opens the fix PRs for npm.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    # New releases wait a few days before Dependabot proposes them.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "abhängigkeiten"
+    groups:
+      actions:
+        patterns: ["*"]
