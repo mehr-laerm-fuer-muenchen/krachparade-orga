@@ -205,7 +205,22 @@ test.describe("Kollektiv-Anmeldung", () => {
 
       // The core team sees, accepts and deletes the registration.
       await page.goto("/kollektive");
-      await page.getByRole("link", { name }).filter({ visible: true }).click();
+
+      // Spec 033: the T-shirt overview lists the collective with its order.
+      // Totals are not checked exactly, the seed has other registrations.
+      const shirtSection = page.getByRole("region", { name: "T-Shirts" });
+      const shirtRow = shirtSection
+        .getByRole("listitem")
+        .or(shirtSection.getByRole("row"))
+        .filter({ hasText: name })
+        .filter({ visible: true });
+      await expect(shirtRow).toHaveCount(1);
+      await expect(shirtRow).toContainText("2 × M");
+      await expect(shirtRow).toContainText("60 €");
+      await expectNoHorizontalScroll(page);
+
+      // Overview and list both link to the same detail page.
+      await page.getByRole("link", { name }).filter({ visible: true }).first().click();
       await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
       if (mailSent) {
         await expect(page.getByTestId("bestaetigung")).toContainText("verschickt am");

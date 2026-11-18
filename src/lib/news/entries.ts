@@ -16,6 +16,25 @@ export type NewsEntry = {
 
 export const NEWS: NewsEntry[] = [
   {
+    id: "033-tshirt-uebersicht",
+    date: "2026-11-18",
+    title: "T-Shirt-Übersicht",
+    items: [
+      {
+        lead: "Alle Shirts auf einen Blick",
+        text: "Unter „Kollektive“ siehst du, wie viele Shirts je Art und Größe bestellt sind.",
+      },
+      {
+        lead: "Wer hat was bestellt",
+        text: "Je Kollektiv Anzahl, Größen und Betrag.",
+      },
+      {
+        lead: "Umsatz",
+        text: "Was die Shirts einbringen, zugesagt und erwartet, mit dem Soli-Anteil.",
+      },
+    ],
+  },
+  {
     id: "032-bestaetigungs-mail",
     date: "2026-11-18",
     title: "Bestätigungs-Mail für Kollektive",

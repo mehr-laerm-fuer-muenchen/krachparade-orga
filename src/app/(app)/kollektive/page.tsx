@@ -11,18 +11,17 @@ import { PageTitle } from "@/components/placeholder";
 import { listRegistrations } from "@/db/collectives";
 import { getCurrentEdition } from "@/db/editions";
 import { formatEuro } from "@/lib/collectives/costs";
+import { ShirtOverview } from "@/components/collectives/shirt-overview";
 import {
   REGISTRATION_STATUSES,
   REGISTRATION_STATUS_LABELS,
-  SHIRT_KINDS,
-  SHIRT_KIND_LABELS,
-  SHIRT_SIZES,
   VEHICLES,
   VEHICLE_SHORT_LABELS,
   VEST_SIZES,
 } from "@/lib/collectives/options";
 import { isConfirmationMissing } from "@/lib/collectives/mail-status";
 import { isPastRetention, retentionEnd } from "@/lib/collectives/retention";
+import { shirtOverview } from "@/lib/collectives/shirts";
 import { summarizeRegistrations } from "@/lib/collectives/summary";
 import { registrationState } from "@/lib/collectives/window";
 import { formatGermanDate, todayInBerlin } from "@/lib/dday";
@@ -150,23 +149,19 @@ async function Overview() {
           </Tile>
         </div>
         <details className="rounded-md border border-line bg-surface px-4 py-2">
-          <summary className="flex min-h-11 cursor-pointer items-center font-medium">Westen und T-Shirts</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center font-medium">Westen</summary>
           <div className="flex flex-col gap-3 pb-2">
             <p>
               <span className="text-muted">Westen Wagenverantwortliche: </span>
               {VEST_SIZES.map((size) => `${size}: ${summary.vests[size]}`).join(" · ")}
             </p>
-            {SHIRT_KINDS.map((kind) => (
-              <p key={kind}>
-                <span className="text-muted">T-Shirts {SHIRT_KIND_LABELS[kind]}: </span>
-                {SHIRT_SIZES.map((size) => `${size}: ${summary.shirts[kind][size]}`).join(" · ")}
-              </p>
-            ))}
           </div>
         </details>
       </section>
 
       <CollectivesList entries={entries} />
+
+      <ShirtOverview overview={shirtOverview(registrations)} />
 
       {viewer.isAdmin ? (
         <section
