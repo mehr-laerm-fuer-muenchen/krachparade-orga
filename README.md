@@ -106,8 +106,8 @@ Du brauchst nur **eigene** Werte. Niemals Werte von Franz verwenden, und die `:p
 2. Freigabe durch Franz in der Kopfzeile der Spec
 3. Bau lokal mit Claude Code oder per Build-Agent in GitHub
 4. Pull Request
-5. Pflicht-Checks „Prüfungen“ (typecheck, lint, test, build) und „Klicktests“ (Playwright gegen die Vercel-Vorschau)
-6. Merge auf `main` = live auf Vercel
+5. Pflicht-Checks „Prüfungen“ (typecheck, lint, test, build) und „Klicktests“ (Playwright gegen die Vercel-Vorschau oder gegen einen eigenen Build, siehe [Mitentwickeln](#mitentwickeln))
+6. Merge durch Franz, nur als Merge-Commit = live auf Vercel
 
 Jede Änderung bekommt eine Risikoklasse: A läuft vollautomatisch, B automatisch nach Freigabe der Spec, C entscheidet immer Franz. Details in [`AGENTS.md`](AGENTS.md) und [`agents/risikoklassen.json`](agents/risikoklassen.json).
 
@@ -115,8 +115,21 @@ Jede Änderung bekommt eine Risikoklasse: A läuft vollautomatisch, B automatisc
 
 - Ideen, Fehler und Spec-Vorschläge als Issue.
 - Das Label `go` setzt nur Franz, und zwar nur auf Issues, die er selbst angelegt hat. Fremde Vorschläge übernimmt er in ein eigenes Issue.
-- Code-Vorschläge als Pull Request aus einem Fork. Die Prüfungen laufen bei Fork-PRs nicht automatisch; Franz übernimmt Änderungen nach Review.
-- Mitlesende haben keine Merge-Rechte.
+
+## Mitentwickeln
+
+Mitentwickelnde sind **Collaborator mit Schreibrecht** und arbeiten mit Zweigen im selben Repo, ohne Fork.
+
+1. Spec in `docs/specs/` (Vorlage `docs/specs/_vorlage.md`)
+2. Freigabe nur durch Franz („Freigabe Franz: ☑“ in der Kopfzeile)
+3. Bau auf einem eigenen Zweig, lokal wie unter [Lokal starten](#lokal-starten) beschrieben, mit **eigenem Neon-Projekt**
+4. Pull Request gegen `main`
+5. Pflicht-Checks „Prüfungen“ und „Klicktests“
+6. **Merge durch Franz, nur als Merge-Commit**, danach live auf Vercel
+
+Kleinkram geht ohne Spec: Fehler beheben, Texte, Tests. Ein neues Datenmodell braucht immer eine Spec.
+
+Für eigene PRs gibt es keine Vercel-Vorschau, weil Vercel nur Commits von Mitgliedern des Vercel-Teams baut. Die „Klicktests“ bauen die App dann selbst und testen dagegen (`.github/workflows/klicktests.yml`). Die Regeln für Mitentwickelnde stehen in [`AGENTS.md`](AGENTS.md), Abschnitt 13.
 
 ## Weiterlesen
 
