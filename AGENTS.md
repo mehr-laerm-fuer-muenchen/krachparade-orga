@@ -129,7 +129,7 @@ Maschinenlesbare Fassung: `agents/risikoklassen.json`, ausgewertet von `scripts/
 - Login und Dev-Login: `src/auth*.ts`, `src/app/api/auth/**`, `src/app/dev/**`, `src/lib/dev-login.ts`, `src/lib/env.ts`, `src/db/index.ts` samt zugehöriger Tests – und jede andere Stelle, die Sitzungen, Cookies oder Geheimnisse berührt.
 - Dev-Datenbank leeren: `src/db/reset-dev.ts`, `src/lib/db-reset.ts`
 - Ohne Anmeldung erreichbar oder Indexierung: `opengraph-image`, `robots`, `sitemap` unter `src/app/`, der `robots`-Eintrag in `src/app/layout.tsx`.
-- `.github/**`, `.claude/**`, `.mcp.json`, Bot-Konfiguration `renovate.json`, `.coderabbit.yaml`
+- `.github/**`, `.claude/**`, `.mcp.json`, Bot-Konfiguration `renovate.json`
 - `AGENTS.md`, `CLAUDE.md`, `agents/**`, `scripts/**`
 - `drizzle.config.ts`, `drizzle.prod.config.ts` (Muster `drizzle*.config.*`)
 - Alles mit `prod`: Skripte `db:push:prod`, `db:seed:prod` und der `--prod`-Teil in `src/db/seed.ts`
