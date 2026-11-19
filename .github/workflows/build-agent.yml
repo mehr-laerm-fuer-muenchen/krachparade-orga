@@ -336,8 +336,13 @@ jobs:
           EOF
             gh issue comment "$NR" --body-file "$RUNNER_TEMP/meldung.md"
           else
-            gh pr merge "$pr" --auto --merge
-            gh issue comment "$NR" --body "🚀 PR #$pr offen, geht automatisch live, sobald die Prüfungen grün sind. Vorschau folgt im PR."
+            # Auto-merge needs a public repo or a paid GitHub plan. Without it,
+            # the PR stays open and Franz or Tiago merge it by hand.
+            if gh pr merge "$pr" --auto --merge; then
+              gh issue comment "$NR" --body "🚀 PR #$pr offen, geht automatisch live, sobald die Prüfungen grün sind. Vorschau folgt im PR."
+            else
+              gh issue comment "$NR" --body "🚀 PR #$pr offen. Auto-Merge ist in diesem Repo nicht verfügbar: bitte von Hand mergen (Merge-Commit), sobald die Prüfungen grün sind."
+            fi
           fi
 
       - name: Fehlschlag melden
