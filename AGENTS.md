@@ -93,7 +93,7 @@ Befehle (`package.json`):
 
 **Klicktests & Pflicht-Prüfungen**
 
-- Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die Vercel-Vorschau) sind Pflicht für `main`.
+- Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die im Workflow selbst gebaute App auf Port 3100, Datenbank: Neon-Zweig `dev` über das Secret `DEV_DATABASE_URL`) sind Pflicht für `main`.
 - Jede Spec bringt mindestens einen Klicktest in `e2e/` mit. Test-Daten mit Präfix „E2E “ anlegen und am Ende wieder löschen.
 - Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`.
 
@@ -133,7 +133,7 @@ Maschinenlesbare Fassung: `agents/risikoklassen.json`, ausgewertet von `scripts/
 - Login und Dev-Login: `src/auth*.ts`, `src/app/api/auth/**`, `src/app/dev/**`, `src/lib/dev-login.ts`, `src/lib/env.ts`, `src/db/index.ts` samt zugehöriger Tests – und jede andere Stelle, die Sitzungen, Cookies oder Geheimnisse berührt.
 - Dev-Datenbank leeren: `src/db/reset-dev.ts`, `src/lib/db-reset.ts`
 - Ohne Anmeldung erreichbar oder Indexierung: `opengraph-image`, `robots`, `sitemap` unter `src/app/`, der `robots`-Eintrag in `src/app/layout.tsx`.
-- `.github/**`, `.claude/**`, `.mcp.json`
+- `.github/**`, `.claude/**`, `.mcp.json`, Bot-Konfiguration `renovate.json`
 - `AGENTS.md`, `CLAUDE.md`, `agents/**`, `scripts/**`
 - `drizzle.config.ts`, `drizzle.prod.config.ts` (Muster `drizzle*.config.*`)
 - Alles mit `prod`: Skripte `db:push:prod`, `db:seed:prod` und der `--prod`-Teil in `src/db/seed.ts`
@@ -201,7 +201,7 @@ Keine Stil-Kleinigkeiten melden, die Lint nicht bemängelt. Jeder Befund mit Dat
 
 ## 11. Autopilot in GitHub
 
-Ablauf: Issue mit Label `spec`, Titel `NNN-kurzname`, Text = Spec → Franz setzt Label `go` → Workflow „Build-Agent“ prüft den Titel gegen `^[0-9]{3}-[a-z0-9-]+$`, schreibt die Spec mit Go-Vermerk nach `docs/specs/`, Claude Code baut auf Zweig `agent/NNN-kurzname` → Nachprüfung der Risikoklasse → PR mit „Closes #n“ → bei A/B ohne Datenbank Auto-Merge, sobald „Prüfungen“ und „Klicktests“ grün sind → „✅ Gemergt“ im Issue (Workflow „Abschluss-Meldung“). Rote Prüfungen: Workflow „Fix-Agent“, höchstens 3 Versuche. Issue-Texte erreichen Befehle nur über Dateien oder env-Variablen, nie direkt in `run:`.
+Ablauf: Issue mit Label `spec`, Titel `NNN-kurzname`, Text = Spec → Franz setzt Label `go` → Workflow „Build-Agent“ prüft den Titel gegen `^[0-9]{3}-[a-z0-9-]+$`, schreibt die Spec mit Go-Vermerk nach `docs/specs/`, Claude Code baut auf Zweig `agent/NNN-kurzname` → Nachprüfung der Risikoklasse → PR mit „Closes #n“ → bei A/B ohne Datenbank Auto-Merge, sobald „Prüfungen“ und „Klicktests“ grün sind (geht nur in öffentlichen Repos oder mit bezahltem GitHub-Plan; sonst mergen Franz oder Tiago von Hand) → „✅ Gemergt“ im Issue (Workflow „Abschluss-Meldung“). Rote Prüfungen: Workflow „Fix-Agent“, höchstens 3 Versuche. Issue-Texte erreichen Befehle nur über Dateien oder env-Variablen, nie direkt in `run:`.
 
 Secrets: `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID`, `KPORGA_BOT_PRIVATE_KEY` (eigene GitHub App), `VERCEL_AUTOMATION_BYPASS_SECRET`, `DEV_DATABASE_URL`.
 
