@@ -1,14 +1,9 @@
 name: Klicktests
 
-# Runs the Playwright smoke tests (e2e/) for the PR's head commit, on one of
-# two paths (spec 019):
-# - "Vorschau": the head commit's author is Franz or a bot → wait for the
-#   Vercel preview and test against it. No preview after 10 minutes → the
-#   check fails (a skipped required job would count as passed).
-# - "Selbstbau": anyone else. Vercel Hobby does not deploy commits of authors
-#   outside the Vercel team, so the job builds the app itself and tests
-#   against it on port 3100.
-# Both paths stay inside the one job "Klicktests" (required check).
+# Runs the Playwright smoke tests (e2e/) for the PR's head commit: builds
+# the app itself, starts it on port 3100 and tests against it. Needs the
+# secret DEV_DATABASE_URL (Neon branch `dev`, invented data only).
+# There is no Vercel preview in this repo (hosting: Coolify).
 
 on:
   pull_request:
@@ -21,43 +16,18 @@ concurrency:
 
 permissions:
   contents: read
-  deployments: read
 
 jobs:
   klicktests:
     name: Klicktests
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    # All previews and self-builds share the Neon branch `dev`: never two
+    # All runs share the Neon branch `dev`: never two
     # runs at once.
     concurrency:
       group: dev-datenbank
       cancel-in-progress: false
-    env:
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      # Decided by the GitHub login of the head commit's author, never by an
-      # e-mail address. No linked account (login empty) → Selbstbau.
-      - name: Weg wählen (Vorschau oder Selbstbau)
-        id: weg
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          autor=$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA" \
-            --jq '[(.author.login // ""), (.author.type // "")] | @tsv')
-          login=$(printf '%s' "$autor" | cut -f1)
-          typ=$(printf '%s' "$autor" | cut -f2)
-          if [ "$login" = "dellingerfranz-dev" ] || [ "$typ" = "Bot" ]; then
-            weg=vorschau
-            text="Vorschau"
-          else
-            weg=selbstbau
-            text="Selbstbau, Autor nicht im Vercel-Team"
-          fi
-          echo "weg=$weg" >> "$GITHUB_OUTPUT"
-          echo "Weg: $text"
-          echo "**Klicktests – Weg:** $text" >> "$GITHUB_STEP_SUMMARY"
-
       - name: Code am Commit des PRs holen
         uses: actions/checkout@v5
         with:
@@ -75,36 +45,14 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pnpm install --frozen-lockfile
 
-      - name: Auf die Vercel-Vorschau warten
-        id: vorschau
-        if: steps.weg.outputs.weg == 'vorschau'
+      - name: Secret DEV_DATABASE_URL vorhanden?
         env:
-          GH_TOKEN: ${{ github.token }}
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
         run: |
-          deadline=$((SECONDS + 600))
-          while [ "$SECONDS" -lt "$deadline" ]; do
-            ids=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$HEAD_SHA&per_page=100" \
-              --jq '.[] | select(.production_environment != true and (.environment | test("^preview"; "i"))) | .id')
-            for id in $ids; do
-              status=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses?per_page=1" \
-                --jq '.[0] | [.state, (.environment_url // .target_url // "")] | @tsv')
-              state=$(printf '%s' "$status" | cut -f1)
-              url=$(printf '%s' "$status" | cut -f2)
-              if [ "$state" = "success" ] && [ -n "$url" ]; then
-                echo "Vorschau bereit: $url"
-                echo "url=$url" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
-              if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
-                echo "::error::Die Vercel-Vorschau für $HEAD_SHA ist fehlgeschlagen ($state)."
-                exit 1
-              fi
-            done
-            echo "Vorschau noch nicht fertig – warte 15 s …"
-            sleep 15
-          done
-          echo "::error::Keine Vercel-Vorschau – Autor nicht im Vercel-Team? Dann sollte der Selbstbau-Weg greifen. (Nach 10 Minuten keine erfolgreiche Vorschau für $HEAD_SHA.)"
-          exit 1
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Secret DEV_DATABASE_URL fehlt (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
 
       - name: Chromium für Playwright installieren
         run: pnpm exec playwright install --with-deps chromium
@@ -127,17 +75,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
         run: pnpm db:seed
 
-      - name: Klicktests gegen die Vorschau
-        if: steps.weg.outputs.weg == 'vorschau'
-        env:
-          BASE_URL: ${{ steps.vorschau.outputs.url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: pnpm e2e
-
       # Random per run, masked before it reaches the environment, never
       # printed.
       - name: Sitzungs-Geheimnis für den Selbstbau erzeugen
-        if: steps.weg.outputs.weg == 'selbstbau'
         run: |
           secret=$(openssl rand -base64 32)
           echo "::add-mask::$secret"
@@ -146,7 +86,6 @@ jobs:
       # VERCEL_ENV=preview + ENABLE_DEV_LOGIN=1: dev login as in the preview
       # (src/lib/dev-login.ts). Google login is not needed for the tests.
       - name: App selbst bauen
-        if: steps.weg.outputs.weg == 'selbstbau'
         env:
           DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
           VERCEL_ENV: preview
@@ -156,7 +95,6 @@ jobs:
       # setsid: the server gets its own process group, so the stop step can
       # end pnpm and next together.
       - name: Selbst gebaute App auf Port 3100 starten
-        if: steps.weg.outputs.weg == 'selbstbau'
         env:
           DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
           AUTH_TRUST_HOST: "1"
@@ -178,13 +116,12 @@ jobs:
           exit 1
 
       - name: Klicktests gegen die selbst gebaute App
-        if: steps.weg.outputs.weg == 'selbstbau'
         env:
           BASE_URL: http://localhost:3100
         run: pnpm e2e
 
       - name: Selbst gebaute App beenden
-        if: always() && steps.weg.outputs.weg == 'selbstbau'
+        if: always()
         run: |
           if [ -f "$RUNNER_TEMP/app.pid" ]; then
             kill -- "-$(cat "$RUNNER_TEMP/app.pid")" 2>/dev/null || true

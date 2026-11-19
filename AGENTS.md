@@ -85,7 +85,7 @@ Befehle (`package.json`):
 
 **Klicktests & Pflicht-Prüfungen**
 
-- Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die Vercel-Vorschau) sind Pflicht für `main`.
+- Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die im Workflow selbst gebaute App auf Port 3100, Datenbank: Neon-Zweig `dev` über das Secret `DEV_DATABASE_URL`) sind Pflicht für `main`.
 - Jede Spec bringt mindestens einen Klicktest in `e2e/` mit. Test-Daten mit Präfix „E2E “ anlegen und am Ende wieder löschen.
 - Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`.
 
@@ -260,7 +260,7 @@ Gilt für Mitentwickelnde (Collaborator mit Schreibrecht, Zweige im selben Repo)
 - Lokal nur mit eigener Datenbank (eigenes Neon-Projekt). Seed, Tests und Vorschau nur mit ausgedachten Daten.
 - Kein Selbst-Merge. Franz merged per Merge-Commit.
 - Heikle Dateien nur nach Absprache mit Franz: `.github/`, `.claude/`, `agents/`, `scripts/`, Login (Abschnitt 5, Klasse C), Configs, `package.json`, `src/db/schema.ts`.
-- Für PRs von Autoren außerhalb des Vercel-Teams gibt es keine Vercel-Vorschau. „Klicktests“ baut die App dann selbst und testet auf Port 3100 (`.github/workflows/klicktests.yml`, Zusammenfassung „Selbstbau, Autor nicht im Vercel-Team“).
+- „Klicktests“ baut die App für jeden PR selbst und testet auf Port 3100 (`.github/workflows/klicktests.yml`); eine Vercel-Vorschau gibt es nicht.
 
 ---
 
