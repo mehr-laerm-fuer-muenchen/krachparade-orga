@@ -2,6 +2,14 @@
 
 Diese Datei ist die einzige Quelle für Agenten-Regeln (Claude Code lokal und in GitHub, Codex im Review). `CLAUDE.md` verweist nur hierher.
 
+## 0. Diese Kopie: mehr-laerm-fuer-muenchen (Coolify)
+
+Dieser Abschnitt gilt für das Repo `mehr-laerm-fuer-muenchen/krachparade-orga` (lokal Remote `coolify`, Zweig `coolify-demo`) und geht allen anderen Abschnitten vor.
+
+- **Tiago hat dieselben Rechte wie Franz.** Überall, wo „Franz“ oder „nur Franz“ steht, gilt „Franz oder Tiago“: Specs freigeben, Klasse-C-Änderungen erlauben, mergen, Notbremse.
+- **Hosting:** Coolify auf dem eigenen netcup-Server statt Vercel. Hinweise auf Vercel in dieser Datei beschreiben das Original-Repo.
+- **Pushen:** Agenten dürfen `git push coolify …` ausführen, wenn Tiago oder Franz es im Chat verlangen. **Nie** zu `origin` (`dellingerfranz-dev/krachparade-orga`) pushen, nie `--force`.
+
 ## 1. Projekt
 
 - App „Krachparade Orga“ – Planungs-App der Kern-Orga der Krachparade (Mehr Lärm für München). Erste Ausgabe: **Krachparade 2027 am 08.05.2027**.
@@ -102,10 +110,6 @@ Befehle (`package.json`):
 **Was Agenten nie tun**
 
 - `.env`, `.env.local` oder andere Dateien mit Geheimnissen lesen, ausgeben oder in Code kopieren.
-- `git push`, `git push --force`, `git reset --hard`, `git clean`, `rm -rf`, Tabellen löschen, `drizzle-kit drop`.
-- Daten in der Datenbank löschen, außer über eine Löschfunktion, die eine Spec verlangt, oder `pnpm db:reset:dev` gegen die Dev-Datenbank, wenn die Spec es verlangt.
-- `pnpm dev` starten, `pnpm db:push:prod` oder `pnpm db:seed:prod` ausführen.
-- Den Freigabe-Haken in einer Spec setzen.
 - Auf `main` committen.
 
 ## 4. Rollen
