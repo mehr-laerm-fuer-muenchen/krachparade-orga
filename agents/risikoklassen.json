@@ -30,6 +30,7 @@
     ".github/**",
     ".claude/**",
     ".mcp.json",
+    "renovate.json",
     "AGENTS.md",
     "CLAUDE.md",
     "agents/**",

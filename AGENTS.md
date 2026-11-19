@@ -96,7 +96,7 @@ Befehle (`package.json`):
 
 **Klicktests & Pflicht-Prüfungen**
 
-- Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die Vercel-Vorschau) sind Pflicht für `main`.
+- Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die im Workflow selbst gebaute App auf Port 3100, Datenbank: Neon-Zweig `dev` über das Secret `DEV_DATABASE_URL`) sind Pflicht für `main`.
 - Jede Spec bringt mindestens einen Klicktest in `e2e/` mit. Test-Daten mit Präfix „E2E “ anlegen und am Ende wieder löschen.
 - Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`. Alternativ (Spec 031): App gegen die lokale Docker-Datenbank starten und `BASE_URL` setzen, siehe `docker/README.md`. Dort darf der Agent die App selbst starten, weil nur ausgedachte Daten drin sind.
 
@@ -205,7 +205,7 @@ Keine Stil-Kleinigkeiten melden, die Lint nicht bemängelt. Jeder Befund mit Dat
 
 ## 11. Autopilot in GitHub
 
-Ablauf: Issue mit Label `spec`, Titel `NNN-kurzname`, Text = Spec → Franz setzt Label `go` → Workflow „Build-Agent“ prüft den Titel gegen `^[0-9]{3}-[a-z0-9-]+$`, schreibt die Spec mit Go-Vermerk nach `docs/specs/`, Claude Code baut auf Zweig `agent/NNN-kurzname` → Nachprüfung der Risikoklasse → PR mit „Closes #n“ → bei A/B ohne Datenbank Auto-Merge, sobald „Prüfungen“ und „Klicktests“ grün sind → „✅ Gemergt“ im Issue (Workflow „Abschluss-Meldung“). Rote Prüfungen: Workflow „Fix-Agent“, höchstens 3 Versuche. Issue-Texte erreichen Befehle nur über Dateien oder env-Variablen, nie direkt in `run:`.
+Ablauf: Issue mit Label `spec`, Titel `NNN-kurzname`, Text = Spec → Franz setzt Label `go` → Workflow „Build-Agent“ prüft den Titel gegen `^[0-9]{3}-[a-z0-9-]+$`, schreibt die Spec mit Go-Vermerk nach `docs/specs/`, Claude Code baut auf Zweig `agent/NNN-kurzname` → Nachprüfung der Risikoklasse → PR mit „Closes #n“ → bei A/B ohne Datenbank Auto-Merge, sobald „Prüfungen“ und „Klicktests“ grün sind (geht nur in öffentlichen Repos oder mit bezahltem GitHub-Plan; sonst mergen Franz oder Tiago von Hand) → „✅ Gemergt“ im Issue (Workflow „Abschluss-Meldung“). Rote Prüfungen: Workflow „Fix-Agent“, höchstens 3 Versuche. Issue-Texte erreichen Befehle nur über Dateien oder env-Variablen, nie direkt in `run:`.
 
 Secrets: `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID`, `KPORGA_BOT_PRIVATE_KEY` (eigene GitHub App), `VERCEL_AUTOMATION_BYPASS_SECRET`, `DEV_DATABASE_URL`.
 
