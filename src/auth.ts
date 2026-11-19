@@ -37,7 +37,7 @@ function adminEmails(): string[] {
   return parseAdminEmails(process.env.ADMIN_EMAILS);
 }
 
-// The dev login exists only locally and in Vercel previews (spec 001) and
+// The dev login exists only locally and in previews or the demo (spec 001) and
 // only signs in seeded test members with @example.org addresses.
 const devLogin = Credentials({
   id: DEV_LOGIN_PROVIDER,
