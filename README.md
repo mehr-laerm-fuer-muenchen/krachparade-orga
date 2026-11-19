@@ -34,6 +34,7 @@ Die App läuft mit [Coolify](https://coolify.io) auf einem eigenen netcup-Server
 
 - **Deploy:** Jeder Push auf `main` wird automatisch gebaut und ausgeliefert. Gebaut wird auf dem Server mit Railpack, das Node und pnpm aus `.node-version` und `package.json` nimmt.
 - **Vorschau:** Jeder Pull Request gegen `main` bekommt eine eigene Vorschau unter der PR-Nummer. Neue Commits im PR bauen sie neu, beim Schließen wird sie entfernt. Die Vorschauen nutzen dieselbe Demo-Datenbank wie die App.
+- **Neue Tabellen oder Spalten:** Bringt ein PR Änderungen an `src/db/schema.ts`, vor dem Öffnen des PRs auf dem PR-Zweig `pnpm db:push` gegen die Demo-Datenbank ausführen. Sonst bricht die Vorschau nach dem Login mit „column … does not exist“ ab. Nur hinzufügende Änderungen (neue Tabellen, neue Spalten) sind so erlaubt; löscht oder benennt `db:push` etwas um, abbrechen und im Team klären.
 - **Umgebungsvariablen** trägt das Team direkt in Coolify ein, für Production und Vorschau getrennt, jeweils auch zur Build-Zeit: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, `ADMIN_EMAILS`, `ENABLE_DEV_LOGIN=1` und vorerst `VERCEL_ENV=preview` (siehe [Dev-Login](#dev-login)).
 - **Benachrichtigungen:** Fehlgeschlagene Deploys meldet Coolify per Mail an das Team.
 
