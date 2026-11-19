@@ -29,15 +29,15 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Code am Commit des PRs holen
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: pnpm einrichten
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Node einrichten
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -129,7 +129,7 @@ jobs:
 
       - name: Bericht und Screenshots hochladen
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-bericht
           path: |
