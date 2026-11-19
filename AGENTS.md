@@ -2,6 +2,14 @@
 
 Diese Datei ist die einzige Quelle für Agenten-Regeln (Claude Code lokal und in GitHub, Codex im Review). `CLAUDE.md` verweist nur hierher.
 
+## 0. Diese Kopie: mehr-laerm-fuer-muenchen (Coolify)
+
+Dieser Abschnitt gilt für das Repo `mehr-laerm-fuer-muenchen/krachparade-orga` (lokal Remote `coolify`, Zweig `coolify-demo`) und geht allen anderen Abschnitten vor.
+
+- **Tiago hat dieselben Rechte wie Franz.** Überall, wo „Franz“ oder „nur Franz“ steht, gilt „Franz oder Tiago“: Specs freigeben, Klasse-C-Änderungen erlauben, mergen, Notbremse.
+- **Hosting:** Coolify auf dem eigenen netcup-Server statt Vercel. Hinweise auf Vercel in dieser Datei beschreiben das Original-Repo.
+- **Pushen:** Agenten dürfen `git push coolify …` ausführen, wenn Tiago oder Franz es im Chat verlangen. **Nie** zu `origin` (`dellingerfranz-dev/krachparade-orga`) pushen, nie `--force`.
+
 ## 1. Projekt
 
 - App „Krachparade Orga“ – Planungs-App der Kern-Orga der Krachparade (Mehr Lärm für München). Erste Ausgabe: **Krachparade 2027 am 08.05.2027**.

@@ -52,3 +52,4 @@ next-env.d.ts
 
 # feedback triage (spec 022): working files with feedback texts, never commit
 /triage-out/
+.neon
