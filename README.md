@@ -2,13 +2,15 @@
 
 Planungs-App für die Kern-Orga der Krachparade (Mehr Lärm für München), erste Ausgabe: Krachparade 2027 am 08.05.2027. Die App enthält den Plan rückwärts von der Krachparade, die Arbeitskreise und Protokolle mit Beschlüssen und To-dos. Gebaut wird sie mit Claude Code nach Specs, siehe [Wie gebaut wird](#wie-gebaut-wird).
 
-Live: https://krachparade-orga.vercel.app (Anmeldung nur für freigeschaltete Mitglieder der Kern-Orga)
+Demo: https://krachparade-orga.de (selbst gehostet mit Coolify, nur ausgedachte Testdaten, Anmeldung über `/dev/login`)
+
+Dieses Repo (`mehr-laerm-fuer-muenchen/krachparade-orga`) ist eine Kopie des Original-Repos, die statt auf Vercel auf einem eigenen Server läuft. Was hier anders ist, steht in [`AGENTS.md`](AGENTS.md), Abschnitt 0.
 
 ## Stack
 
 Versionen aus `package.json` bzw. `.node-version`:
 
-- Next.js 16.4.0 (App Router, Server Components, Server Actions)
+- Next.js 16.4.5 (App Router, Server Components, Server Actions)
 - React 19.3.0
 - TypeScript 5 mit `strict`
 - Tailwind CSS 4
@@ -19,9 +21,25 @@ Versionen aus `package.json` bzw. `.node-version`:
 - pnpm 12.6.0
 - Node 24.21.0 (`.node-version`)
 
+## Hosting
+
+Die App läuft mit [Coolify](https://coolify.io) auf einem eigenen netcup-Server.
+
+| Was | Wo |
+|---|---|
+| App | https://krachparade-orga.de |
+| PR-Vorschau | `https://<PR-Nummer>.preview.krachparade-orga.de` |
+| Coolify-Oberfläche | https://coolify.krachparade-orga.de (nur fürs Team) |
+| Datenbank | eigenes Neon-Projekt, nur ausgedachte Daten |
+
+- **Deploy:** Jeder Push auf `main` wird automatisch gebaut und ausgeliefert. Gebaut wird auf dem Server mit Railpack, das Node und pnpm aus `.node-version` und `package.json` nimmt.
+- **Vorschau:** Jeder Pull Request gegen `main` bekommt eine eigene Vorschau unter der PR-Nummer. Neue Commits im PR bauen sie neu, beim Schließen wird sie entfernt. Die Vorschauen nutzen dieselbe Demo-Datenbank wie die App.
+- **Umgebungsvariablen** trägt das Team direkt in Coolify ein, für Production und Vorschau getrennt, jeweils auch zur Build-Zeit: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, `ADMIN_EMAILS`, `ENABLE_DEV_LOGIN=1` und vorerst `VERCEL_ENV=preview` (siehe [Dev-Login](#dev-login)).
+- **Benachrichtigungen:** Fehlgeschlagene Deploys meldet Coolify per Mail an das Team.
+
 ## Ordner
 
-- `src/app` – Seiten und Routen (App Router), `src/app/dev/**` nur lokal und in der Vercel-Vorschau
+- `src/app` – Seiten und Routen (App Router), `src/app/dev/**` nur lokal und in Vorschau bzw. Demo
 - `src/actions` – Server Actions (schreiben in die Datenbank)
 - `src/lib` – reine Funktionen ohne Datenbank; Datumsrechnungen bekommen „heute“ als Parameter
 - `src/db` – Schema, Verbindung, Datenzugriff, Seed
@@ -33,7 +51,7 @@ Versionen aus `package.json` bzw. `.node-version`:
 
 ## Lokal starten
 
-Du brauchst nur **eigene** Werte. Niemals Werte von Franz verwenden, und die `:prod`-Skripte sind nur für Franz.
+Du brauchst nur **eigene** Werte. Niemals fremde Datenbank-Adressen verwenden, und die `:prod`-Skripte sind tabu.
 
 1. Node in der Version aus `.node-version` (24.21.0) installieren, z. B. mit fnm oder nvm. pnpm in der Version aus `packageManager` in `package.json` kommt über Corepack:
 
@@ -50,7 +68,7 @@ Du brauchst nur **eigene** Werte. Niemals Werte von Franz verwenden, und die `:p
 
 3. In `.env.local` eigene Werte eintragen:
 
-   - `DATABASE_URL`: Verbindungs-Adresse eines **eigenen kostenlosen Neon-Projekts** (neon.tech → neues Projekt → Connection String). Ohne diesen Wert brechen `pnpm db:push`, `pnpm db:seed` und jede Seite mit „DATABASE_URL fehlt“ ab.
+   - `DATABASE_URL`: Verbindungs-Adresse eines **eigenen kostenlosen Neon-Projekts** (neon.com → neues Projekt → Connect). Ohne diesen Wert brechen `pnpm db:push`, `pnpm db:seed` und jede Seite mit „DATABASE_URL fehlt“ ab.
    - `AUTH_SECRET`: selbst erzeugen, z. B. mit
 
      ```bash
@@ -76,7 +94,14 @@ Du brauchst nur **eigene** Werte. Niemals Werte von Franz verwenden, und die `:p
 
 6. http://localhost:3000/dev/login öffnen und dich als Test-Mitglied aus dem Seed anmelden.
 
-   Der Dev-Login ist aktiv, solange `NODE_ENV` nicht `production` ist, also bei `pnpm dev`. In der Vercel-Vorschau braucht er `ENABLE_DEV_LOGIN=1`, in Production ist er immer aus und `/dev/**` antwortet mit 404 (`src/lib/dev-login.ts`, `src/proxy.ts`). Er meldet nur aktive Mitglieder mit `@example.org`-Adresse an.
+### Dev-Login
+
+Der Dev-Login meldet nur aktive Mitglieder mit `@example.org`-Adresse an, ohne Einladungslink. Er ist aktiv:
+
+- lokal, solange `NODE_ENV` nicht `production` ist, also bei `pnpm dev`
+- in Vorschau und Demo nur mit `ENABLE_DEV_LOGIN=1` **und** `VERCEL_ENV=preview`
+
+In allen anderen Fällen ist er aus, und `/dev/**` antwortet mit 404 (`src/lib/dev-login.ts`, `src/proxy.ts`). Dass auf Coolify `VERCEL_ENV` gesetzt werden muss, ist ein Überbleibsel aus der Vercel-Zeit und wird noch durch eine eigene Variable ersetzt.
 
 ## Befehle
 
@@ -92,44 +117,38 @@ Du brauchst nur **eigene** Werte. Niemals Werte von Franz verwenden, und die `:p
 | `pnpm db:push` | Schema auf die Datenbank aus `DATABASE_URL` übertragen |
 | `pnpm db:seed` | Ausgedachte Testdaten einspielen |
 | `pnpm db:reset:dev` | Dev-Datenbank leeren und neu seeden |
-| `pnpm db:push:prod` | Schema auf Production – **nur Franz** |
-| `pnpm db:seed:prod` | Stammdaten auf Production – **nur Franz** |
+| `pnpm db:push:prod` | Schema auf Production – **nicht benutzen**, gehört zum Original-Repo |
+| `pnpm db:seed:prod` | Stammdaten auf Production – **nicht benutzen**, gehört zum Original-Repo |
 
 ## Daten-Regel
 
-- Seed, Tests und Vorschau nutzen nur ausgedachte Daten, E-Mails nur auf `@example.org`.
+- Seed, Tests, Vorschau und Demo nutzen nur ausgedachte Daten, E-Mails nur auf `@example.org`.
 - In Production stehen keine Telefonnummern, Postadressen oder Kontodaten.
 
 ## Wie gebaut wird
 
 1. Spec in `docs/specs/NNN-kurzname.md` nach der Vorlage `docs/specs/_vorlage.md`
-2. Freigabe durch Franz in der Kopfzeile der Spec
-3. Bau lokal mit Claude Code oder per Build-Agent in GitHub
-4. Pull Request
-5. Pflicht-Checks „Prüfungen“ (typecheck, lint, test, build) und „Klicktests“ (Playwright gegen die Vercel-Vorschau oder gegen einen eigenen Build, siehe [Mitentwickeln](#mitentwickeln))
-6. Merge durch Franz, nur als Merge-Commit = live auf Vercel
+2. Freigabe durch Franz oder Tiago in der Kopfzeile der Spec
+3. Bau lokal mit Claude Code auf einem eigenen Zweig
+4. Pull Request gegen `main`, Coolify baut automatisch eine Vorschau
+5. Prüfen: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` lokal, dazu die Vorschau durchklicken. Die GitHub-Actions-Workflows sind in dieser Kopie abgeschaltet.
+6. Merge durch Franz oder Tiago, nur als Merge-Commit, danach liefert Coolify `main` automatisch aus
 
-Jede Änderung bekommt eine Risikoklasse: A läuft vollautomatisch, B automatisch nach Freigabe der Spec, C entscheidet immer Franz. Details in [`AGENTS.md`](AGENTS.md) und [`agents/risikoklassen.json`](agents/risikoklassen.json).
-
-## Beitragen
-
-- Ideen, Fehler und Spec-Vorschläge als Issue.
-- Das Label `go` setzt nur Franz, und zwar nur auf Issues, die er selbst angelegt hat. Fremde Vorschläge übernimmt er in ein eigenes Issue.
+Jede Änderung bekommt eine Risikoklasse: A ist unkritisch, B braucht eine freigegebene Spec, C entscheiden immer Franz oder Tiago. Details in [`AGENTS.md`](AGENTS.md) und [`agents/risikoklassen.json`](agents/risikoklassen.json).
 
 ## Mitentwickeln
 
-Mitentwickelnde sind **Collaborator mit Schreibrecht** und arbeiten mit Zweigen im selben Repo, ohne Fork.
+Alle drei arbeiten gleichberechtigt mit Zweigen im selben Repo, ohne Fork.
 
 1. Spec in `docs/specs/` (Vorlage `docs/specs/_vorlage.md`)
-2. Freigabe nur durch Franz („Freigabe Franz: ☑“ in der Kopfzeile)
+2. Freigabe durch Franz oder Tiago
 3. Bau auf einem eigenen Zweig, lokal wie unter [Lokal starten](#lokal-starten) beschrieben, mit **eigenem Neon-Projekt**
-4. Pull Request gegen `main`
-5. Pflicht-Checks „Prüfungen“ und „Klicktests“
-6. **Merge durch Franz, nur als Merge-Commit**, danach live auf Vercel
+4. Pull Request gegen `main`, die Vorschau-Adresse steht unter `https://<PR-Nummer>.preview.krachparade-orga.de`
+5. Merge als Merge-Commit, danach ist der Stand live
 
 Kleinkram geht ohne Spec: Fehler beheben, Texte, Tests. Ein neues Datenmodell braucht immer eine Spec.
 
-Für eigene PRs gibt es keine Vercel-Vorschau, weil Vercel nur Commits von Mitgliedern des Vercel-Teams baut. Die „Klicktests“ bauen die App dann selbst und testen dagegen (`.github/workflows/klicktests.yml`). Die Regeln für Mitentwickelnde stehen in [`AGENTS.md`](AGENTS.md), Abschnitt 13.
+Ideen und Fehler gern als Issue.
 
 ## Weiterlesen
 
