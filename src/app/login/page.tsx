@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { loginWithGoogle } from "@/actions/auth";
 import { ACCESS_DENIED_ERROR } from "@/auth";
@@ -29,6 +30,10 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
         Die Anmeldung läuft über dein Google-Konto. Wir speichern nur deinen Namen und deine
         E-Mail-Adresse, damit du Zugang zur App bekommst. Dein Passwort sehen wir nie.
       </p>
+
+      <Link href="/datenschutz" className="flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4">
+        Datenschutzerklärung
+      </Link>
     </main>
   );
 }

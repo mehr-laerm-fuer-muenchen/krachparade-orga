@@ -3,7 +3,8 @@ import { auth } from "@/auth";
 import { devLoginEnvFromProcess, isDevLoginEnabled } from "@/lib/dev-login";
 
 // "/anmeldung": public registration form of the collectives (spec 031).
-const PUBLIC_PATHS = ["/login", "/api/auth", "/anmeldung"];
+// "/datenschutz": privacy policy, linked from the Google consent screen (spec 035).
+const PUBLIC_PATHS = ["/login", "/api/auth", "/anmeldung", "/datenschutz"];
 
 function isUnder(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);

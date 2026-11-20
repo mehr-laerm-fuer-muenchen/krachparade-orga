@@ -485,6 +485,13 @@ export function RegistrationForm({ retentionEndLabel }: { retentionEndLabel: str
           speichert. Alle Angaben, auch die Telefonnummern, löschen wir drei Monate nach der Krachparade (am{" "}
           {retentionEndLabel}). Eine Bestätigung schicken wir per E-Mail.
         </Confirm>
+        <p className="text-sm">
+          Mehr dazu in unserer{" "}
+          <a href="/datenschutz" target="_blank" rel="noopener" className="font-medium text-primary underline underline-offset-2">
+            Datenschutzerklärung
+          </a>
+          .
+        </p>
       </Section>
 
       <Section id="kosten" title="Kosten">
