@@ -37,6 +37,22 @@ describe("bestimmeRisikoklasse", () => {
     expect(bestimmeRisikoklasse(["scripts/risikoklasse.ts"]).klasse).toBe("C");
   });
 
+  it("pages and actions without login, local Docker database → C (spec 031)", () => {
+    for (const pfad of [
+      "src/app/(public)/anmeldung/page.tsx",
+      "src/app/(public)/layout.tsx",
+      "src/actions/collective-registration.ts",
+      "src/lib/local-db.ts",
+      "docker/compose.yaml",
+      "docker/local.env",
+    ]) {
+      expect(bestimmeRisikoklasse([pfad]).klasse, pfad).toBe("C");
+    }
+    // The internal evaluation stays B.
+    expect(bestimmeRisikoklasse(["src/actions/collective-registrations-admin.ts"]).klasse).toBe("B");
+    expect(bestimmeRisikoklasse(["src/app/(app)/kollektive/page.tsx"]).klasse).toBe("B");
+  });
+
   it("login, dev login, db reset, env files and config → C", () => {
     for (const pfad of [
       "src/auth.ts",

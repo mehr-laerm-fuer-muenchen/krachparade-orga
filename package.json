@@ -23,11 +23,14 @@
     "drizzle-orm": "^0.45.4",
     "next": "16.4.5",
     "next-auth": "5.0.0-beta.32",
+    "nodemailer": "10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@neon/config": "^1.14.2",
+    "@neon/env": "^2.1.5",
     "@playwright/test": "^1.64.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",

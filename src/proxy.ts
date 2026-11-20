@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { devLoginEnvFromProcess, isDevLoginEnabled } from "@/lib/dev-login";
 
-const PUBLIC_PATHS = ["/login", "/api/auth"];
+// "/anmeldung": public registration form of the collectives (spec 031).
+const PUBLIC_PATHS = ["/login", "/api/auth", "/anmeldung"];
 
 function isUnder(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);

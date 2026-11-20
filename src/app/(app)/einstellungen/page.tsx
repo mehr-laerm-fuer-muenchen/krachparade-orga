@@ -6,6 +6,7 @@ import { logout } from "@/actions/auth";
 import { getCurrentMember } from "@/components/current-member";
 import { PageTitle } from "@/components/placeholder";
 import { DDayForm, InviteForm, MemberActionButton } from "@/components/settings/forms";
+import { ThemeSwitch } from "@/components/settings/theme-switch";
 import { BugIcon } from "@/components/feedback-button";
 import { getCurrentEdition } from "@/db/editions";
 import { countNewFeedback } from "@/db/feedback";
@@ -42,12 +43,7 @@ export default function SettingsPage() {
           href="/kollektive"
           className="flex min-h-11 items-center justify-between rounded-md border border-line bg-surface px-4 text-base font-medium"
         >
-          <span className="flex items-center gap-2">
-            Kollektive
-            <span className="rounded-sm border border-line-strong px-1 text-[11px] leading-4 font-semibold text-muted">
-              R3
-            </span>
-          </span>
+          Kollektive – Anmeldungen
           <span aria-hidden className="text-muted">
             ›
           </span>
@@ -58,6 +54,13 @@ export default function SettingsPage() {
       </section>
 
       <PageTitle>Einstellungen</PageTitle>
+      {/* Spec 034: per device, for everyone. */}
+      <section aria-labelledby="darstellung" className={SECTION}>
+        <h2 id="darstellung" className="text-lg font-semibold">
+          Darstellung
+        </h2>
+        <ThemeSwitch />
+      </section>
       <Suspense fallback={<p className="text-muted">Lade Einstellungen …</p>}>
         <SettingsSections />
       </Suspense>
