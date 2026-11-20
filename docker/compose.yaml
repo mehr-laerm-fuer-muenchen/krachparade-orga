@@ -1,0 +1,49 @@
+# Local test database for the app (spec 031): Postgres plus a proxy that
+# speaks Neon's HTTP protocol, so the app runs unchanged with its neon-http
+# driver. Only made-up data (seed). Postgres itself is not reachable from
+# outside Docker; the app talks to the proxy on http://localhost:4444/sql.
+# Mailpit (spec 032) catches all outgoing mail.
+#
+#   docker compose -f docker/compose.yaml up -d      start
+#   docker compose -f docker/compose.yaml down -v    stop and delete all data
+#
+# How the app, seed and tests use it: docker/README.md.
+
+name: krachparade-orga-local
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: main
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d main"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  neon-proxy:
+    image: ghcr.io/timowilhelm/local-neon-http-proxy:main
+    environment:
+      PG_CONNECTION_STRING: postgres://postgres:postgres@postgres:5432/main
+    ports:
+      - "127.0.0.1:4444:4444"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Spec 032: catches every mail the app sends locally; nothing leaves this
+  # machine. Web view on http://localhost:8026, SMTP on localhost:1026
+  # (not 8025/1025, so it does not clash with another Mailpit on this machine).
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
+
+volumes:
+  db-data:
