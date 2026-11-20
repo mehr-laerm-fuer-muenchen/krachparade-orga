@@ -17,7 +17,7 @@ function isUnder(pathname: string, base: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Everything under /dev/** exists only locally and in Vercel previews
+  // Everything under /dev/** exists only locally and in previews or the demo
   // (see isDevLoginEnabled); in production it answers 404.
   if (isUnder(pathname, "/dev")) {
     return isDevLoginEnabled(devLoginEnvFromProcess())
