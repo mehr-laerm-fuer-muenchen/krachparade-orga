@@ -121,7 +121,7 @@ jobs:
         run: gh issue comment "$NR" --body "🔨 Build-Agent startet … [Lauf ansehen]($LAUF_URL)"
 
       - name: main holen
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -179,10 +179,10 @@ jobs:
           cp -r scripts agents "$RUNNER_TEMP/pruefer/"
 
       - name: pnpm einrichten
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Node einrichten
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -240,7 +240,7 @@ jobs:
       # Full log of the agent, so denied commands can be looked up later.
       - name: Protokoll des Agenten sichern
         if: always() && steps.agent.outputs.execution_file != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: claude-protokoll
           path: ${{ steps.agent.outputs.execution_file }}

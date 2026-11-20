@@ -24,13 +24,13 @@ jobs:
       AUTH_SECRET: ci-platzhalter
     steps:
       - name: Code holen
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: pnpm einrichten
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Node einrichten
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: pnpm
