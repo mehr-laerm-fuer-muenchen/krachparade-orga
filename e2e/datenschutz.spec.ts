@@ -17,7 +17,8 @@ test.describe("Datenschutz", () => {
     await expect(page).toHaveURL(/\/datenschutz$/);
     await expect(page.getByRole("heading", { level: 1, name: "Datenschutzerklärung" })).toBeVisible();
     await expect(page.getByText("Initiative MEHR LÄRM FÜR MÜNCHEN")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: "Deine Rechte" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Anmeldung der Kollektive zur Krachparade" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Rechte der betroffenen Personen" })).toBeVisible();
     await expectNoHorizontalScroll(page);
   });
 

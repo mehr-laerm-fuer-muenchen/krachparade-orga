@@ -11,7 +11,7 @@ Google verlangt für den OAuth-Zustimmungsbildschirm einen Link zu einer Datensc
 ## Nicht in dieser Spec
 
 - Impressum: Das steht schon auf krachparade.de. Die Datenschutzseite verlinkt nur darauf.
-- Rechtliche Prüfung: Den Text schreibt ein Agent und kein Anwalt. Die Orga liest ihn vor dem Merge gegen.
+- Rechtliche Prüfung: Der Text stammt aus dem kostenlosen Datenschutz-Generator.de (Dr. Schwenke, mit Pflichthinweis) plus drei Abschnitten von Hand. Kein Anwalt hat ihn geprüft. Die Orga liest ihn vor dem Merge gegen.
 - Cookie-Banner: Die App setzt nur das technisch nötige Sitzungs-Cookie. Dafür braucht es keine Einwilligung.
 
 ## Umsetzung
@@ -19,7 +19,7 @@ Google verlangt für den OAuth-Zustimmungsbildschirm einen Link zu einer Datensc
 ### B1 · Seite `/datenschutz`
 
 - `src/app/datenschutz/page.tsx`: liegt außerhalb von `(public)`, weil dessen Kopfleiste „Anmeldung“ heißt. Schlichtes Layout wie `/login`, Breite `max-w-2xl`. Titel „Datenschutzerklärung – Krachparade Orga“. `robots: noindex` gilt über das Root-Layout.
-- Inhalt, in Abschnitten:
+- Inhalt: Text aus Datenschutz-Generator.de (Stand 20.11.2026) als statische Konstante `src/app/datenschutz/privacy-html.ts`, ergänzt um die Abschnitte „Anmeldung der Kollektive“, „Datenbank und E-Mail-Versand“ und „Speicherung im Browser“. Er deckt ab:
   1. **Verantwortlich:** Initiative MEHR LÄRM FÜR MÜNCHEN, c/o F. Raabe, Balanstr. 69, 81541 München, mehr.laerm.fuer.muenchen@gmail.com (wie im Impressum auf krachparade.de, darauf verlinken).
   2. **Anmeldung mit Google (Kern-Orga):** Name und E-Mail-Adresse aus dem Google-Konto, Zeitpunkt der letzten Anmeldung. Zweck: Zugang nur für freigeschaltete Mitglieder. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO. Google erfährt, dass man sich bei der App anmeldet (Verweis auf die Google-Datenschutzerklärung). Gespeichert, solange man Mitglied der Orga ist.
   3. **Inhalte in der App:** Was die Orga einträgt (Planung, Protokolle, Aufgaben, Feedback), mit Namen der beteiligten Mitglieder. Nur für angemeldete Mitglieder sichtbar.
