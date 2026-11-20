@@ -32,7 +32,7 @@ async function devLogin(page: Page, name: string) {
  * is still streaming and is dropped before the data arrives, React throws
  * "Cannot read properties of null (reading '_retryCache')" (a gap in React,
  * still present in the React shipped with Next.js 16.4/16.5 canary). That only
- * happens when clicking on faster than the data loads, e.g. in the Vercel
+ * happens when clicking on faster than the data loads, e.g. in a deployed
  * preview with ~150 ms server latency. The check for console errors below
  * stays as strict as before.
  */

@@ -15,7 +15,7 @@ export const MAIN_NAV: readonly NavItem[] = [
   { href: "/arbeitskreise", label: "AKs" },
   { href: "/protokolle", label: "Protokolle" },
   { href: "/meine", label: "Meine Aufgaben" },
-  { href: "/kollektive", label: "Kollektive", badge: "R3" },
+  { href: "/kollektive", label: "Kollektive" },
   { href: "/einstellungen", label: "Einstellungen", alsoActiveFor: ["/feedback"] },
 ];
 

@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { devLoginEnvFromProcess, isDevLoginEnabled } from "@/lib/dev-login";
 
-const PUBLIC_PATHS = ["/login", "/api/auth"];
+// "/anmeldung": public registration form of the collectives (spec 031).
+const PUBLIC_PATHS = ["/login", "/api/auth", "/anmeldung"];
 
 function isUnder(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
@@ -16,7 +17,7 @@ function isUnder(pathname: string, base: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Everything under /dev/** exists only locally and in Vercel previews
+  // Everything under /dev/** exists only locally and in previews or the demo
   // (see isDevLoginEnabled); in production it answers 404.
   if (isUnder(pathname, "/dev")) {
     return isDevLoginEnabled(devLoginEnvFromProcess())

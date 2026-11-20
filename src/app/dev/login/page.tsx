@@ -18,7 +18,7 @@ export default function DevLoginPage({ searchParams }: PageProps<"/dev/login">) 
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 px-4 py-12">
       <h1 className="text-2xl font-semibold">Dev-Login</h1>
-      <p>Nur lokal und in der Vercel-Vorschau. Melde dich als Test-Mitglied aus dem Seed an.</p>
+      <p>Nur lokal, in der Vorschau und in der Demo. Melde dich als Test-Mitglied aus dem Seed an.</p>
       <Suspense fallback={<p>Lade Test-Mitglieder …</p>}>
         <DevLoginError searchParams={searchParams} />
         <MemberButtons />

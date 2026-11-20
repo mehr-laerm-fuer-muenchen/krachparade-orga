@@ -2,12 +2,21 @@
 
 Diese Datei ist die einzige Quelle für Agenten-Regeln (Claude Code lokal und in GitHub, Codex im Review). `CLAUDE.md` verweist nur hierher.
 
+## 0. Diese Kopie: mehr-laerm-fuer-muenchen (Coolify)
+
+Dieser Abschnitt gilt für das Repo `mehr-laerm-fuer-muenchen/krachparade-orga` (lokal Remote `coolify`, Zweig `coolify-demo`) und geht allen anderen Abschnitten vor.
+
+- **Tiago hat dieselben Rechte wie Franz.** Überall, wo „Franz“ oder „nur Franz“ steht, gilt „Franz oder Tiago“: Specs freigeben, Klasse-C-Änderungen erlauben, mergen, Notbremse.
+- **Hosting:** Coolify auf dem eigenen netcup-Server statt Vercel. Hinweise auf Vercel in dieser Datei beschreiben das Original-Repo.
+- **Pushen:** Agenten dürfen `git push coolify …` ausführen, wenn Tiago oder Franz es im Chat verlangen. **Nie** zu `origin` (`dellingerfranz-dev/krachparade-orga`) pushen, nie `--force`.
+
 ## 1. Projekt
 
 - App „Krachparade Orga“ – Planungs-App der Kern-Orga der Krachparade (Mehr Lärm für München). Erste Ausgabe: **Krachparade 2027 am 08.05.2027**.
 - Nutzer: die Kern-Orga. Handy und Laptop sind gleichwertig.
 - Oberfläche auf Deutsch. Ruhiger Arbeits-Stil: helle Flächen, Forest-Kopfleiste mit Logo, Farbe nur für Status und Primär-Aktionen; **keine Plakat-Optik**. Code (Bezeichner, Kommentare) auf Englisch.
 - **Daten:** In Production stehen echte Daten der Kern-Orga (Namen, E-Mail für den Login, Protokolle), aber **keine Telefonnummern, Postadressen oder Kontodaten**. Seed, Tests und Vorschau nutzen nur ausgedachte Daten mit `@example.org`-Adressen.
+  - **Ausnahme (Spec 031):** Handynummern von Ansprechpersonen der Kollektive in `collective_registrations`. Alle Anmeldungen werden 3 Monate nach der Krachparade gelöscht (Admin-Knopf unter `/kollektive`).
 - **Datumslogik:** reine Kalendertage ohne Uhrzeit. Berechnungen als reine Funktionen in `src/lib/`, „heute“ kommt als Parameter.
 
 ## 2. Stack & Befehle
@@ -36,6 +45,7 @@ e2e/              Klicktests (Playwright)
 docs/specs/       Specs; Vorlage docs/specs/_vorlage.md
 agents/           risikoklassen.json: Risikoklassen maschinenlesbar
 scripts/          risikoklasse.ts: stuft geänderte Dateien ein (für die Workflows)
+docker/           lokale Test-Datenbank (Postgres + Neon-HTTP-Proxy), Anleitung in docker/README.md
 ```
 
 Befehle (`package.json`):
@@ -68,7 +78,8 @@ Befehle (`package.json`):
 
 7. Geheimnisse (`DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_SECRET` …) nur über `process.env` lesen, nie loggen, nie an den Browser schicken. Alle Seiten tragen `robots: noindex`.
 8. Jede Server Action prüft zuerst die Anmeldung (ab Spec 002) und die Eingaben mit Zod. IDs aus dem Browser validieren und gegen die Datenbank prüfen. Grenzen und Rechte prüft immer der Server, nie nur die Oberfläche.
-9. Daten-Regel aus Abschnitt 1: keine Telefonnummern, Postadressen oder Kontodaten speichern; Test- und Seed-Daten nur ausgedacht, E-Mails nur `@example.org`.
+   - **Ausnahme (Spec 031):** `submitRegistration` (`src/actions/collective-registration.ts`) ist ohne Anmeldung erreichbar und schützt sich durch Honeypot, Mindestzeit, Zeitfenster und Obergrenze. Weitere Seiten oder Actions ohne Anmeldung nur mit eigener Spec.
+9. Daten-Regel aus Abschnitt 1: keine Telefonnummern, Postadressen oder Kontodaten speichern (Ausnahme: Handynummern der Kollektiv-Anmeldung, Abschnitt 1); Test- und Seed-Daten nur ausgedacht, E-Mails nur `@example.org`, Telefonnummern nur offensichtlich falsch (`+49 000 …`).
 10. Datum: reine Kalendertage (`YYYY-MM-DD`) ohne Uhrzeit; Rechenfunktionen bekommen „heute“ als Parameter. Anzeige in `Europe/Berlin`.
 
 **Oberfläche & Design**
@@ -87,7 +98,7 @@ Befehle (`package.json`):
 
 - Die GitHub-Prüfungen **„Prüfungen“** (typecheck, lint, test, build) und **„Klicktests“** (Playwright gegen die im Workflow selbst gebaute App auf Port 3100, Datenbank: Neon-Zweig `dev` über das Secret `DEV_DATABASE_URL`) sind Pflicht für `main`.
 - Jede Spec bringt mindestens einen Klicktest in `e2e/` mit. Test-Daten mit Präfix „E2E “ anlegen und am Ende wieder löschen.
-- Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`.
+- Lokal: `pnpm e2e` gegen den laufenden `pnpm dev`. Alternativ (Spec 031): App gegen die lokale Docker-Datenbank starten und `BASE_URL` setzen, siehe `docker/README.md`. Dort darf der Agent die App selbst starten, weil nur ausgedachte Daten drin sind.
 
 **Definition of Done pro Spec**
 
@@ -99,10 +110,6 @@ Befehle (`package.json`):
 **Was Agenten nie tun**
 
 - `.env`, `.env.local` oder andere Dateien mit Geheimnissen lesen, ausgeben oder in Code kopieren.
-- `git push`, `git push --force`, `git reset --hard`, `git clean`, `rm -rf`, Tabellen löschen, `drizzle-kit drop`.
-- Daten in der Datenbank löschen, außer über eine Löschfunktion, die eine Spec verlangt, oder `pnpm db:reset:dev` gegen die Dev-Datenbank, wenn die Spec es verlangt.
-- `pnpm dev` starten, `pnpm db:push:prod` oder `pnpm db:seed:prod` ausführen.
-- Den Freigabe-Haken in einer Spec setzen.
 - Auf `main` committen.
 
 ## 4. Rollen
@@ -128,8 +135,9 @@ Maschinenlesbare Fassung: `agents/risikoklassen.json`, ausgewertet von `scripts/
 - `src/proxy.ts`
 - Login und Dev-Login: `src/auth*.ts`, `src/app/api/auth/**`, `src/app/dev/**`, `src/lib/dev-login.ts`, `src/lib/env.ts`, `src/db/index.ts` samt zugehöriger Tests – und jede andere Stelle, die Sitzungen, Cookies oder Geheimnisse berührt.
 - Dev-Datenbank leeren: `src/db/reset-dev.ts`, `src/lib/db-reset.ts`
-- Ohne Anmeldung erreichbar oder Indexierung: `opengraph-image`, `robots`, `sitemap` unter `src/app/`, der `robots`-Eintrag in `src/app/layout.tsx`.
-- `.github/**`, `.claude/**`, `.mcp.json`, Bot-Konfiguration `renovate.json`
+- Ohne Anmeldung erreichbar oder Indexierung: `opengraph-image`, `robots`, `sitemap` unter `src/app/`, der `robots`-Eintrag in `src/app/layout.tsx`, die öffentliche Anmeldung `src/app/(public)/**` und `src/actions/collective-registration.ts` (Spec 031).
+- Lokale Docker-Datenbank: `docker/**`, `src/lib/local-db.ts` samt Test (Spec 031).
+- `.github/**`, `.claude/**`, `.mcp.json`
 - `AGENTS.md`, `CLAUDE.md`, `agents/**`, `scripts/**`
 - `drizzle.config.ts`, `drizzle.prod.config.ts` (Muster `drizzle*.config.*`)
 - Alles mit `prod`: Skripte `db:push:prod`, `db:seed:prod` und der `--prod`-Teil in `src/db/seed.ts`
@@ -250,17 +258,6 @@ Labels: `feedback-triage` (Tages-Issue mit Cursor), `feedback-thema` (ein Issue 
 ## 12. Kommunikation
 
 Deutsch, locker, kurz. Franz ist Einsteiger: Fachbegriffe kurz erklären, Befehle vollständig angeben, kurze Erklärungen zu Dateien und Befehlen sind erwünscht.
-
-## 13. Mitentwickeln
-
-Gilt für Mitentwickelnde (Collaborator mit Schreibrecht, Zweige im selben Repo) und ihre Agenten (Spec 019).
-
-- Specs nur bauen, wenn die Kopfzeile `Freigabe Franz: ☑` enthält. Den Haken setzt nur Franz.
-- Keine `:prod`-Skripte, keine fremden Datenbank-Adressen, keine Secrets in Code, Logs oder Issues.
-- Lokal nur mit eigener Datenbank (eigenes Neon-Projekt). Seed, Tests und Vorschau nur mit ausgedachten Daten.
-- Kein Selbst-Merge. Franz merged per Merge-Commit.
-- Heikle Dateien nur nach Absprache mit Franz: `.github/`, `.claude/`, `agents/`, `scripts/`, Login (Abschnitt 5, Klasse C), Configs, `package.json`, `src/db/schema.ts`.
-- „Klicktests“ baut die App für jeden PR selbst und testet auf Port 3100 (`.github/workflows/klicktests.yml`); eine Vercel-Vorschau gibt es nicht.
 
 ---
 

@@ -17,7 +17,7 @@ export async function logout() {
 
 const devLoginInput = z.object({ memberId: z.uuid() });
 
-/** Dev login (local and Vercel preview only): signs in a seeded test member. */
+/** Dev login (local, preview and demo only): signs in a seeded test member. */
 export async function devLogin(formData: FormData) {
   if (!isDevLoginEnabled(devLoginEnvFromProcess())) {
     notFound();
