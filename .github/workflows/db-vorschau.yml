@@ -42,9 +42,11 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pnpm install --frozen-lockfile
 
+      # PREVIEW_DATABASE_URL is only needed if the previews use a different
+      # database than the click tests (DEV_DATABASE_URL).
       - name: Demo-Datenbank (Vorschauen)
         env:
-          PUSH_DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
+          PUSH_DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL || secrets.DEV_DATABASE_URL }}
           PUSH_LABEL: Demo-Datenbank (Vorschauen)
         run: pnpm exec tsx scripts/db-push-ci.ts --apply
 
@@ -52,7 +54,7 @@ jobs:
       - name: Klicktest-Datenbank
         env:
           PUSH_DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
-          PREVIEW_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
+          PREVIEW_URL: ${{ secrets.PREVIEW_DATABASE_URL || secrets.DEV_DATABASE_URL }}
           PUSH_LABEL: Klicktest-Datenbank
         run: |
           if [ -z "$PUSH_DATABASE_URL" ] || [ "$PUSH_DATABASE_URL" = "$PREVIEW_URL" ]; then
