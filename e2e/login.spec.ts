@@ -12,8 +12,9 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 test.describe("Login", () => {
+  // "/" shows the public start page instead (spec 036, e2e/startseite.spec.ts).
   test("ohne Anmeldung landet jede Seite auf /login", async ({ page }) => {
-    for (const path of ["/", "/irgendeine-seite", "/api/irgendwas"]) {
+    for (const path of ["/kollektive", "/irgendeine-seite", "/api/irgendwas"]) {
       await page.goto(path);
       await expect(page).toHaveURL(/\/login$/);
     }
@@ -62,8 +63,9 @@ test.describe("Login", () => {
     await logout.click();
 
     await expect(page).toHaveURL(/\/login$/);
+    // Signed out, "/" is the public start page again (spec 036).
     await page.goto("/");
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("link", { name: "Anmelden", exact: true })).toBeVisible();
     expect(errors, errors.join("\n")).toEqual([]);
   });
 });

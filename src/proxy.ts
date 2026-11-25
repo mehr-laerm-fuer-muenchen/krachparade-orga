@@ -4,7 +4,8 @@ import { devLoginEnvFromProcess, isDevLoginEnabled } from "@/lib/dev-login";
 
 // "/anmeldung": public registration form of the collectives (spec 031).
 // "/datenschutz": privacy policy, linked from the Google consent screen (spec 035).
-const PUBLIC_PATHS = ["/login", "/api/auth", "/anmeldung", "/datenschutz"];
+// "/start": public start page, shown at "/" without a session (spec 036).
+const PUBLIC_PATHS = ["/login", "/api/auth", "/anmeldung", "/datenschutz", "/start"];
 
 function isUnder(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
@@ -32,6 +33,11 @@ export async function proxy(request: NextRequest) {
 
   const session = await auth();
   if (!session?.memberId) {
+    // Visitors of the home page see what the app is for (Google branding
+    // review); the address stays "/" and the answer is 200, not a redirect.
+    if (pathname === "/") {
+      return NextResponse.rewrite(new URL("/start", request.nextUrl.origin));
+    }
     return NextResponse.redirect(new URL("/login", request.nextUrl.origin));
   }
   return NextResponse.next();
