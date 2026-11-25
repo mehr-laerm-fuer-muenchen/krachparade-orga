@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
+import { MIN_FILL_SECONDS } from "../src/lib/collectives/limits";
 
 // Spec 031: public registration of the collectives and their evaluation.
 // The admin (seed "Kim Brenner") opens the registration window, a visitor
@@ -133,10 +134,10 @@ test.describe("Kollektiv-Anmeldung", () => {
     try {
       await setWindow(page, berlinDay(-1), berlinDay(7));
 
-      // The form must have been open long enough (20 s): the visitor's clock
-      // starts a minute in the past.
-      await guest.page.clock.install({ time: Date.now() - 60_000 });
+      // The form must have been open long enough (20 s). The server signs the
+      // start time, so the test really waits before sending (see below).
       await guest.page.goto("/anmeldung");
+      const loadedAt = Date.now();
       await expect(guest.page.getByRole("heading", { level: 1, name: /Finale Anmeldung Krachparade/ })).toBeVisible();
       await expectNoHorizontalScroll(guest.page);
 
@@ -186,6 +187,7 @@ test.describe("Kollektiv-Anmeldung", () => {
       // 150 € deposit + 100 € TÜV + 2 × 30 € shirts.
       await expect(guest.page.getByTestId("kosten-summe")).toHaveText("310 €");
 
+      await guest.page.waitForTimeout(Math.max(0, MIN_FILL_SECONDS * 1000 + 2000 - (Date.now() - loadedAt)));
       await submit.click();
       await expect(guest.page).toHaveURL(/\/anmeldung\/danke\?id=/);
       await expect(guest.page.getByRole("heading", { level: 1, name: "Danke, eure Anmeldung ist da!" })).toBeVisible();
