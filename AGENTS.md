@@ -78,7 +78,7 @@ Befehle (`package.json`):
 
 7. Geheimnisse (`DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_SECRET` …) nur über `process.env` lesen, nie loggen, nie an den Browser schicken. Alle Seiten tragen `robots: noindex`.
 8. Jede Server Action prüft zuerst die Anmeldung (ab Spec 002) und die Eingaben mit Zod. IDs aus dem Browser validieren und gegen die Datenbank prüfen. Grenzen und Rechte prüft immer der Server, nie nur die Oberfläche.
-   - **Ausnahme (Spec 031):** `submitRegistration` (`src/actions/collective-registration.ts`) ist ohne Anmeldung erreichbar und schützt sich durch Honeypot, Mindestzeit, Zeitfenster und Obergrenze. Weitere Seiten oder Actions ohne Anmeldung nur mit eigener Spec.
+   - **Ausnahme (Spec 031):** `submitRegistration` (`src/actions/collective-registration.ts`) ist ohne Anmeldung erreichbar und schützt sich durch Honeypot, signierten Start-Zeitpunkt (Mindestzeit), Cloudflare Turnstile, Zeitfenster und Obergrenze; dazu ein Rate-Limit pro IP in Traefik (`docs/betrieb/anmeldung-spamschutz.md`). Weitere Seiten oder Actions ohne Anmeldung nur mit eigener Spec.
 9. Daten-Regel aus Abschnitt 1: keine Telefonnummern, Postadressen oder Kontodaten speichern (Ausnahme: Handynummern der Kollektiv-Anmeldung, Abschnitt 1); Test- und Seed-Daten nur ausgedacht, E-Mails nur `@example.org`, Telefonnummern nur offensichtlich falsch (`+49 000 …`).
 10. Datum: reine Kalendertage (`YYYY-MM-DD`) ohne Uhrzeit; Rechenfunktionen bekommen „heute“ als Parameter. Anzeige in `Europe/Berlin`.
 

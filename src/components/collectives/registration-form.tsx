@@ -35,10 +35,12 @@ import {
 } from "@/lib/collectives/options";
 import { DEMANDS_MIN, NAME_MAX, SHORT_MAX, TEXT_MAX } from "@/lib/collectives/registration-schema";
 import { Choice, Confirm, MultiChoice, NumberField, Section, TextArea, TextField, YesNo, fieldId } from "./registration-fields";
+import { TurnstileWidget } from "./turnstile-widget";
 
 const DRAFT_KEY = "kp-anmeldung-entwurf";
 const GENERIC_ERROR = "Das hat nicht geklappt. Bitte noch einmal versuchen.";
 const ERROR_INPUT = "Bitte prüft die markierten Felder.";
+const ERROR_BOT_CHECK = "Bitte bestätigt unten kurz, dass ihr kein Bot seid.";
 
 // Storage can be missing or blocked, so every access is wrapped.
 function readDraft(): FormValues | null {
@@ -85,20 +87,30 @@ function focusField(name: string) {
  * the sections of the former Google form; checked in the browser and again
  * on the server.
  */
-export function RegistrationForm({ retentionEndLabel }: { retentionEndLabel: string }) {
+export function RegistrationForm({
+  retentionEndLabel,
+  formToken,
+  turnstileSiteKey,
+}: {
+  retentionEndLabel: string;
+  /** Signed start time from the server (src/lib/collectives/form-token.ts). */
+  formToken: string;
+  /** Null when Turnstile is off (locally, click tests). */
+  turnstileSiteKey: string | null;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<FormValues>(emptyFormValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [website, setWebsite] = useState("");
   const [pending, startTransition] = useTransition();
-  const startedAt = useRef(0);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const restored = useRef(false);
 
   // The first render is empty (same as on the server); a draft of this device
   // applies right after.
   useEffect(() => {
-    startedAt.current = Date.now();
     const draft = readDraft();
     restored.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only storage after hydration
@@ -152,12 +164,22 @@ export function RegistrationForm({ retentionEndLabel }: { retentionEndLabel: str
       showErrors(local);
       return;
     }
+    if (turnstileSiteKey && !turnstileToken) {
+      setMessage(ERROR_BOT_CHECK);
+      return;
+    }
     setMessage(null);
+    // A Turnstile token is valid only once: after a refused attempt the
+    // widget asks again.
+    const retry = () => {
+      if (turnstileSiteKey) setTurnstileReset((count) => count + 1);
+    };
     startTransition(async () => {
       try {
         const result = await submitRegistration(toRegistrationInput(values), {
           website,
-          startedAt: startedAt.current,
+          formToken,
+          turnstileToken: turnstileToken ?? undefined,
         });
         if (result.ok) {
           clearDraft();
@@ -167,8 +189,10 @@ export function RegistrationForm({ retentionEndLabel }: { retentionEndLabel: str
         }
         setMessage(result.message ?? GENERIC_ERROR);
         if (result.fieldErrors) showErrors(result.fieldErrors);
+        retry();
       } catch {
         setMessage(GENERIC_ERROR);
+        retry();
       }
     });
   };
@@ -516,6 +540,16 @@ export function RegistrationForm({ retentionEndLabel }: { retentionEndLabel: str
       </Section>
 
       <div className="flex flex-col gap-3">
+        {turnstileSiteKey ? (
+          <TurnstileWidget
+            siteKey={turnstileSiteKey}
+            resetSignal={turnstileReset}
+            onToken={(token) => {
+              setTurnstileToken(token);
+              if (token) setMessage((current) => (current === ERROR_BOT_CHECK ? null : current));
+            }}
+          />
+        ) : null}
         {message ? (
           <p role="alert" className="font-medium text-status-late">
             {message}

@@ -5,8 +5,10 @@ import { RegistrationForm } from "@/components/collectives/registration-form";
 import { PageTitle } from "@/components/placeholder";
 import { getCurrentEdition } from "@/db/editions";
 import { DEPOSIT_EUR, TUEV_EUR } from "@/lib/collectives/costs";
+import { newFormToken } from "@/lib/collectives/form-token";
 import { ORGA_EMAIL } from "@/lib/collectives/options";
 import { retentionEnd } from "@/lib/collectives/retention";
+import { turnstileEnvFromProcess, turnstileMode } from "@/lib/collectives/turnstile";
 import { registrationState } from "@/lib/collectives/window";
 import { formatGermanDate, todayInBerlin } from "@/lib/dday";
 
@@ -50,6 +52,19 @@ async function Registration() {
     );
   }
 
+  const turnstile = turnstileMode(turnstileEnvFromProcess());
+  if (turnstile.mode === "misconfigured") {
+    // Production without Turnstile keys: the action would refuse every
+    // registration, so say so right away.
+    return (
+      <Notice title="Anmeldung Krachparade">
+        {`Die Anmeldung ist gerade technisch nicht erreichbar. Bitte versucht es später noch einmal oder schreibt uns an ${ORGA_EMAIL}.`}
+      </Notice>
+    );
+  }
+  // Signed start time (spec 031 minimum fill time), checked by the action.
+  const formToken = newFormToken();
+
   const dDay = formatGermanDate(edition.dDay);
   return (
     <div className="flex flex-col gap-6">
@@ -90,7 +105,11 @@ async function Registration() {
           Überweist erst, <strong>nachdem</strong> wir eure Anmeldung bestätigt haben.
         </p>
       </div>
-      <RegistrationForm retentionEndLabel={formatGermanDate(retentionEnd(edition.dDay))} />
+      <RegistrationForm
+        retentionEndLabel={formatGermanDate(retentionEnd(edition.dDay))}
+        formToken={formToken}
+        turnstileSiteKey={turnstile.mode === "on" ? turnstile.siteKey : null}
+      />
     </div>
   );
 }
