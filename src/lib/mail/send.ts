@@ -22,7 +22,7 @@ export async function sendMail(mail: OutgoingMail): Promise<boolean> {
     SMTP_PASSWORD: process.env.SMTP_PASSWORD,
     MAIL_FROM: process.env.MAIL_FROM,
     MAIL_ENABLED: process.env.MAIL_ENABLED,
-    VERCEL_ENV: process.env.VERCEL_ENV,
+    APP_ENV: process.env.APP_ENV,
   });
   if (!result.ok) {
     console.warn(result.reason === "disabled" ? "[mail] in dieser Umgebung aus" : "[mail] nicht eingerichtet");

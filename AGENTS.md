@@ -7,7 +7,7 @@ Diese Datei ist die einzige Quelle für Agenten-Regeln (Claude Code lokal und in
 Dieser Abschnitt gilt für das Repo `mehr-laerm-fuer-muenchen/krachparade-orga` (lokal Remote `coolify`, Zweig `coolify-demo`) und geht allen anderen Abschnitten vor.
 
 - **Tiago hat dieselben Rechte wie Franz.** Überall, wo „Franz“ oder „nur Franz“ steht, gilt „Franz oder Tiago“: Specs freigeben, Klasse-C-Änderungen erlauben, mergen, Notbremse.
-- **Hosting:** Coolify auf dem eigenen netcup-Server statt Vercel. Hinweise auf Vercel in dieser Datei beschreiben das Original-Repo.
+- **Hosting:** Coolify auf dem eigenen netcup-Server.
 - **Pushen:** Agenten dürfen `git push coolify …` ausführen, wenn Tiago oder Franz es im Chat verlangen. **Nie** zu `origin` (`dellingerfranz-dev/krachparade-orga`) pushen, nie `--force`.
 
 ## 1. Projekt
@@ -30,7 +30,7 @@ Stack (nicht ändern ohne Rückfrage):
 - Tabellen werden mit `pnpm db:push` angelegt (kein Migrations-Ordner).
 - Validierung aller Eingaben mit Zod, Tests mit Vitest, Klicktests mit Playwright.
 - Paketmanager pnpm; Node-Version aus `.node-version`.
-- Hosting: Vercel. Umgebungsvariablen (Namen in `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ADMIN_EMAILS`; lokal zusätzlich `DATABASE_URL_PROD` (nur für die `:prod`-Befehle von Franz). In der Vercel-Vorschau `ENABLE_DEV_LOGIN=1`.
+- Hosting: Coolify (README, Abschnitt Hosting). Umgebungsvariablen (Namen in `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ADMIN_EMAILS`, auf dem Server zusätzlich `APP_ENV` (`production` oder `preview`); lokal zusätzlich `DATABASE_URL_PROD` (nur für die `:prod`-Befehle). In Vorschau und Demo `APP_ENV=preview` und `ENABLE_DEV_LOGIN=1`.
 
 Ordner:
 
@@ -60,7 +60,7 @@ Befehle (`package.json`):
 | `pnpm e2e` | Klicktests (Playwright) gegen den laufenden `pnpm dev` bzw. `BASE_URL` | Agent |
 | `pnpm db:push` | Schema auf Dev-Datenbank | Agent, wenn die Spec es verlangt |
 | `pnpm db:seed` | Testdaten in Dev-Datenbank | Agent, wenn die Spec es verlangt |
-| `pnpm db:reset:dev` | Dev-Datenbank leeren und neu seeden; bricht bei `VERCEL_ENV=production` ab | Agent, wenn die Spec es verlangt |
+| `pnpm db:reset:dev` | Dev-Datenbank leeren und neu seeden; bricht bei `APP_ENV=production` ab | Agent, wenn die Spec es verlangt |
 | `pnpm db:push:prod`, `pnpm db:seed:prod` | Production (`db:seed:prod` = Seed mit `--prod`, nur Stammdaten) | **nur Franz** |
 
 ## 3. Arbeitsregeln
@@ -141,7 +141,7 @@ Maschinenlesbare Fassung: `agents/risikoklassen.json`, ausgewertet von `scripts/
 - `AGENTS.md`, `CLAUDE.md`, `agents/**`, `scripts/**`
 - `drizzle.config.ts`, `drizzle.prod.config.ts` (Muster `drizzle*.config.*`)
 - Alles mit `prod`: Skripte `db:push:prod`, `db:seed:prod` und der `--prod`-Teil in `src/db/seed.ts`
-- `next.config.*`, `vercel.json`, `vercel.ts`
+- `next.config.*`
 - `.env*` (auch `.env.example`)
 - Prüf- und Laufzeit-Konfiguration: `package.json`, `pnpm-lock.yaml`, `eslint.config.mjs`, `tsconfig.json`, `.node-version`, `pnpm-workspace.yaml`, `vitest.config.*`, `playwright.config.*`, `.gitignore`, `.npmrc`
 - Schema-Änderungen in `src/db/schema.ts`, die Tabellen oder Spalten löschen oder umbenennen, Typen ändern oder `NOT NULL` ohne Default auf bestehende Spalten setzen; jedes `DROP`, `RENAME`, `ALTER … TYPE`, `TRUNCATE`, `DELETE` in SQL oder Skripten
@@ -207,7 +207,7 @@ Keine Stil-Kleinigkeiten melden, die Lint nicht bemängelt. Jeder Befund mit Dat
 
 Ablauf: Issue mit Label `spec`, Titel `NNN-kurzname`, Text = Spec → Franz setzt Label `go` → Workflow „Build-Agent“ prüft den Titel gegen `^[0-9]{3}-[a-z0-9-]+$`, schreibt die Spec mit Go-Vermerk nach `docs/specs/`, Claude Code baut auf Zweig `agent/NNN-kurzname` → Nachprüfung der Risikoklasse → PR mit „Closes #n“ → bei A/B ohne Datenbank Auto-Merge, sobald „Prüfungen“ und „Klicktests“ grün sind (geht nur in öffentlichen Repos oder mit bezahltem GitHub-Plan; sonst mergen Franz oder Tiago von Hand) → „✅ Gemergt“ im Issue (Workflow „Abschluss-Meldung“). Rote Prüfungen: Workflow „Fix-Agent“, höchstens 3 Versuche. Issue-Texte erreichen Befehle nur über Dateien oder env-Variablen, nie direkt in `run:`.
 
-Secrets: `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID`, `KPORGA_BOT_PRIVATE_KEY` (eigene GitHub App), `VERCEL_AUTOMATION_BYPASS_SECRET`, `DEV_DATABASE_URL`.
+Secrets: `CLAUDE_CODE_OAUTH_TOKEN`, `KPORGA_BOT_CLIENT_ID`, `KPORGA_BOT_PRIVATE_KEY` (eigene GitHub App), `DEV_DATABASE_URL`.
 
 Labels:
 

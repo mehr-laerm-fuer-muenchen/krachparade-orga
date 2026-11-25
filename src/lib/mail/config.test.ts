@@ -11,7 +11,7 @@ const GMAIL = {
 
 describe("mailConfig", () => {
   it("reads a complete setup, removes spaces from the app password", () => {
-    expect(mailConfig({ ...GMAIL, VERCEL_ENV: "production" })).toEqual({
+    expect(mailConfig({ ...GMAIL, APP_ENV: "production" })).toEqual({
       ok: true,
       config: {
         host: "smtp.example.org",
@@ -35,10 +35,10 @@ describe("mailConfig", () => {
     expect(mailConfig({ ...GMAIL, SMTP_PASSWORD: "" })).toEqual({ ok: false, reason: "not_configured" });
   });
 
-  it("sends nothing in Vercel previews unless MAIL_ENABLED=1", () => {
-    expect(mailConfig({ ...GMAIL, VERCEL_ENV: "preview" })).toEqual({ ok: false, reason: "disabled" });
-    expect(mailConfig({ ...GMAIL, VERCEL_ENV: "development" })).toEqual({ ok: false, reason: "disabled" });
-    expect(mailConfig({ ...GMAIL, VERCEL_ENV: "preview", MAIL_ENABLED: "1" }).ok).toBe(true);
+  it("sends nothing in previews unless MAIL_ENABLED=1", () => {
+    expect(mailConfig({ ...GMAIL, APP_ENV: "preview" })).toEqual({ ok: false, reason: "disabled" });
+    expect(mailConfig({ ...GMAIL, APP_ENV: "development" })).toEqual({ ok: false, reason: "disabled" });
+    expect(mailConfig({ ...GMAIL, APP_ENV: "preview", MAIL_ENABLED: "1" }).ok).toBe(true);
   });
 });
 

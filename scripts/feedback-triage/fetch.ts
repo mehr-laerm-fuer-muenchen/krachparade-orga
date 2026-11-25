@@ -19,7 +19,7 @@ import { selectForTriage, shortId, shouldReport, type TriageRow } from "../../sr
 
 const OUT_DIR = "triage-out";
 const OUT_FILE = `${OUT_DIR}/input.json`;
-const LINK_BASE = "https://krachparade-orga.vercel.app/feedback/";
+const LINK_BASE = "https://krachparade-orga.de/feedback/";
 
 function fail(message: string): never {
   console.error(`Abbruch: ${message}`);

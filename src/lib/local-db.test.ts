@@ -19,9 +19,9 @@ describe("localNeonEndpoint", () => {
     expect(localNeonEndpoint({ LOCAL_NEON_HTTP_ENDPOINT: "kein link" })).toBeNull();
   });
 
-  it("is never used on Vercel", () => {
-    for (const VERCEL_ENV of ["production", "preview", "development"]) {
-      expect(localNeonEndpoint({ LOCAL_NEON_HTTP_ENDPOINT: "http://localhost:4444/sql", VERCEL_ENV })).toBeNull();
+  it("is never used on a server (APP_ENV set)", () => {
+    for (const APP_ENV of ["production", "preview", "development"]) {
+      expect(localNeonEndpoint({ LOCAL_NEON_HTTP_ENDPOINT: "http://localhost:4444/sql", APP_ENV })).toBeNull();
     }
   });
 });

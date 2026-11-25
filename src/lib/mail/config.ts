@@ -8,7 +8,7 @@ export type MailEnv = {
   SMTP_PASSWORD?: string;
   MAIL_FROM?: string;
   MAIL_ENABLED?: string;
-  VERCEL_ENV?: string;
+  APP_ENV?: string;
 };
 
 export type MailConfig = {
@@ -28,12 +28,12 @@ function value(text: string | undefined): string {
 
 /**
  * The SMTP settings, or why nothing is sent: a variable is missing, or a
- * Vercel preview without MAIL_ENABLED=1 (mails from click tests must not
+ * preview (APP_ENV=preview) without MAIL_ENABLED=1 (mails from click tests must not
  * reach the real mailbox).
  */
 export function mailConfig(env: MailEnv): MailConfigResult {
-  const vercelEnv = value(env.VERCEL_ENV);
-  if (vercelEnv && vercelEnv !== "production" && value(env.MAIL_ENABLED) !== "1") {
+  const appEnv = value(env.APP_ENV);
+  if (appEnv && appEnv !== "production" && value(env.MAIL_ENABLED) !== "1") {
     return { ok: false, reason: "disabled" };
   }
   const host = value(env.SMTP_HOST);

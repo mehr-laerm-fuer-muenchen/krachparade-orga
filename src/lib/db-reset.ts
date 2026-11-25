@@ -1,5 +1,5 @@
 export type ResetEnv = {
-  VERCEL_ENV?: string;
+  APP_ENV?: string;
   DATABASE_URL?: string;
   DATABASE_URL_PROD?: string;
 };
@@ -9,8 +9,8 @@ export type ResetEnv = {
  * app table, so it refuses anything that looks like production.
  */
 export function resetBlockReason(env: ResetEnv): string | null {
-  if (env.VERCEL_ENV === "production") {
-    return "VERCEL_ENV ist production.";
+  if (env.APP_ENV === "production") {
+    return "APP_ENV ist production.";
   }
   if (!env.DATABASE_URL) {
     return "DATABASE_URL fehlt.";
