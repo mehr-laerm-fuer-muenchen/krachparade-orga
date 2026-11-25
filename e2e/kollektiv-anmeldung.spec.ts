@@ -64,8 +64,8 @@ function choose(page: Page, name: string, option: string | RegExp) {
     .check();
 }
 
-// Spec 032: local Mailpit of docker/compose.yaml; not reachable in CI against
-// the Vercel preview, where the mail part is skipped.
+// Spec 032: local Mailpit of docker/compose.yaml; not reachable in CI or
+// against a deployed preview, where the mail part is skipped.
 const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://localhost:8026";
 
 type MailpitAddress = { Address: string };

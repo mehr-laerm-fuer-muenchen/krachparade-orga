@@ -2,7 +2,7 @@
 
 Spec 031. Damit läuft die App komplett auf deinem Rechner, ohne Neon. In der Datenbank stehen nur ausgedachte Daten aus dem Seed. Für Claude Code ist das der Weg, die App selbst zu starten und alle Klicktests laufen zu lassen.
 
-**So funktioniert's:** Die App spricht mit der Datenbank über das HTTP-Protokoll von Neon (Treiber `neon-http`). Docker startet ein normales Postgres und davor einen kleinen Übersetzer, den „Neon-HTTP-Proxy“, auf `http://localhost:4444/sql`. Ist `LOCAL_NEON_HTTP_ENDPOINT` gesetzt, schickt `src/db/index.ts` alle Anfragen dorthin. Das passiert nur bei einer `localhost`-Adresse und nie bei Vercel (`src/lib/local-db.ts`).
+**So funktioniert's:** Die App spricht mit der Datenbank über das HTTP-Protokoll von Neon (Treiber `neon-http`). Docker startet ein normales Postgres und davor einen kleinen Übersetzer, den „Neon-HTTP-Proxy“, auf `http://localhost:4444/sql`. Ist `LOCAL_NEON_HTTP_ENDPOINT` gesetzt, schickt `src/db/index.ts` alle Anfragen dorthin. Das passiert nur bei einer `localhost`-Adresse und nie auf einem Server, also wenn `APP_ENV` gesetzt ist (`src/lib/local-db.ts`).
 
 `docker/local.env` enthält nur Fantasie-Werte für diesen Rechner, keine echten Geheimnisse. Google-Login geht damit nicht, du meldest dich über `/dev/login` an.
 

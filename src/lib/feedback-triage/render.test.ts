@@ -21,7 +21,7 @@ function entry(id: string, message: string, extra: Partial<Assessment> = {}): As
     entry: {
       id,
       shortId: id.slice(0, 8),
-      link: `https://krachparade-orga.vercel.app/feedback/${id}`,
+      link: `https://krachparade-orga.de/feedback/${id}`,
       kind: "bug",
       message,
     },
@@ -67,7 +67,7 @@ describe("renderTopicBody / extendTopicBody", () => {
       entry(ID_A, `Ruf mich an: 0171 2345678 @franz ${"x".repeat(400)}`),
     ]);
     expect(body.startsWith("Folgt auf #7\n\n")).toBe(true);
-    expect(body).toContain("[`aaaaaaaa`](https://krachparade-orga.vercel.app/feedback/" + ID_A + ")");
+    expect(body).toContain("[`aaaaaaaa`](https://krachparade-orga.de/feedback/" + ID_A + ")");
     expect(body).toContain("[entfernt] ＠franz");
     expect(body).not.toContain("2345678");
     expect(body).toContain("…");

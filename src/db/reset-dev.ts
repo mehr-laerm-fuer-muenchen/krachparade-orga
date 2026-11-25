@@ -4,7 +4,7 @@ import { resetBlockReason } from "@/lib/db-reset";
 
 async function main() {
   const reason = resetBlockReason({
-    VERCEL_ENV: process.env.VERCEL_ENV,
+    APP_ENV: process.env.APP_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_URL_PROD: process.env.DATABASE_URL_PROD,
   });

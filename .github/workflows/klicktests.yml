@@ -83,12 +83,12 @@ jobs:
           echo "::add-mask::$secret"
           echo "AUTH_SECRET=$secret" >> "$GITHUB_ENV"
 
-      # VERCEL_ENV=preview + ENABLE_DEV_LOGIN=1: dev login as in the preview
+      # APP_ENV=preview + ENABLE_DEV_LOGIN=1: dev login as in the preview
       # (src/lib/dev-login.ts). Google login is not needed for the tests.
       - name: App selbst bauen
         env:
           DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
-          VERCEL_ENV: preview
+          APP_ENV: preview
           ENABLE_DEV_LOGIN: "1"
         run: pnpm build
 
@@ -98,7 +98,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
           AUTH_TRUST_HOST: "1"
-          VERCEL_ENV: preview
+          APP_ENV: preview
           ENABLE_DEV_LOGIN: "1"
         run: |
           setsid pnpm start -p 3100 > "$RUNNER_TEMP/app.log" 2>&1 < /dev/null &

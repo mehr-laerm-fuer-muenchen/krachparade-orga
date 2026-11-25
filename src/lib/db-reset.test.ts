@@ -7,11 +7,11 @@ const PROD = "postgresql://prod.example.org/app";
 describe("resetBlockReason", () => {
   it("allows the dev database", () => {
     expect(resetBlockReason({ DATABASE_URL: DEV, DATABASE_URL_PROD: PROD })).toBeNull();
-    expect(resetBlockReason({ DATABASE_URL: DEV, VERCEL_ENV: "development" })).toBeNull();
+    expect(resetBlockReason({ DATABASE_URL: DEV, APP_ENV: "development" })).toBeNull();
   });
 
-  it("refuses VERCEL_ENV=production", () => {
-    expect(resetBlockReason({ DATABASE_URL: DEV, VERCEL_ENV: "production" })).toMatch(/production/);
+  it("refuses APP_ENV=production", () => {
+    expect(resetBlockReason({ DATABASE_URL: DEV, APP_ENV: "production" })).toMatch(/production/);
   });
 
   it("refuses a missing DATABASE_URL", () => {

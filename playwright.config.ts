@@ -1,9 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 // `pnpm e2e` runs against an already running app: locally `pnpm dev`, in CI
-// the Vercel preview (BASE_URL + VERCEL_AUTOMATION_BYPASS_SECRET).
+// the self-built app on port 3100, or a deployed preview (all via BASE_URL).
 const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
-const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -23,9 +22,6 @@ export default defineConfig({
     timezoneId: "Europe/Berlin",
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
-    extraHTTPHeaders: bypassSecret
-      ? { "x-vercel-protection-bypass": bypassSecret, "x-vercel-set-bypass-cookie": "true" }
-      : undefined,
   },
   projects: [
     { name: "iphone", use: { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } },

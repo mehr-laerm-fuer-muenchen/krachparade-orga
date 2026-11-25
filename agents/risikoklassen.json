@@ -37,8 +37,6 @@
     "scripts/**",
     "drizzle*.config.*",
     "next.config.*",
-    "vercel.json",
-    "vercel.ts",
     ".env*",
     "**/.env*",
     "package.json",

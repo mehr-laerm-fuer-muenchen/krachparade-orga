@@ -10,30 +10,31 @@ export function isDevLoginEmail(email: string): boolean {
 
 export type DevLoginEnv = {
   NODE_ENV?: string;
-  VERCEL_ENV?: string;
+  APP_ENV?: string;
   ENABLE_DEV_LOGIN?: string;
 };
 
 /**
  * The dev login skips the invite link so Claude Code and the Playwright tests
- * can sign in. It works locally (NODE_ENV not production) and in Vercel
- * previews with ENABLE_DEV_LOGIN=1 – never in production.
+ * can sign in. It works locally (NODE_ENV not production) and in previews or
+ * the demo (APP_ENV=preview) with ENABLE_DEV_LOGIN=1 – never in production
+ * (APP_ENV=production).
  */
 export function isDevLoginEnabled(env: DevLoginEnv): boolean {
-  if (env.VERCEL_ENV === "production") {
+  if (env.APP_ENV === "production") {
     return false;
   }
   if (env.NODE_ENV !== "production") {
     return true;
   }
-  return env.VERCEL_ENV === "preview" && env.ENABLE_DEV_LOGIN === "1";
+  return env.APP_ENV === "preview" && env.ENABLE_DEV_LOGIN === "1";
 }
 
 /** The variables `isDevLoginEnabled` needs, read from `process.env`. */
 export function devLoginEnvFromProcess(): DevLoginEnv {
   return {
     NODE_ENV: process.env.NODE_ENV,
-    VERCEL_ENV: process.env.VERCEL_ENV,
+    APP_ENV: process.env.APP_ENV,
     ENABLE_DEV_LOGIN: process.env.ENABLE_DEV_LOGIN,
   };
 }
