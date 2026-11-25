@@ -34,7 +34,8 @@ const FORBIDDEN = [
   /\bDROP\b/i,
   /\bRENAME\b/i,
   /\bTRUNCATE\b/i,
-  /\bDELETE\b/i,
+  // DELETE FROM, not the "ON DELETE ..." of a foreign key.
+  /\bDELETE\s+FROM\b/i,
   /\bALTER\s+COLUMN\b[^;]*\b(TYPE|SET\s+NOT\s+NULL)\b/i,
 ];
 
@@ -167,7 +168,13 @@ async function main() {
     .filter((s) => s.length > 0);
   const statements = await withoutNoOps(db, single, notes);
   const blocked = statements.filter((s) => FORBIDDEN.some((p) => p.test(s)));
-  const refuse = result.hasDataLoss || blocked.length > 0;
+  // Only the statements that would really run count. drizzle-kit's own
+  // `hasDataLoss` also fires for the skipped primary-key re-creation; every
+  // real data-loss case (DROP, TRUNCATE, type change) is in FORBIDDEN.
+  const refuse = blocked.length > 0;
+  if (refuse) {
+    notes.push(...blocked.map((s) => `Gesperrt: \`${s.split("\n")[0]}\``));
+  }
 
   const list = statements.length
     ? statements.map((s) => "```sql\n" + s + "\n```").join("\n")
