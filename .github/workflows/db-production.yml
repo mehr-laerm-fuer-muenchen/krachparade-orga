@@ -62,7 +62,7 @@ jobs:
         if: steps.check.outputs.changes == 'true' && inputs.nur_pruefen != true
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          NEON_PROJECT_ID: ${{ vars.NEON_PROD_PROJECT_ID }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROD_PROJECT_ID || secrets.NEON_PROD_PROJECT_ID }}
         run: |
           if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
             echo "::error::NEON_API_KEY oder NEON_PROD_PROJECT_ID fehlt. Ohne Backup wird nichts geändert."
