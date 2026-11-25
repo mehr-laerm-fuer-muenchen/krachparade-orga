@@ -4,7 +4,7 @@ Planungs-App für die Kern-Orga der Krachparade (Mehr Lärm für München), erst
 
 App: https://krachparade-orga.de (selbst gehostet mit Coolify, Anmeldung mit Google nur für freigeschaltete Mitglieder der Kern-Orga). Zum Ausprobieren mit ausgedachten Daten gibt es zu jedem Pull Request eine Vorschau mit Dev-Login.
 
-Dieses Repo (`mehr-laerm-fuer-muenchen/krachparade-orga`) ist eine Kopie des Original-Repos, die statt auf Vercel auf einem eigenen Server läuft. Was hier anders ist, steht in [`AGENTS.md`](AGENTS.md), Abschnitt 0.
+Dieses Repo (`mehr-laerm-fuer-muenchen/krachparade-orga`) ist das Haupt-Repo; es ist aus dem früheren Original-Repo (Vercel) hervorgegangen. Wie im Team gearbeitet wird (Freigaben, Pushen, Rollen), steht in [`AGENTS.md`](AGENTS.md), Abschnitt 0.
 
 ## Stack
 
