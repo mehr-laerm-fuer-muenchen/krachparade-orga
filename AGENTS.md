@@ -6,9 +6,11 @@ Diese Datei ist die einzige Quelle für Agenten-Regeln (Claude Code lokal und in
 
 Dieser Abschnitt gilt für das Repo `mehr-laerm-fuer-muenchen/krachparade-orga` (lokal Remote `coolify`, Zweig `coolify-demo`) und geht allen anderen Abschnitten vor.
 
-- **Tiago hat dieselben Rechte wie Franz.** Überall, wo „Franz“ oder „nur Franz“ steht, gilt „Franz oder Tiago“: Specs freigeben, Klasse-C-Änderungen erlauben, mergen, Notbremse.
+- **Team statt einer Person.** Entwickler:innen sind alle mit Schreibrecht im GitHub-Repo (bis zu vier Personen, darunter Franz und Tiago). Überall, wo „Franz“ oder „nur Franz“ steht, gilt „eine Entwicklerin oder ein Entwickler“: Specs freigeben (Label `go`, Zeile `Freigabe Franz: ☑` bleibt als Marke), Klasse-C-Änderungen erlauben, mergen, Notbremse.
+- **Jede Änderung an `main` nur per Pull Request.** Kein direkter Push auf `main`, auch nicht für Admins. Gemergt wird erst, wenn „Prüfungen“ und „Klicktests“ grün sind **und eine andere Person** die PR freigegeben hat (Approve). Die eigene PR freigeben zählt nicht; nach einem neuen Commit braucht es eine neue Freigabe. Durchgesetzt über das Ruleset `scripts/github/ruleset-main-team.json` (Anleitung `scripts/github/TEAM.md`).
+- **Klasse C** (Abschnitt 5) braucht dieselbe Freigabe durch eine andere Person; im Review ausdrücklich bestätigen, dass die Klasse-C-Änderung gewollt ist.
 - **Hosting:** Coolify auf dem eigenen netcup-Server.
-- **Pushen:** Agenten dürfen `git push coolify …` ausführen, wenn Tiago oder Franz es im Chat verlangen. **Nie** zu `origin` (`dellingerfranz-dev/krachparade-orga`) pushen, nie `--force`.
+- **Pushen:** Agenten dürfen `git push coolify <arbeitszweig>` ausführen, wenn eine Entwicklerin oder ein Entwickler es im Chat verlangt. **Nie** auf `main`, **nie** zu `origin` (`dellingerfranz-dev/krachparade-orga`), nie `--force`.
 
 ## 1. Projekt
 

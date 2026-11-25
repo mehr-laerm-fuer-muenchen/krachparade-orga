@@ -29,13 +29,13 @@ jobs:
           set -euo pipefail
           anlegen() { gh label create "$1" --color "$2" --description "$3" --force; }
           anlegen spec          0e8a16 "Spec, die ein Agent bauen kann"
-          anlegen go            1d76db "Franz gibt die Spec frei: Build-Agent startet"
+          anlegen go            1d76db "Spec freigegeben (Entwickler:in mit Schreibrecht): Build-Agent startet"
           anlegen agent         5319e7 "PR vom Build-Agenten"
           anlegen klasse-A      c2e0c6 "Risikoklasse A: vollautomatisch"
           anlegen klasse-B      fbca04 "Risikoklasse B: automatisch nach Spec-Go"
-          anlegen klasse-C      b60205 "Risikoklasse C: immer Franz"
-          anlegen braucht-db    d93f0b "Franz: Backup, pnpm db:push:prod vom PR-Zweig, dann mergen"
-          anlegen braucht-franz b60205 "Agent hat gestoppt: Franz entscheidet"
+          anlegen klasse-C      b60205 "Risikoklasse C: Freigabe durch Entwickler:in"
+          anlegen braucht-db    d93f0b "Datenbank-Änderung: Schema-Actions prüfen, dann mergen"
+          anlegen braucht-franz b60205 "Agent hat gestoppt: Entwickler:in entscheidet"
           anlegen fix-1         ededed "Fix-Agent: 1. Versuch"
           anlegen fix-2         ededed "Fix-Agent: 2. Versuch"
           anlegen fix-3         ededed "Fix-Agent: 3. Versuch"
@@ -76,7 +76,12 @@ jobs:
           [ "$AUTOPILOT" = "an" ] || ende "Autopilot aus (Variable AUTOPILOT ist nicht \`an\`)."
           [ "$AGENT_BUILD" = "an" ] || ende "Build-Agent aus (Variable AGENT_BUILD ist nicht \`an\`)."
           hat_label spec || ende "Das Issue hat kein Label \`spec\`."
-          [ "$SENDER" = "dellingerfranz-dev" ] || ende "Nur dellingerfranz-dev darf \`go\` setzen."
+          # Everyone with write access may approve a spec (AGENTS.md, section 0).
+          recht=$(gh api "repos/$GH_REPO/collaborators/$SENDER/permission" --jq '.permission' 2>/dev/null || echo none)
+          case "$recht" in
+            admin|maintain|write) ;;
+            *) ende "Nur Entwickler:innen mit Schreibrecht im Repo dürfen \`go\` setzen." ;;
+          esac
           [[ "$TITEL" =~ ^[0-9]{3}-[a-z0-9-]+$ ]] || ende "Der Titel muss das Format \`NNN-kurzname\` haben (z. B. \`021-tab-countdown\`)."
 
           {
@@ -102,6 +107,7 @@ jobs:
       NR: ${{ github.event.issue.number }}
       NAME: ${{ needs.startbedingungen.outputs.name }}
       SPEC_NR: ${{ needs.startbedingungen.outputs.nummer }}
+      SENDER: ${{ github.event.sender.login }}
       ZWEIG: agent/${{ needs.startbedingungen.outputs.name }}
       LAUF_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
@@ -153,7 +159,7 @@ jobs:
             exit 1
           fi
 
-          vermerk="Go: Label von dellingerfranz-dev an Issue #$NR, $(TZ=Europe/Berlin date +%d.%m.%Y)"
+          vermerk="Go: Label von $SENDER an Issue #$NR, $(TZ=Europe/Berlin date +%d.%m.%Y)"
           datei="docs/specs/$NAME.md"
           if grep -q '^Freigabe Franz:' "$RUNNER_TEMP/issue.md"; then
             awk -v vermerk="$vermerk" '
@@ -306,7 +312,7 @@ jobs:
             echo "## Risikoklasse $klasse"
             echo
             cat "$RUNNER_TEMP/gruende.md"
-            [ "$db" = "true" ] && printf '\n**Datenbank-Änderung:** kein Auto-Merge. Schritte für Franz stehen im Issue (Label `braucht-db`).\n'
+            [ "$db" = "true" ] && printf '\n**Datenbank-Änderung:** kein Auto-Merge. Die Actions „Schema Vorschau“ und „Schema Production“ gleichen die Datenbanken ab (Label `braucht-db`).\n'
             echo
             echo "🤖 Gebaut vom Build-Agenten ([Lauf]($LAUF_URL))"
           } > "$RUNNER_TEMP/pr.md"
@@ -337,7 +343,7 @@ jobs:
             gh issue comment "$NR" --body-file "$RUNNER_TEMP/meldung.md"
           else
             # Auto-merge needs a public repo or a paid GitHub plan. Without it,
-            # the PR stays open and Franz or Tiago merge it by hand.
+            # the PR stays open and a developer reviews and merges it by hand.
             if gh pr merge "$pr" --auto --merge; then
               gh issue comment "$NR" --body "🚀 PR #$pr offen, geht automatisch live, sobald die Prüfungen grün sind. Vorschau folgt im PR."
             else

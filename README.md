@@ -129,23 +129,24 @@ In allen anderen Fällen ist er aus, und `/dev/**` antwortet mit 404 (`src/lib/d
 ## Wie gebaut wird
 
 1. Spec in `docs/specs/NNN-kurzname.md` nach der Vorlage `docs/specs/_vorlage.md`
-2. Freigabe durch Franz oder Tiago in der Kopfzeile der Spec
+2. Freigabe durch eine Entwicklerin oder einen Entwickler (Label `go` bzw. Kopfzeile der Spec)
 3. Bau lokal mit Claude Code auf einem eigenen Zweig
 4. Pull Request gegen `main`, Coolify baut automatisch eine Vorschau
-5. Prüfen: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build` lokal, dazu die Vorschau durchklicken. Die GitHub-Actions-Workflows sind in dieser Kopie abgeschaltet.
-6. Merge durch Franz oder Tiago, nur als Merge-Commit, danach liefert Coolify `main` automatisch aus
+5. Prüfen: GitHub-Actions „Prüfungen“ und „Klicktests“ müssen grün sein, dazu die Vorschau durchklicken
+6. Eine **andere** Person gibt die PR frei (Approve), dann Merge als Merge-Commit; danach liefert Coolify `main` automatisch aus
 
-Jede Änderung bekommt eine Risikoklasse: A ist unkritisch, B braucht eine freigegebene Spec, C entscheiden immer Franz oder Tiago. Details in [`AGENTS.md`](AGENTS.md) und [`agents/risikoklassen.json`](agents/risikoklassen.json).
+Jede Änderung bekommt eine Risikoklasse: A ist unkritisch, B braucht eine freigegebene Spec, C braucht die ausdrückliche Freigabe einer anderen Entwicklerin oder eines anderen Entwicklers. Details in [`AGENTS.md`](AGENTS.md) und [`agents/risikoklassen.json`](agents/risikoklassen.json).
 
 ## Mitentwickeln
 
-Alle drei arbeiten gleichberechtigt mit Zweigen im selben Repo, ohne Fork.
+Bis zu vier Entwickler:innen arbeiten gleichberechtigt mit Zweigen im selben Repo, ohne Fork. **Nach `main` kommt nichts ohne Pull Request**, und jede PR braucht die Freigabe einer anderen Person. Einrichtung und Aufnahme neuer Leute: [`scripts/github/TEAM.md`](scripts/github/TEAM.md).
 
 1. Spec in `docs/specs/` (Vorlage `docs/specs/_vorlage.md`)
-2. Freigabe durch Franz oder Tiago
+2. Freigabe durch eine andere Entwicklerin oder einen anderen Entwickler
 3. Bau auf einem eigenen Zweig, lokal wie unter [Lokal starten](#lokal-starten) beschrieben, mit **eigenem Neon-Projekt**
 4. Pull Request gegen `main`, die Vorschau-Adresse steht unter `https://<PR-Nummer>.preview.krachparade-orga.de`
-5. Merge als Merge-Commit, danach ist der Stand live
+5. Eine andere Person prüft PR und Vorschau und klickt **Approve**
+6. Merge als Merge-Commit, sobald alles grün ist, danach ist der Stand live
 
 Kleinkram geht ohne Spec: Fehler beheben, Texte, Tests. Ein neues Datenmodell braucht immer eine Spec.
 
