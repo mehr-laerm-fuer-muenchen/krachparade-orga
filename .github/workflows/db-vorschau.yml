@@ -1,0 +1,62 @@
+name: Schema Vorschau
+
+# Brings the demo database (used by all PR previews) and the click-test
+# database up to the PR's schema, so nobody has to run `pnpm db:push` by hand.
+# Only additive changes, see scripts/db-push-ci.ts.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - src/db/schema.ts
+
+# One schema push at a time across all PRs (shared database).
+concurrency:
+  group: schema-vorschau
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: Schema auf Demo-Datenbank
+    # Secrets are missing for PRs from forks; skip instead of failing.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v7
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v6
+
+      - name: Node einrichten
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Demo-Datenbank (Vorschauen)
+        env:
+          PUSH_DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
+          PUSH_LABEL: Demo-Datenbank (Vorschauen)
+        run: pnpm exec tsx scripts/db-push-ci.ts --apply
+
+      # Click tests use DEV_DATABASE_URL. Skip if it is the same database.
+      - name: Klicktest-Datenbank
+        env:
+          PUSH_DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          PREVIEW_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
+          PUSH_LABEL: Klicktest-Datenbank
+        run: |
+          if [ -z "$PUSH_DATABASE_URL" ] || [ "$PUSH_DATABASE_URL" = "$PREVIEW_URL" ]; then
+            echo "Gleiche Datenbank wie die Vorschau oder nicht gesetzt, übersprungen."
+            exit 0
+          fi
+          pnpm exec tsx scripts/db-push-ci.ts --apply

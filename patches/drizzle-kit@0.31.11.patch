@@ -1,0 +1,36 @@
+diff --git a/api.js b/api.js
+index f4ecb91959f62fc938416a0585458c0a710af161..fff971599bd3ff72d6d21e4365ccd2c4f31c1b84 100644
+--- a/api.js
++++ b/api.js
+@@ -75272,7 +75272,12 @@ var pushSchema = async (imports, drizzleInstance, schemaFilters, tablesFilter, e
+   );
+   const db = {
+     query: async (query, params) => {
+-      const res = await drizzleInstance.execute(sql.raw(query));
++      const res = await drizzleInstance.execute(
++        params?.length ? sql.join(query.split(/(\$\d+)/).map((part) => {
++          const m = /^\$(\d+)$/.exec(part);
++          return m ? sql`${params[Number(m[1]) - 1]}` : sql.raw(part);
++        })) : sql.raw(query)
++      );
+       return res.rows;
+     }
+   };
+diff --git a/api.mjs b/api.mjs
+index a940272dfb05accf57a472c46c52652ec9ad0080..d8020d828f5019aac47953650511675e3871d168 100644
+--- a/api.mjs
++++ b/api.mjs
+@@ -75301,7 +75301,12 @@ var pushSchema = async (imports, drizzleInstance, schemaFilters, tablesFilter, e
+   );
+   const db = {
+     query: async (query, params) => {
+-      const res = await drizzleInstance.execute(sql.raw(query));
++      const res = await drizzleInstance.execute(
++        params?.length ? sql.join(query.split(/(\$\d+)/).map((part) => {
++          const m = /^\$(\d+)$/.exec(part);
++          return m ? sql`${params[Number(m[1]) - 1]}` : sql.raw(part);
++        })) : sql.raw(query)
++      );
+       return res.rows;
+     }
+   };

@@ -143,7 +143,8 @@ Danach die alte App von Franz stilllegen oder deutlich als „nicht mehr benutze
 
 ## Danach im Betrieb
 
-- **Schema-Änderungen:** Bringt ein PR neue Tabellen oder Spalten, **vor dem Merge** in Neon einen Backup-Zweig `backup-vor-NNN` anlegen und `pnpm db:push:prod` ausführen (nur hinzufügend). Für die Vorschau wie bisher `pnpm db:push` gegen die Demo-Datenbank.
+- **Schema-Änderungen:** laufen automatisch. „Schema Vorschau“ gleicht beim PR die Demo-Datenbank ab, „Schema Production“ nach dem Merge Production (vorher Backup-Zweig `backup-vor-push-…` in Neon). Nur hinzufügend; bei allem anderen bricht die Action ab und es wird von Hand geklärt. Alte Backup-Zweige ab und zu in Neon löschen (Free-Plan: begrenzte Zahl an Zweigen).
+- **Einrichtung der Actions (einmalig):** GitHub → Settings → Secrets and variables → Actions: Secret `PREVIEW_DATABASE_URL` (Demo-Datenbank, dieselbe wie die Preview-`DATABASE_URL` in Coolify). Settings → Environments → **New environment** `production`, bei *Deployment branches* nur `main` erlauben; darin Secret `PROD_DATABASE_URL` (Direct-Adresse aus Schritt 1), Secret `NEON_API_KEY` (Neon → Account → API keys) und Variable `NEON_PROD_PROJECT_ID` (Neon → Projekt Production → Settings).
 - **Vorschauen** benutzen nie die Production-Datenbank. Die Vorschau-Variablen in Coolify zeigen immer auf das Demo-Projekt.
 - **GitHub-Klicktests** nutzen das Secret `DEV_DATABASE_URL`. Es darf nie auf Production zeigen.
 - **Sicherung:** Neon kann einen Zweig auf einen früheren Zeitpunkt zurücksetzen (Zeitraum je nach Plan). Vor größeren Änderungen zusätzlich einen Backup-Zweig anlegen.
