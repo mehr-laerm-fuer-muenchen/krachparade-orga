@@ -2,7 +2,7 @@
 
 Planungs-App für die Kern-Orga der Krachparade (Mehr Lärm für München), erste Ausgabe: Krachparade 2027 am 08.05.2027. Die App enthält den Plan rückwärts von der Krachparade, die Arbeitskreise und Protokolle mit Beschlüssen und To-dos. Gebaut wird sie mit Claude Code nach Specs, siehe [Wie gebaut wird](#wie-gebaut-wird).
 
-Demo: https://krachparade-orga.de (selbst gehostet mit Coolify, nur ausgedachte Testdaten, Anmeldung über `/dev/login`)
+App: https://krachparade-orga.de (selbst gehostet mit Coolify, Anmeldung mit Google nur für freigeschaltete Mitglieder der Kern-Orga). Zum Ausprobieren mit ausgedachten Daten gibt es zu jedem Pull Request eine Vorschau mit Dev-Login.
 
 Dieses Repo (`mehr-laerm-fuer-muenchen/krachparade-orga`) ist eine Kopie des Original-Repos, die statt auf Vercel auf einem eigenen Server läuft. Was hier anders ist, steht in [`AGENTS.md`](AGENTS.md), Abschnitt 0.
 
@@ -30,12 +30,12 @@ Die App läuft mit [Coolify](https://coolify.io) auf einem eigenen netcup-Server
 | App | https://krachparade-orga.de |
 | PR-Vorschau | `https://<PR-Nummer>.preview.krachparade-orga.de` |
 | Coolify-Oberfläche | https://coolify.krachparade-orga.de (nur fürs Team) |
-| Datenbank | eigenes Neon-Projekt, nur ausgedachte Daten |
+| Datenbank | Neon: Projekt *Production* (echte Daten) für die App, Projekt *Krachparade Orga* (ausgedachte Daten) für Vorschauen |
 
 - **Deploy:** Jeder Push auf `main` wird automatisch gebaut und ausgeliefert. Gebaut wird auf dem Server mit Railpack, das Node und pnpm aus `.node-version` und `package.json` nimmt.
-- **Vorschau:** Jeder Pull Request gegen `main` bekommt eine eigene Vorschau unter der PR-Nummer. Neue Commits im PR bauen sie neu, beim Schließen wird sie entfernt. Die Vorschauen nutzen dieselbe Demo-Datenbank wie die App.
+- **Vorschau:** Jeder Pull Request gegen `main` bekommt eine eigene Vorschau unter der PR-Nummer. Neue Commits im PR bauen sie neu, beim Schließen wird sie entfernt. Die Vorschauen nutzen die Demo-Datenbank mit ausgedachten Daten, nie die Production-Datenbank.
 - **Neue Tabellen oder Spalten:** Bringt ein PR Änderungen an `src/db/schema.ts`, vor dem Öffnen des PRs auf dem PR-Zweig `pnpm db:push` gegen die Demo-Datenbank ausführen. Sonst bricht die Vorschau nach dem Login mit „column … does not exist“ ab. Nur hinzufügende Änderungen (neue Tabellen, neue Spalten) sind so erlaubt; löscht oder benennt `db:push` etwas um, abbrechen und im Team klären.
-- **Umgebungsvariablen** trägt das Team direkt in Coolify ein, für Production und Vorschau getrennt, jeweils auch zur Build-Zeit: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, `ADMIN_EMAILS`, `APP_ENV=preview` und `ENABLE_DEV_LOGIN=1` (siehe [Dev-Login](#dev-login)).
+- **Umgebungsvariablen** trägt das Team direkt in Coolify ein, für Production und Vorschau getrennt, jeweils auch zur Build-Zeit. Beide: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, `ADMIN_EMAILS`. Production zusätzlich `APP_ENV=production`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` und die `SMTP_*`-Variablen; Vorschau zusätzlich `APP_ENV=preview` und `ENABLE_DEV_LOGIN=1` (siehe [Dev-Login](#dev-login)). Der Umzug auf echte Daten steht in [`docs/betrieb/produktivgang.md`](docs/betrieb/produktivgang.md).
 - **Benachrichtigungen:** Fehlgeschlagene Deploys meldet Coolify per Mail an das Team.
 
 ## Ordner
@@ -118,8 +118,8 @@ In allen anderen Fällen ist er aus, und `/dev/**` antwortet mit 404 (`src/lib/d
 | `pnpm db:push` | Schema auf die Datenbank aus `DATABASE_URL` übertragen |
 | `pnpm db:seed` | Ausgedachte Testdaten einspielen |
 | `pnpm db:reset:dev` | Dev-Datenbank leeren und neu seeden |
-| `pnpm db:push:prod` | Schema auf Production – **nicht benutzen**, gehört zum Original-Repo |
-| `pnpm db:seed:prod` | Stammdaten auf Production – **nicht benutzen**, gehört zum Original-Repo |
+| `pnpm db:push:prod` | Schema auf Production (`DATABASE_URL_PROD`) – vorher Backup-Zweig in Neon, nur hinzufügend |
+| `pnpm db:seed:prod` | Stammdaten auf Production – nur für eine leere Datenbank |
 
 ## Daten-Regel
 

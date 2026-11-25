@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
 // Production counterpart of drizzle.config.ts, used only by `pnpm db:push:prod`.
-// Franz runs that himself (steps in AGENTS.md, label `braucht-db`).
+// Run by Franz or Tiago only (steps in docs/betrieb/produktivgang.md).
 config({ path: ".env.local" });
 
 const databaseUrl = process.env.DATABASE_URL_PROD;
