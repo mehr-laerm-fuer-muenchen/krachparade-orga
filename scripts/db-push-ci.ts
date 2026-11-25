@@ -41,6 +41,37 @@ const FORBIDDEN = [
 const DROP_INDEX = /^DROP INDEX "([^"]+)";?$/i;
 const CREATE_INDEX = /^CREATE (?:UNIQUE )?INDEX (?:IF NOT EXISTS )?"([^"]+)"/i;
 const SET_DEFAULT = /^ALTER TABLE "([^"]+)" ALTER COLUMN "([^"]+)" SET DEFAULT (.+?);?$/i;
+const DROP_CONSTRAINT = /^ALTER TABLE "([^"]+)" DROP CONSTRAINT "([^"]+)";?$/i;
+const ADD_CONSTRAINT = /^ALTER TABLE "([^"]+)" ADD CONSTRAINT "([^"]+)" (.+?);?$/i;
+
+/**
+ * Same constraint? A primary key or unique constraint over the same set of
+ * columns protects the same data, whatever the column order.
+ */
+function sameConstraint(current: string, wanted: string): boolean {
+  const a = normalize(current);
+  const b = normalize(wanted);
+  if (a === b) return true;
+  const keyColumns = /^(primarykey|unique)\(([^()]+)\)$/;
+  const ma = keyColumns.exec(a);
+  const mb = keyColumns.exec(b);
+  if (!ma || !mb || ma[1] !== mb[1]) return false;
+  const set = (list: string) => list.split(",").sort().join(",");
+  return set(ma[2]) === set(mb[2]);
+}
+
+/** Current definition of a constraint, e.g. `PRIMARY KEY (a, b)`, or null. */
+async function constraintDef(db: Db, table: string, name: string): Promise<string | null> {
+  const [row] = await rows<{ def: string }>(
+    db,
+    sql`select pg_get_constraintdef(c.oid) as def
+        from pg_constraint c
+        join pg_class t on t.oid = c.conrelid
+        join pg_namespace n on n.oid = t.relnamespace
+        where n.nspname = 'public' and t.relname = ${table} and c.conname = ${name}`,
+  );
+  return row?.def ?? null;
+}
 
 /** Compare SQL as Postgres prints it and as drizzle writes it. */
 function normalize(text: string): string {
@@ -58,7 +89,7 @@ async function rows<T>(db: Db, query: ReturnType<typeof sql>): Promise<T[]> {
 }
 
 /** Drop statements that would leave the database exactly as it is. */
-async function withoutNoOps(db: Db, statements: string[]): Promise<string[]> {
+async function withoutNoOps(db: Db, statements: string[], notes: string[]): Promise<string[]> {
   const skip = new Set<string>();
 
   for (const drop of statements) {
@@ -90,6 +121,25 @@ async function withoutNoOps(db: Db, statements: string[]): Promise<string[]> {
     }
   }
 
+  // drizzle-kit drops and re-adds composite primary keys on every push.
+  for (const drop of statements) {
+    const match = DROP_CONSTRAINT.exec(drop.trim());
+    if (!match) continue;
+    const [, table, name] = match;
+    const add = statements.find((s) => {
+      const m = ADD_CONSTRAINT.exec(s.trim());
+      return m?.[1] === table && m?.[2] === name;
+    });
+    const wanted = add ? ADD_CONSTRAINT.exec(add.trim())?.[3] : undefined;
+    const current = await constraintDef(db, table, name);
+    if (add && wanted && current && sameConstraint(current, wanted)) {
+      skip.add(drop);
+      skip.add(add);
+    } else if (current) {
+      notes.push(`Aktuell in der Datenbank: \`${table}.${name}\` = \`${current}\``);
+    }
+  }
+
   return statements.filter((s) => !skip.has(s));
 }
 
@@ -108,7 +158,8 @@ async function main() {
 
   const db = drizzle(neon(url));
   const result = await pushSchema(schema, db as never);
-  const statements = await withoutNoOps(db, result.statementsToExecute);
+  const notes: string[] = [];
+  const statements = await withoutNoOps(db, result.statementsToExecute, notes);
   const blocked = statements.filter((s) => FORBIDDEN.some((p) => p.test(s)));
   const refuse = result.hasDataLoss || blocked.length > 0;
 
@@ -116,6 +167,9 @@ async function main() {
     ? statements.map((s) => "```sql\n" + s + "\n```").join("\n")
     : "Keine Änderungen nötig, das Schema ist aktuell.";
   let summary = `### Schema-Abgleich: ${label}\n\n${list}\n`;
+  if (notes.length) {
+    summary += `\n${notes.map((n) => `- ${n}`).join("\n")}\n`;
+  }
   if (result.warnings.length) {
     summary += `\n**Warnungen:**\n${result.warnings.map((w) => `- ${w}`).join("\n")}\n`;
   }
