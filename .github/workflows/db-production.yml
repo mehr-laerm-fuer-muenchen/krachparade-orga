@@ -1,0 +1,85 @@
+name: Schema Production
+
+# Brings the production database up to the schema on main:
+# automatically after a merge that changes src/db/schema.ts, or by hand
+# (Actions → Schema Production → Run workflow).
+# Order: check → Neon backup branch (only if something changes) → apply.
+# Only additive changes, see scripts/db-push-ci.ts.
+#
+# Secrets live in the GitHub environment "production", which only the
+# main branch may use (Settings → Environments → production).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/db/schema.ts
+  workflow_dispatch:
+    inputs:
+      nur_pruefen:
+        description: "Nur anzeigen, was sich ändern würde"
+        type: boolean
+        default: false
+
+concurrency:
+  group: schema-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: Schema auf Production
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      PUSH_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      PUSH_LABEL: Production
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v7
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v6
+
+      - name: Node einrichten
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Prüfen
+        id: check
+        run: pnpm exec tsx scripts/db-push-ci.ts --check
+
+      - name: Backup-Zweig in Neon
+        if: steps.check.outputs.changes == 'true' && inputs.nur_pruefen != true
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROD_PROJECT_ID }}
+        run: |
+          if [ -z "$NEON_API_KEY" ] || [ -z "$NEON_PROJECT_ID" ]; then
+            echo "::error::NEON_API_KEY oder NEON_PROD_PROJECT_ID fehlt. Ohne Backup wird nichts geändert."
+            exit 1
+          fi
+          name="backup-vor-push-$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          status=$(curl -sS -o /tmp/neon.json -w '%{http_code}' -X POST \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches" \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"branch\":{\"name\":\"$name\"}}")
+          if [ "$status" != "201" ]; then
+            echo "::error::Backup-Zweig konnte nicht angelegt werden (HTTP $status). Nichts geändert."
+            exit 1
+          fi
+          echo "Backup-Zweig: $name" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Ausführen
+        if: steps.check.outputs.changes == 'true' && inputs.nur_pruefen != true
+        run: pnpm exec tsx scripts/db-push-ci.ts --apply

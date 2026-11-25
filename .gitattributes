@@ -1,0 +1,2 @@
+# pnpm patches must keep LF line endings (checksum in pnpm-lock.yaml).
+*.patch text eol=lf
