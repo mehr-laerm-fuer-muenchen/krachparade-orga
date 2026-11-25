@@ -159,7 +159,13 @@ async function main() {
   const db = drizzle(neon(url));
   const result = await pushSchema(schema, db as never);
   const notes: string[] = [];
-  const statements = await withoutNoOps(db, result.statementsToExecute, notes);
+  // drizzle-kit sometimes joins statements with "--> statement-breakpoint"
+  // (e.g. DROP + ADD CONSTRAINT); split them so each is checked on its own.
+  const single = result.statementsToExecute
+    .flatMap((s) => s.split(/\s*-->\s*statement-breakpoint\s*/))
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const statements = await withoutNoOps(db, single, notes);
   const blocked = statements.filter((s) => FORBIDDEN.some((p) => p.test(s)));
   const refuse = result.hasDataLoss || blocked.length > 0;
 
