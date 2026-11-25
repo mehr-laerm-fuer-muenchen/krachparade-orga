@@ -165,6 +165,9 @@ settings:
 overrides:
   '@esbuild-kit/core-utils>esbuild': ^0.25.0
 
+patchedDependencies:
+  drizzle-kit@0.31.11: b6c1730c60c7ea04a5aba3989a4cd35d53baff98887b967d7792053396719c5c
+
 importers:
 
   .:
@@ -220,7 +223,7 @@ importers:
         version: 18.0.7
       drizzle-kit:
         specifier: ^0.31.11
-        version: 0.31.11
+        version: 0.31.11(patch_hash=b6c1730c60c7ea04a5aba3989a4cd35d53baff98887b967d7792053396719c5c)
       eslint:
         specifier: ^9
         version: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
@@ -4410,7 +4413,7 @@ snapshots:
 
   dotenv@18.0.7: {}
 
-  drizzle-kit@0.31.11:
+  drizzle-kit@0.31.11(patch_hash=b6c1730c60c7ea04a5aba3989a4cd35d53baff98887b967d7792053396719c5c):
     dependencies:
       '@drizzle-team/brocli': 0.10.2
       '@esbuild-kit/esm-loader': 2.6.5

@@ -232,6 +232,8 @@ Datenbank-Schritte bei `braucht-db` (Franz, im Projektordner):
 7. `gh pr merge <nr> --merge`
 8. `git pull`
 
+In dieser Kopie (Abschnitt 0) übernehmen das die Actions „Schema Vorschau“ (Demo-Datenbank beim PR) und „Schema Production“ (nach dem Merge, mit Backup-Zweig in Neon), nur hinzufügend (`scripts/db-push-ci.ts`). Von Hand wie oben nur, wenn eine der Actions abbricht.
+
 ### Feedback-Triage (Spec 022)
 
 Workflow „Feedback-Triage“, täglich 6:45 Uhr Berliner Winterzeit und von Hand (mit `trocken = ja` nur Vorschau im Artefakt). Läuft nur auf `main`, nur bei `AUTOPILOT=an` und `AGENT_TRIAGE=an`.
